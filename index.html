@@ -259,7 +259,13 @@
       
       const docRef = await db.collection('orders').add(newOrder);
       
-      triggerTelegramNotification(newOrder, docRef.id);
+      // Isolated: a Telegram failure must NEVER block the order return
+      try {
+        triggerTelegramNotification(newOrder, docRef.id);
+      } catch (telegramErr) {
+        console.error("Telegram notification failed (non-fatal):", telegramErr);
+      }
+
       return { ...newOrder, id: docRef.id, otp };
     };
 
@@ -1172,12 +1178,14 @@
           updateActiveOrderId(newOrder.id);
 
           setStep('success');
-          setLoading(false);
           if (onOrderSuccess) {
             onOrderSuccess(newOrder);
           }
         } catch (err) {
-          window.alert("Failed to place order. Please try again.");
+          console.error("Checkout error:", err);
+          alert("Order failed: " + err.message);
+        } finally {
+          // Guaranteed to run — button will NEVER stay stuck on "Processing..."
           setLoading(false);
         }
       };
