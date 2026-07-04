@@ -2093,7 +2093,7 @@
         const formatted = `${dayNum}-${monthStr}-${year} ${weekdayStr}`;
 
         if (d.toDateString() === today.toDateString()) {
-          return `todays : ${formatted}`;
+          return `TODAY: : ${formatted}`;
         }
         return formatted;
       };
@@ -2357,7 +2357,7 @@
                 <div className={`px-6 py-4 border-b flex justify-between items-center ${
                   theme === 'light' ? 'bg-slate-100/50 border-slate-200' : 'bg-neutral-900/40 border-neutral-800'
                 }`}>
-                  <h3 className="font-serif font-bold text-lg">Archived Transaction History Log</h3>
+                  <h3 className="font-serif font-bold text-lg">Transaction History Log</h3>
                   <span className="text-[10px] text-neutral-450 font-bold uppercase tracking-wider">Historical records</span>
                 </div>
 
@@ -2405,8 +2405,8 @@
                                   </div>
                                   <div className={`text-[10px] mt-0.5 ${
                                     ['successfully_delivered', 'delivered', 'completed'].includes(order.status) 
-                                      ? 'text-green-600 font-bold' 
-                                      : 'text-red-600 font-bold'
+                                      ? 'text-green-700 font-bold' 
+                                      : 'text-red-700 font-bold'
                                   }`}>
                                     ₹{order.totalAmount}
                                   </div>
