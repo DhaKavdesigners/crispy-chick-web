@@ -2093,7 +2093,7 @@
         const formatted = `${dayNum}-${monthStr}-${year} ${weekdayStr}`;
 
         if (d.toDateString() === today.toDateString()) {
-          return `TODAY: : ${formatted}`;
+          return `TODAY : ${formatted}`;
         }
         return formatted;
       };
@@ -2405,8 +2405,8 @@
                                   </div>
                                   <div className={`text-[10px] mt-0.5 ${
                                     ['successfully_delivered', 'delivered', 'completed'].includes(order.status) 
-                                      ? 'text-green-1000 font-bold' 
-                                      : 'text-red-1000 font-bold'
+                                      ? 'text-green-600 font-bold' 
+                                      : 'text-red-600 font-bold'
                                   }`}>
                                     ₹{order.totalAmount}
                                   </div>
