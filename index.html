@@ -1071,12 +1071,19 @@
       const [gpsSecured, setGpsSecured] = useState(false);
       
       const [loading, setLoading] = useState(false);
-      const [step, setStep] = useState('info'); // 'info' -> 'success'
+      // 'info' → 'otp' → 'name' (if first-time) → 'success'
+      const [step, setStep] = useState('info');
       const [generatedOtp, setGeneratedOtp] = useState('');
 
       const [mounted, setMounted] = useState(false);
       const [isClosing, setIsClosing] = useState(false);
       const [isOrderPlaced, setIsOrderPlaced] = useState(false);
+
+      // OTP flow state
+      const [otpCode, setOtpCode] = useState('');
+      const [otpError, setOtpError] = useState('');
+      const [pendingUid, setPendingUid] = useState('');
+      const [pendingDisplayName, setPendingDisplayName] = useState('');
 
       const isAlreadyAuthenticated = !!(currentUser || (localStorage.getItem('cc_customer_name') && localStorage.getItem('cc_customer_phone')));
 
@@ -1095,8 +1102,22 @@
           setIsClosing(false);
           setMounted(false);
           setIsOrderPlaced(false);
+          setOtpCode('');
+          setOtpError('');
+          setPendingUid('');
+          setPendingDisplayName('');
         } else {
           setTimeout(() => setMounted(true), 50);
+          // Set up invisible reCAPTCHA when the modal opens
+          if (!window.checkoutRecaptchaVerifier) {
+            try {
+              window.checkoutRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('checkout-recaptcha-container', {
+                size: 'invisible',
+                callback: () => {}
+              });
+              window.checkoutRecaptchaVerifier.render().catch(() => {});
+            } catch(e) { console.warn('reCAPTCHA setup error:', e); }
+          }
         }
         if (window.lucide) window.lucide.createIcons();
       }, [isOpen, currentUser]);
@@ -1135,100 +1156,150 @@
         };
       }, [isOpen]);
 
+      // ─── Step 1: Info form submitted ─────────────────────────────────────────
+      // If already authenticated → place order directly.
+      // If new user → send Firebase OTP and advance to OTP step.
       const handleRequestOTP = async (e) => {
         e.preventDefault();
         if (isAlreadyAuthenticated) {
           if (!landmarks) return;
           if (altPhone && !validatePhoneOrAlert(altPhone)) return;
-        } else {
-          if (!name || !phone || !landmarks) return;
-          if (!validateNameOrAlert(name)) return;
-          if (!validatePhoneOrAlert(phone)) return;
-        }
-
-        setLoading(true);
-
-        let verified = false;
-        
-        if (isAlreadyAuthenticated) {
-          verified = true;
-        } else {
-          window.alert('Verification code sent to ' + phone + '. Please check your device.');
-          let code = "";
-          while (true) {
-            code = window.prompt("Enter the 6-digit verification code:");
-            if (code === null) {
-              break;
-            }
-            if (code === "123456") {
-              verified = true;
-              break;
-            } else {
-              window.alert("Invalid verification code. Please try again.");
-            }
-          }
-        }
-
-        if (!verified) {
-          setLoading(false);
+          // Authenticated user — skip OTP, place order immediately
+          await placeOrderFlow(currentUser?.name || name, currentUser?.phone || phone);
           return;
         }
+        if (!name || !phone || !landmarks) return;
+        if (!validateNameOrAlert(name)) return;
+        if (!validatePhoneOrAlert(phone)) return;
 
-        // Save profile to localStorage for persistence
-        if (!isAlreadyAuthenticated) {
-          if (!validateNameOrAlert(name)) {
-            setLoading(false);
-            return;
+        setLoading(true);
+        setOtpError('');
+        const formattedPhone = '+91' + phone.trim();
+        try {
+          if (!window.checkoutRecaptchaVerifier) {
+            window.checkoutRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('checkout-recaptcha-container', {
+              size: 'invisible',
+              callback: () => {}
+            });
+            await window.checkoutRecaptchaVerifier.render();
           }
-          if (!validatePhoneOrAlert(phone)) {
-            setLoading(false);
-            return;
-          }
-          localStorage.setItem('cc_customer_name', name.trim());
-          localStorage.setItem('cc_customer_phone', phone.trim());
-          if (setCurrentUser) {
-            setCurrentUser({ name: name.trim(), phone: phone.trim() });
-          }
+          const result = await firebase.auth().signInWithPhoneNumber(formattedPhone, window.checkoutRecaptchaVerifier);
+          window.checkoutConfirmationResult = result;
+          setStep('otp');
+        } catch (err) {
+          console.error('OTP send error:', err);
+          setOtpError('Failed to send OTP: ' + (err.message || 'Please try again.'));
+          // Reset reCAPTCHA on failure so next attempt works
+          try {
+            if (window.checkoutRecaptchaVerifier) {
+              window.checkoutRecaptchaVerifier.render().then(widgetId => { window.grecaptcha && window.grecaptcha.reset(widgetId); });
+            }
+          } catch(re) {}
+        } finally {
+          setLoading(false);
         }
+      };
+
+      // ─── Step 2: OTP submitted ────────────────────────────────────────────────
+      const handleOtpSubmit = async (e) => {
+        e.preventDefault();
+        if (!window.checkoutConfirmationResult) {
+          setOtpError('Session expired. Please go back and resend the OTP.');
+          return;
+        }
+        if (!otpCode || otpCode.length !== 6) {
+          setOtpError('Enter the full 6-digit code.');
+          return;
+        }
+        setLoading(true);
+        setOtpError('');
+        try {
+          const result = await window.checkoutConfirmationResult.confirm(otpCode.trim());
+          const uid = result.user.uid;
+          setPendingUid(uid);
+
+          // Check if this user already has a Firestore profile
+          const userDoc = await db.collection('users').doc(uid).get();
+          if (userDoc.exists) {
+            const userData = userDoc.data();
+            // Returning user — sync profile and go straight to order placement
+            const resolvedName = userData.name || name;
+            const resolvedPhone = userData.phone || phone;
+            localStorage.setItem('cc_customer_name', resolvedName);
+            localStorage.setItem('cc_customer_phone', resolvedPhone);
+            if (setCurrentUser) setCurrentUser({ name: resolvedName, phone: resolvedPhone, uid });
+            await placeOrderFlow(resolvedName, resolvedPhone);
+          } else {
+            // First-time user — collect name before creating Firestore profile
+            setStep('name');
+          }
+        } catch (err) {
+          console.error('OTP verify error:', err);
+          setOtpError('Invalid OTP. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      // ─── Step 3: Name submitted (first-time users only) ───────────────────────
+      const handleNameSubmitCheckout = async (e) => {
+        e.preventDefault();
+        const finalName = pendingDisplayName.trim() || name.trim();
+        if (!finalName) { setOtpError('Please enter your name.'); return; }
+        setLoading(true);
+        setOtpError('');
+        try {
+          // Save profile to Firestore
+          await db.collection('users').doc(pendingUid).set({
+            name: finalName,
+            phone: '+91' + phone.trim(),
+            createdAt: Date.now()
+          });
+          localStorage.setItem('cc_customer_name', finalName);
+          localStorage.setItem('cc_customer_phone', phone.trim());
+          if (setCurrentUser) setCurrentUser({ name: finalName, phone: phone.trim(), uid: pendingUid });
+          await placeOrderFlow(finalName, phone.trim());
+        } catch (err) {
+          console.error('Profile save error:', err);
+          setOtpError('Failed to save profile: ' + (err.message || 'Try again.'));
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      // ─── Shared order placement logic ─────────────────────────────────────────
+      const placeOrderFlow = async (resolvedName, resolvedPhone) => {
         localStorage.setItem('cc_customer_landmarks', landmarks);
 
         if (tray.length === 0) {
-          // Profile registration mode
-          setTimeout(() => {
-            setStep('success');
-            setLoading(false);
-          }, 100);
+          // Profile registration / update only — no order to place
+          setStep('success');
+          setLoading(false);
           return;
         }
-
+        setLoading(true);
         try {
-          const primaryPhone = (phone || currentUser?.phone || '').trim();
+          const primaryPhone = resolvedPhone || (currentUser?.phone || '').trim();
           const orderPayload = {
-            customerName: name || currentUser?.name,
+            customerName: resolvedName || currentUser?.name,
             customerPhone: primaryPhone + (altPhone ? ' / Alt: ' + altPhone.trim() : ''),
             landmarks: landmarks,
             items: tray,
             totalAmount: trayTotal,
             ...(customerGps.lat != null && customerGps.lng != null ? { gpsLat: customerGps.lat, gpsLng: customerGps.lng } : {})
           };
-
           const newOrder = await addOrder(orderPayload);
           setGeneratedOtp(newOrder.otp);
           setIsOrderPlaced(true);
           clearTray();
-          
           updateActiveOrderId(newOrder.id);
           playBlissSound();
-
           setStep('success');
-          if (onOrderSuccess) {
-            onOrderSuccess(newOrder);
-          }
+          if (onOrderSuccess) onOrderSuccess(newOrder);
         } catch (err) {
-          console.error("Checkout error:", err);
-          alert("Order failed: " + err.message);
+          console.error('Checkout error:', err);
+          alert('Order failed: ' + err.message);
         } finally {
-          // Guaranteed to run — button will NEVER stay stuck on "Processing..."
           setLoading(false);
         }
       };
@@ -1247,11 +1318,15 @@
           } ${
             mounted && !isClosing ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
           }`}>
+            {/* Invisible reCAPTCHA anchor — must be in DOM when firebase.auth initializes */}
+            <div id="checkout-recaptcha-container"></div>
             
             <div className={`flex items-center justify-between pb-3 border-b ${theme === 'light' ? 'border-neutral-200' : 'border-neutral-900'}`}>
               <h3 className="text-base font-bold font-serif">
-                {step === 'success' 
-                  ? (isOrderPlaced ? '🎉 Order Placed!' : '🎉 Profile Registered!') 
+                {step === 'success'
+                  ? (isOrderPlaced ? '🎉 Order Placed!' : '🎉 Profile Registered!')
+                  : step === 'otp' ? '🔐 Phone Verification'
+                  : step === 'name' ? '👤 One Last Step'
                   : (tray.length === 0 ? '👤 Profile Registration' : '📋 Delivery Checkout')
                 }
               </h3>
@@ -1261,6 +1336,74 @@
               >
                 <i data-lucide="x" className="w-5 h-5"></i>
               </button>
+            </div>
+
+            {/* Error banner shared across OTP steps */}
+            {otpError && step !== 'info' && (
+              <div className="text-[11px] text-red-400 font-bold bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                {otpError}
+              </div>
+            )}
+
+            {/* ── OTP Entry Step ───────────────────────────────────────────── */}
+            <div className={step === 'otp' ? 'block' : 'hidden'}>
+              <form onSubmit={handleOtpSubmit} className="space-y-5">
+                <div className="text-center space-y-1">
+                  <p className={`text-xs font-medium ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
+                    A 6-digit SMS code was sent to
+                  </p>
+                  <p className="text-sm font-black text-cafe-amber tracking-wide">+91 {phone}</p>
+                </div>
+                <div>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Enter OTP Code</label>
+                  <input
+                    type="text" inputMode="numeric" pattern="\d{6}" maxLength="6" required
+                    placeholder="• • • • • •"
+                    value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className={`w-full border rounded-xl px-4 py-4 text-xl text-center tracking-[0.6em] font-black focus:outline-none focus:border-cafe-amber ${
+                      theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
+                    }`}
+                  />
+                </div>
+                <button type="submit" disabled={loading}
+                  className="w-full py-4 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-60"
+                >
+                  <div className={`w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin ${loading ? 'block' : 'hidden'}`}></div>
+                  <span className={!loading ? 'inline' : 'hidden'}>VERIFY &amp; CONTINUE</span>
+                </button>
+                <button type="button" disabled={loading}
+                  onClick={() => { setStep('info'); setOtpCode(''); setOtpError(''); }}
+                  className={`w-full text-[11px] font-semibold transition ${theme === 'light' ? 'text-slate-400 hover:text-slate-700' : 'text-neutral-500 hover:text-neutral-300'}`}
+                >← Back</button>
+              </form>
+            </div>
+
+            {/* ── Name Capture Step (first-time users) ────────────────────── */}
+            <div className={step === 'name' ? 'block' : 'hidden'}>
+              <form onSubmit={handleNameSubmitCheckout} className="space-y-5">
+                <div className="text-center space-y-1">
+                  <p className={`text-xs font-medium ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
+                    Phone verified ✅ — What should we call you?
+                  </p>
+                </div>
+                <div>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Your Name</label>
+                  <input
+                    type="text" required placeholder="E.g., Arjun"
+                    value={pendingDisplayName}
+                    onChange={e => setPendingDisplayName(e.target.value.replace(/[^A-Za-z\s]/g, ''))}
+                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cafe-amber ${
+                      theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
+                    }`}
+                  />
+                </div>
+                <button type="submit" disabled={loading}
+                  className="w-full py-4 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-60"
+                >
+                  <div className={`w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin ${loading ? 'block' : 'hidden'}`}></div>
+                  <span className={!loading ? 'inline' : 'hidden'}>{tray.length > 0 ? 'SAVE & PLACE ORDER' : 'SAVE PROFILE'}</span>
+                </button>
+              </form>
             </div>
 
             {/* Permanent Step sub-trees (using block/hidden to prevent unmounts) */}
@@ -1368,15 +1511,22 @@
                   </div>
                 </div>
 
+                {/* Error banner on info step (OTP send failure) */}
+                {otpError && step === 'info' && (
+                  <div className="text-[11px] text-red-400 font-bold bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                    {otpError}
+                  </div>
+                )}
+
                 <button
                   type="submit" disabled={loading}
-                  className="w-full py-4 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2"
+                  className="w-full py-4 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-60"
                 >
                   <div className={`w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin ${loading ? 'block' : 'hidden'}`}></div>
                   <span className={!loading ? 'inline-block' : 'hidden'}>
-                    {tray.length === 0 
-                      ? (isAlreadyAuthenticated ? 'UPDATE PROFILE DETAILS' : 'REGISTER & VERIFY PHONE') 
-                      : (isAlreadyAuthenticated ? 'CONFIRM ORDER DETAILS' : 'PROCEED TO SMS CHALLENGE')
+                    {tray.length === 0
+                      ? (isAlreadyAuthenticated ? 'UPDATE PROFILE DETAILS' : 'VERIFY PHONE NUMBER')
+                      : (isAlreadyAuthenticated ? 'CONFIRM ORDER DETAILS' : 'SEND SMS CODE ›')
                     }
                   </span>
                   <i data-lucide="arrow-right" className={`w-4 h-4 stroke-[3] ${!loading ? 'inline-block' : 'hidden'}`}></i>
