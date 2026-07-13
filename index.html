@@ -1079,11 +1079,20 @@
       const [isClosing, setIsClosing] = useState(false);
       const [isOrderPlaced, setIsOrderPlaced] = useState(false);
 
-      // OTP flow state
+      // Mock OTP flow state
+      const [confirmPhone, setConfirmPhone] = useState('');
       const [otpCode, setOtpCode] = useState('');
+      const [mockOtpSecret, setMockOtpSecret] = useState('');
       const [otpError, setOtpError] = useState('');
-      const [pendingUid, setPendingUid] = useState('');
       const [pendingDisplayName, setPendingDisplayName] = useState('');
+      const [pinCode, setPinCode] = useState('');
+
+      // KGF-area PIN whitelist
+      const KGF_PINS = ['563122', '563113', '563120', '563115', '563117', '563116'];
+
+      // Strict Indian mobile regex — 10 digits, starts 6-9
+      const isValidIndianMobile = (num) => /^[6-9]\d{9}$/.test(num);
+      const isFakeMobile = (num) => new Set(num.split('')).size === 1 || num === '1234567890' || num === '9876543210';
 
       const isAlreadyAuthenticated = !!(currentUser || (localStorage.getItem('cc_customer_name') && localStorage.getItem('cc_customer_phone')));
 
@@ -1103,21 +1112,13 @@
           setMounted(false);
           setIsOrderPlaced(false);
           setOtpCode('');
+          setMockOtpSecret('');
           setOtpError('');
-          setPendingUid('');
+          setConfirmPhone('');
           setPendingDisplayName('');
+          setPinCode('');
         } else {
           setTimeout(() => setMounted(true), 50);
-          // Set up invisible reCAPTCHA when the modal opens
-          if (!window.checkoutRecaptchaVerifier) {
-            try {
-              window.checkoutRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('checkout-recaptcha-container', {
-                size: 'invisible',
-                callback: () => {}
-              });
-              window.checkoutRecaptchaVerifier.render().catch(() => {});
-            } catch(e) { console.warn('reCAPTCHA setup error:', e); }
-          }
         }
         if (window.lucide) window.lucide.createIcons();
       }, [isOpen, currentUser]);
@@ -1156,109 +1157,106 @@
         };
       }, [isOpen]);
 
-      // ─── Step 1: Info form submitted ─────────────────────────────────────────
-      // If already authenticated → place order directly.
-      // If new user → send Firebase OTP and advance to OTP step.
+      // ─── Step 1: Info form — double-entry phone + strict regex ────────────────
+      // Authenticated users skip verification and go directly to order placement.
       const handleRequestOTP = async (e) => {
         e.preventDefault();
         if (isAlreadyAuthenticated) {
           if (!landmarks) return;
           if (altPhone && !validatePhoneOrAlert(altPhone)) return;
-          // Authenticated user — skip OTP, place order immediately
           await placeOrderFlow(currentUser?.name || name, currentUser?.phone || phone);
           return;
         }
-        if (!name || !phone || !landmarks) return;
-        if (!validateNameOrAlert(name)) return;
-        if (!validatePhoneOrAlert(phone)) return;
-
-        setLoading(true);
-        setOtpError('');
-        const formattedPhone = '+91' + phone.trim();
-        try {
-          if (!window.checkoutRecaptchaVerifier) {
-            window.checkoutRecaptchaVerifier = new firebase.auth.RecaptchaVerifier('checkout-recaptcha-container', {
-              size: 'invisible',
-              callback: () => {}
-            });
-            await window.checkoutRecaptchaVerifier.render();
-          }
-          const result = await firebase.auth().signInWithPhoneNumber(formattedPhone, window.checkoutRecaptchaVerifier);
-          window.checkoutConfirmationResult = result;
-          setStep('otp');
-        } catch (err) {
-          console.error('OTP send error:', err);
-          setOtpError('Failed to send OTP: ' + (err.message || 'Please try again.'));
-          // Reset reCAPTCHA on failure so next attempt works
-          try {
-            if (window.checkoutRecaptchaVerifier) {
-              window.checkoutRecaptchaVerifier.render().then(widgetId => { window.grecaptcha && window.grecaptcha.reset(widgetId); });
-            }
-          } catch(re) {}
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      // ─── Step 2: OTP submitted ────────────────────────────────────────────────
-      const handleOtpSubmit = async (e) => {
-        e.preventDefault();
-        if (!window.checkoutConfirmationResult) {
-          setOtpError('Session expired. Please go back and resend the OTP.');
+        if (!name || !phone || !confirmPhone || !landmarks) {
+          setOtpError('Please fill in all required fields.');
           return;
         }
+        if (!validateNameOrAlert(name)) return;
+        // Strict Indian mobile regex
+        if (!isValidIndianMobile(phone)) {
+          setOtpError('Invalid number. Must be 10 digits starting with 6–9.');
+          return;
+        }
+        if (isFakeMobile(phone)) {
+          setOtpError('Looks like a fake number. Please use your real mobile number.');
+          return;
+        }
+        if (phone !== confirmPhone) {
+          setOtpError('Phone numbers do not match. Please re-enter.');
+          return;
+        }
+        setOtpError('');
+        setLoading(true);
+        // Simulate 2.5 s network verification
+        setTimeout(() => {
+          const mockOtp = Math.floor(100000 + Math.random() * 900000).toString();
+          setMockOtpSecret(mockOtp);
+          setLoading(false);
+          // Show the code in a prominent alert-style notification
+          alert('\uD83D\uDD14 Security Code: ' + mockOtp + '\n\nNote this code carefully — enter it on the next screen.');
+          setStep('otp');
+        }, 2500);
+      };
+
+      // ─── Step 2: Mock OTP confirmed ───────────────────────────────────────────
+      const handleOtpSubmit = async (e) => {
+        e.preventDefault();
         if (!otpCode || otpCode.length !== 6) {
           setOtpError('Enter the full 6-digit code.');
           return;
         }
-        setLoading(true);
+        if (otpCode.trim() !== mockOtpSecret) {
+          setOtpError('Incorrect code. Please check and try again.');
+          return;
+        }
         setOtpError('');
+        setLoading(true);
         try {
-          const result = await window.checkoutConfirmationResult.confirm(otpCode.trim());
-          const uid = result.user.uid;
-          setPendingUid(uid);
-
-          // Check if this user already has a Firestore profile
-          const userDoc = await db.collection('users').doc(uid).get();
+          // Check Firestore for returning user by phone number
+          const userDoc = await db.collection('users').doc(phone).get();
           if (userDoc.exists) {
             const userData = userDoc.data();
-            // Returning user — sync profile and go straight to order placement
             const resolvedName = userData.name || name;
-            const resolvedPhone = userData.phone || phone;
             localStorage.setItem('cc_customer_name', resolvedName);
-            localStorage.setItem('cc_customer_phone', resolvedPhone);
-            if (setCurrentUser) setCurrentUser({ name: resolvedName, phone: resolvedPhone, uid });
-            await placeOrderFlow(resolvedName, resolvedPhone);
+            localStorage.setItem('cc_customer_phone', phone);
+            if (setCurrentUser) setCurrentUser({ name: resolvedName, phone: phone });
+            await placeOrderFlow(resolvedName, phone);
           } else {
-            // First-time user — collect name before creating Firestore profile
+            // New user — go to profile registration
             setStep('name');
           }
         } catch (err) {
-          console.error('OTP verify error:', err);
-          setOtpError('Invalid OTP. Please try again.');
+          console.error('User lookup error:', err);
+          setStep('name'); // Fall through to registration on error
         } finally {
           setLoading(false);
         }
       };
 
-      // ─── Step 3: Name submitted (first-time users only) ───────────────────────
+      // ─── Step 3: Profile registration with KGF PIN geofencing ─────────────────
       const handleNameSubmitCheckout = async (e) => {
         e.preventDefault();
         const finalName = pendingDisplayName.trim() || name.trim();
         if (!finalName) { setOtpError('Please enter your name.'); return; }
+        if (!pinCode || !KGF_PINS.includes(pinCode.trim())) {
+          setOtpError('Sorry, Out of range for delivery.');
+          return;
+        }
         setLoading(true);
         setOtpError('');
         try {
-          // Save profile to Firestore
-          await db.collection('users').doc(pendingUid).set({
+          await db.collection('users').doc(phone).set({
             name: finalName,
-            phone: '+91' + phone.trim(),
+            phone: phone,
+            address: landmarks,
+            pinCode: pinCode.trim(),
+            verified: false,
             createdAt: Date.now()
           });
           localStorage.setItem('cc_customer_name', finalName);
-          localStorage.setItem('cc_customer_phone', phone.trim());
-          if (setCurrentUser) setCurrentUser({ name: finalName, phone: phone.trim(), uid: pendingUid });
-          await placeOrderFlow(finalName, phone.trim());
+          localStorage.setItem('cc_customer_phone', phone);
+          if (setCurrentUser) setCurrentUser({ name: finalName, phone: phone });
+          await placeOrderFlow(finalName, phone);
         } catch (err) {
           console.error('Profile save error:', err);
           setOtpError('Failed to save profile: ' + (err.message || 'Try again.'));
@@ -1272,7 +1270,6 @@
         localStorage.setItem('cc_customer_landmarks', landmarks);
 
         if (tray.length === 0) {
-          // Profile registration / update only — no order to place
           setStep('success');
           setLoading(false);
           return;
@@ -1318,8 +1315,7 @@
           } ${
             mounted && !isClosing ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
           }`}>
-            {/* Invisible reCAPTCHA anchor — must be in DOM when firebase.auth initializes */}
-            <div id="checkout-recaptcha-container"></div>
+
             
             <div className={`flex items-center justify-between pb-3 border-b ${theme === 'light' ? 'border-neutral-200' : 'border-neutral-900'}`}>
               <h3 className="text-base font-bold font-serif">
@@ -1345,22 +1341,25 @@
               </div>
             )}
 
-            {/* ── OTP Entry Step ───────────────────────────────────────────── */}
+            {/* ── Mock OTP Entry Step ──────────────────────────────────────── */}
             <div className={step === 'otp' ? 'block' : 'hidden'}>
               <form onSubmit={handleOtpSubmit} className="space-y-5">
-                <div className="text-center space-y-1">
+                <div className={`p-4 rounded-2xl border text-center space-y-1 ${
+                  theme === 'light' ? 'bg-amber-50 border-amber-200' : 'bg-cafe-amber/10 border-cafe-amber/30'
+                }`}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-cafe-amber">Security Code Issued</p>
                   <p className={`text-xs font-medium ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
-                    A 6-digit SMS code was sent to
+                    Check the alert popup for your code.<br/>Enter it below to continue.
                   </p>
-                  <p className="text-sm font-black text-cafe-amber tracking-wide">+91 {phone}</p>
+                  <p className="text-[10px] text-neutral-500 mt-1">Phone: <strong className="text-cafe-amber">{phone}</strong></p>
                 </div>
                 <div>
-                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Enter OTP Code</label>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Enter 6-Digit Security Code</label>
                   <input
-                    type="text" inputMode="numeric" pattern="\d{6}" maxLength="6" required
+                    type="text" inputMode="numeric" pattern="\d{6}" maxLength="6" required autoFocus
                     placeholder="• • • • • •"
                     value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className={`w-full border rounded-xl px-4 py-4 text-xl text-center tracking-[0.6em] font-black focus:outline-none focus:border-cafe-amber ${
+                    className={`w-full border rounded-xl px-4 py-4 text-2xl text-center tracking-[0.6em] font-black focus:outline-none focus:border-cafe-amber ${
                       theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
                     }`}
                   />
@@ -1369,27 +1368,28 @@
                   className="w-full py-4 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-60"
                 >
                   <div className={`w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin ${loading ? 'block' : 'hidden'}`}></div>
-                  <span className={!loading ? 'inline' : 'hidden'}>VERIFY &amp; CONTINUE</span>
+                  <span className={!loading ? 'inline' : 'hidden'}>CONFIRM &amp; PROCEED</span>
                 </button>
                 <button type="button" disabled={loading}
-                  onClick={() => { setStep('info'); setOtpCode(''); setOtpError(''); }}
+                  onClick={() => { setStep('info'); setOtpCode(''); setOtpError(''); setMockOtpSecret(''); }}
                   className={`w-full text-[11px] font-semibold transition ${theme === 'light' ? 'text-slate-400 hover:text-slate-700' : 'text-neutral-500 hover:text-neutral-300'}`}
                 >← Back</button>
               </form>
             </div>
 
-            {/* ── Name Capture Step (first-time users) ────────────────────── */}
+            {/* ── Profile Registration Step (first-time users, KGF geofenced) ─ */}
             <div className={step === 'name' ? 'block' : 'hidden'}>
-              <form onSubmit={handleNameSubmitCheckout} className="space-y-5">
+              <form onSubmit={handleNameSubmitCheckout} className="space-y-4">
                 <div className="text-center space-y-1">
-                  <p className={`text-xs font-medium ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
-                    Phone verified ✅ — What should we call you?
+                  <p className="text-xs font-bold text-cafe-amber">Welcome! Let's set up your profile.</p>
+                  <p className={`text-[11px] ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
+                    Deliveries available within KGF zones only.
                   </p>
                 </div>
                 <div>
-                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Your Name</label>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Your Full Name</label>
                   <input
-                    type="text" required placeholder="E.g., Arjun"
+                    type="text" required placeholder="E.g., Arjun Kumar"
                     value={pendingDisplayName}
                     onChange={e => setPendingDisplayName(e.target.value.replace(/[^A-Za-z\s]/g, ''))}
                     className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cafe-amber ${
@@ -1397,11 +1397,25 @@
                     }`}
                   />
                 </div>
+                <div>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>KGF Area PIN Code</label>
+                  <input
+                    type="text" required inputMode="numeric" maxLength="6" placeholder="E.g., 563122"
+                    value={pinCode}
+                    onChange={e => setPinCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className={`w-full border rounded-xl px-4 py-3 text-sm text-center tracking-widest font-black focus:outline-none focus:border-cafe-amber ${
+                      theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
+                    }`}
+                  />
+                  <p className={`text-[10px] mt-1.5 ${theme === 'light' ? 'text-slate-400' : 'text-neutral-500'}`}>
+                    Valid areas: Robertsonpet, KGF Town, Oorgaum, Bangarpet &amp; nearby zones.
+                  </p>
+                </div>
                 <button type="submit" disabled={loading}
                   className="w-full py-4 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-60"
                 >
                   <div className={`w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin ${loading ? 'block' : 'hidden'}`}></div>
-                  <span className={!loading ? 'inline' : 'hidden'}>{tray.length > 0 ? 'SAVE & PLACE ORDER' : 'SAVE PROFILE'}</span>
+                  <span className={!loading ? 'inline' : 'hidden'}>{tray.length > 0 ? 'REGISTER & PLACE ORDER 🛵' : 'SAVE PROFILE'}</span>
                 </button>
               </form>
             </div>
@@ -1434,13 +1448,29 @@
                 <div className={!isAlreadyAuthenticated ? "block" : "hidden"}>
                   <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Phone Number</label>
                   <input
-                    type="tel" required={!isAlreadyAuthenticated} placeholder="Enter 10-digit mobile number"
-                    maxLength={10} minLength={10} pattern="[0-9]*" inputMode="numeric"
+                    type="tel" required={!isAlreadyAuthenticated} placeholder="10-digit mobile (starts with 6–9)"
+                    maxLength={10} minLength={10} pattern="[6-9][0-9]{9}" inputMode="numeric"
                     value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cafe-amber ${
                       theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
                     }`}
                   />
+                </div>
+                <div className={!isAlreadyAuthenticated ? "block" : "hidden"}>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Confirm Phone Number</label>
+                  <input
+                    type="tel" required={!isAlreadyAuthenticated} placeholder="Re-enter mobile number"
+                    maxLength={10} minLength={10} pattern="[6-9][0-9]{9}" inputMode="numeric"
+                    value={confirmPhone} onChange={e => setConfirmPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cafe-amber ${
+                      theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
+                    } ${
+                      confirmPhone && confirmPhone !== phone ? 'border-red-500' : ''
+                    }`}
+                  />
+                  {confirmPhone && confirmPhone !== phone && (
+                    <p className="text-[10px] text-red-400 font-semibold mt-1">⚠ Numbers don't match</p>
+                  )}
                 </div>
                 <div className={isAlreadyAuthenticated ? "block" : "hidden"}>
                   <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Alternate Phone Number (Optional)</label>
@@ -1524,9 +1554,9 @@
                 >
                   <div className={`w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin ${loading ? 'block' : 'hidden'}`}></div>
                   <span className={!loading ? 'inline-block' : 'hidden'}>
-                    {tray.length === 0
-                      ? (isAlreadyAuthenticated ? 'UPDATE PROFILE DETAILS' : 'VERIFY PHONE NUMBER')
-                      : (isAlreadyAuthenticated ? 'CONFIRM ORDER DETAILS' : 'SEND SMS CODE ›')
+                    {loading ? '' : tray.length === 0
+                      ? (isAlreadyAuthenticated ? 'UPDATE PROFILE DETAILS' : 'VERIFY & SECURE')
+                      : (isAlreadyAuthenticated ? 'CONFIRM ORDER DETAILS' : 'SECURE & GET CODE ›')
                     }
                   </span>
                   <i data-lucide="arrow-right" className={`w-4 h-4 stroke-[3] ${!loading ? 'inline-block' : 'hidden'}`}></i>
@@ -3069,7 +3099,13 @@
           riderAlert.pause();
           riderAlert.currentTime = 0;
           await updateOrderStatus(order.id, 'delivered');
-          window.alert('Delivery confirmed successfully.');
+          // Change 5: Mark customer as permanently verified on successful delivery
+          const custPhone = (order.customerPhone || '').split(' / ')[0].trim();
+          if (custPhone) {
+            db.collection('users').doc(custPhone).update({ verified: true })
+              .catch(e => console.log('Verification update failed', e));
+          }
+          window.alert('Delivery confirmed! Customer verified. ✅');
         } else {
           window.alert('Incorrect PIN. Ask the customer for their 4-digit Delivery PIN.');
         }
@@ -3164,50 +3200,39 @@
         }
       };
 
-      // Step 2: Phone entered → trigger Firebase Phone Auth OTP
+      // Step 2: Phone entered → simulated 2.5 s trust check, then mock OTP
       const handlePhoneSubmit = async (e) => {
         e.preventDefault();
         const phone = e.target.riderPhoneInput.value.trim();
         if (!phone) { setLoginError('Enter a valid phone number.'); return; }
         setLoginLoading(true);
         setLoginError('');
-        try {
-          // Ensure recaptcha container exists
-          if (!window.recaptchaVerifier) {
-            window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-              size: 'invisible',
-              callback: () => {}
-            });
-          }
-          const result = await firebase.auth().signInWithPhoneNumber(phone, window.recaptchaVerifier);
-          setConfirmationResult(result);
-          setPendingPhone(phone);
-          setLoginStep('otp');
-        } catch(err) {
-          setLoginError('Failed to send OTP: ' + (err.message || 'Try again.'));
-          console.error(err);
-          if (window.recaptchaVerifier) { window.recaptchaVerifier.clear(); window.recaptchaVerifier = null; }
-        } finally {
+        // Simulate network verification delay
+        setTimeout(() => {
+          const mockOtp = Math.floor(100000 + Math.random() * 900000).toString();
+          // Store on window so OTP verify step can access it
+          window._riderMockOtp = mockOtp;
           setLoginLoading(false);
-        }
+          setPendingPhone(phone);
+          alert('\uD83D\uDD14 Rider Security Code: ' + mockOtp + '\n\nEnter this on the next screen.');
+          setLoginStep('otp');
+        }, 2500);
       };
 
-      // Step 3: OTP entered → verify
+      // Step 3: Mock OTP verified — advance to name step
       const handleOtpVerify = async (e) => {
         e.preventDefault();
-        if (!confirmationResult) { setLoginError('Session expired. Start again.'); setLoginStep('pin'); return; }
+        if (!otpCode || otpCode.trim() !== window._riderMockOtp) {
+          setLoginError('Incorrect code. Please try again.');
+          return;
+        }
         setLoginLoading(true);
         setLoginError('');
-        try {
-          await confirmationResult.confirm(otpCode.trim());
-          // OTP verified — collect name
-          setLoginStep('name');
-        } catch(err) {
-          setLoginError('Invalid OTP. Please try again.');
-          console.error(err);
-        } finally {
+        // Small pause for UX polish
+        setTimeout(() => {
           setLoginLoading(false);
-        }
+          setLoginStep('name');
+        }, 600);
       };
 
       // Step 4: Name entered → save to Firebase and log in
@@ -3237,7 +3262,6 @@
         return (
           <div className="min-h-screen bg-cafe-black flex items-center justify-center p-6 relative font-sans text-white">
             <div className="fixed inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-amber-955 via-neutral-950 to-neutral-950 pointer-events-none z-0"></div>
-            <div id="recaptcha-container"></div>
 
             <div className="w-full max-w-sm bg-cafe-card rounded-3xl border border-neutral-800 p-8 space-y-6 shadow-2xl relative z-10 text-center">
               <img src="./logo.png" className="h-16 mx-auto object-contain mb-2" alt="logo" />
@@ -3283,19 +3307,19 @@
                 <form onSubmit={handlePhoneSubmit} className="space-y-4 text-left">
                   <div className="space-y-1 text-center">
                     <h2 className="text-xl font-bold font-serif">First-Time Setup</h2>
-                    <p className="text-xs text-neutral-400 font-medium">New rider ID detected. Verify your phone number.</p>
+                    <p className="text-xs text-neutral-400 font-medium">New rider ID. Enter your phone to receive a security code.</p>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">Phone Number (with country code)</label>
+                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">Phone Number (10-digit Indian mobile)</label>
                     <input
-                      name="riderPhoneInput" required type="tel" placeholder="+91 9876543210"
+                      name="riderPhoneInput" required type="tel" placeholder="E.g., 9876543210" maxLength="10" pattern="[6-9][0-9]{9}" inputMode="numeric"
                       className="w-full bg-cafe-black border border-neutral-805 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cafe-amber text-center font-bold"
                     />
                   </div>
                   <button type="submit" disabled={loginLoading}
                     className="w-full py-3.5 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition flex items-center justify-center text-sm disabled:opacity-60"
                   >
-                    {loginLoading ? <div className="w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin"></div> : <span>SEND OTP</span>}
+                    {loginLoading ? <div className="w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin"></div> : <span>SEND SECURE CODE</span>}
                   </button>
                   <button type="button" onClick={() => { setLoginStep('pin'); setLoginError(''); }}
                     className="w-full text-[11px] text-neutral-500 hover:text-neutral-300 transition"
@@ -3307,8 +3331,8 @@
               {loginStep === 'otp' && (
                 <form onSubmit={handleOtpVerify} className="space-y-4 text-left">
                   <div className="space-y-1 text-center">
-                    <h2 className="text-xl font-bold font-serif">Enter OTP</h2>
-                    <p className="text-xs text-neutral-400 font-medium">A 6-digit code was sent to {pendingPhone}</p>
+                    <h2 className="text-xl font-bold font-serif">Enter Security Code</h2>
+                    <p className="text-xs text-neutral-400 font-medium">Check the alert popup for your code.</p>
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">OTP Code</label>
