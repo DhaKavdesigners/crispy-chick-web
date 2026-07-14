@@ -1067,6 +1067,8 @@
       const [phone, setPhone] = useState(() => currentUser?.phone || localStorage.getItem('cc_customer_phone') || '');
       const [landmarks, setLandmarks] = useState(() => localStorage.getItem('cc_customer_landmarks') || '');
       const [altPhone, setAltPhone] = useState('');
+      const [orderArea, setOrderArea] = useState('');
+      const [orderPinCode, setOrderPinCode] = useState('');
       const [gpsFetching, setGpsFetching] = useState(false);
       const [gpsSecured, setGpsSecured] = useState(false);
       
@@ -1086,11 +1088,22 @@
       const [otpError, setOtpError] = useState('');
       const [pendingDisplayName, setPendingDisplayName] = useState('');
       const [pinCode, setPinCode] = useState('');
+      const [otpCopied, setOtpCopied] = useState(false);
       const [regAddress, setRegAddress] = useState('');
       const [regCity, setRegCity] = useState('KGF');
 
       // KGF-area PIN whitelist
       const KGF_PINS = ['563122', '563113', '563120', '563115', '563117', '563116'];
+
+      // Named-area lookup (for admin display / area dropdowns)
+      const KGF_AREA_NAMES = {
+        '563122': 'Robertsonpet (Main KGF)',
+        '563113': 'Andersonpet',
+        '563120': 'Oorgaum',
+        '563115': 'Bharathnagar / BEML Nagar',
+        '563117': 'Champion Reefs',
+        '563116': 'Marikuppam'
+      };
 
       // Strict Indian mobile regex — 10 digits, starts 6-9
       const isValidIndianMobile = (num) => /^[6-9]\d{9}$/.test(num);
@@ -1104,6 +1117,8 @@
           setPhone(currentUser?.phone || localStorage.getItem('cc_customer_phone') || '');
           setLandmarks(localStorage.getItem('cc_customer_landmarks') || '');
           setAltPhone('');
+          setOrderArea('');
+          setOrderPinCode('');
           setCustomerGps({ lat: null, lng: null });
           setGpsFetching(false);
           setGpsSecured(false);
@@ -1119,6 +1134,7 @@
           setConfirmPhone('');
           setPendingDisplayName('');
           setPinCode('');
+          setOtpCopied(false);
           setRegAddress('');
           setRegCity('KGF');
         } else {
@@ -1171,9 +1187,9 @@
         setMockOtpSecret(mockOtp);
         setOtpCode('');
         setOtpError('');
+        setOtpCopied(false);
         setLoading(false);
-        playOtpTone();
-        alert('Crispy Chick Verification Code: ' + mockOtp);
+        playOtpTone();  // fires immediately — no blocking alert after it
       };
 
       // Resend OTP — regenerates after 2.5 s simulation
@@ -1218,6 +1234,10 @@
         // ── Authenticated user — skip verification entirely ──
         if (isAlreadyAuthenticated) {
           if (!landmarks) return;
+          if (!orderPinCode || !KGF_PINS.includes(orderPinCode.trim())) {
+            setOtpError('Sorry, Out of range for delivery.');
+            return;
+          }
           if (altPhone && !validatePhoneOrAlert(altPhone)) return;
           await placeOrderFlow(currentUser?.name || name, currentUser?.phone || phone);
           return;
@@ -1225,6 +1245,7 @@
 
         // ── Send OTP branch (new user filling info) ──
         if (!name || !phone || !confirmPhone || !landmarks) { setOtpError('Please fill in all required fields.'); return; }
+        if (!orderPinCode || !KGF_PINS.includes(orderPinCode.trim())) { setOtpError('Sorry, Out of range for delivery.'); return; }
         if (!validateNameOrAlert(name)) return;
         if (!isValidIndianMobile(phone)) { setOtpError('Invalid number. Must be 10 digits starting with 6–9.'); return; }
         if (isFakeMobile(phone)) { setOtpError('Looks like a fake number. Please use your real mobile number.'); return; }
@@ -1254,7 +1275,11 @@
             address: regAddress.trim(),
             city: regCity.trim() || 'KGF',
             pinCode: pinCode.trim(),
-            verified: false,
+            // Tiered verification — phone already passed format + fake-pattern + mock-OTP checks
+            phoneStatus: 'partial',     // 50% — real delivery not yet confirmed
+            locationStatus: 'verified', // 100% — KGF_PINS check already enforced above
+            trustedUser: false,         // flips true on first successful delivery
+            verified: false,            // backward-compat mirror of trustedUser
             createdAt: Date.now()
           });
           localStorage.setItem('cc_customer_name', finalName);
@@ -1285,6 +1310,8 @@
             customerName: resolvedName || currentUser?.name,
             customerPhone: primaryPhone + (altPhone ? ' / Alt: ' + altPhone.trim() : ''),
             landmarks: landmarks,
+            deliveryArea: orderArea,
+            deliveryPin: orderPinCode,
             items: tray,
             totalAmount: trayTotal,
             ...(customerGps.lat != null && customerGps.lng != null ? { gpsLat: customerGps.lat, gpsLng: customerGps.lng } : {})
@@ -1405,7 +1432,7 @@
                   className="w-full py-4 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-60"
                 >
                   <div className={`w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin ${loading ? 'block' : 'hidden'}`}></div>
-                  <span className={!loading ? 'inline' : 'hidden'}>{tray.length > 0 ? 'REGISTER &amp; PLACE ORDER 🛵' : 'COMPLETE PROFILE'}</span>
+                  <span className={!loading ? 'inline' : 'hidden'}>{tray.length > 0 ? 'REGISTER & PLACE ORDER 🛵' : 'COMPLETE PROFILE'}</span>
                 </button>
               </form>
             </div>
@@ -1466,20 +1493,48 @@
 
                 {/* ── Inline OTP section — slides in after code is generated ── */}
                 <div className={`transition-all duration-500 ease-in-out overflow-hidden ${
-                  !isAlreadyAuthenticated && mockOtpSecret ? 'max-h-72 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
+                  !isAlreadyAuthenticated && mockOtpSecret ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
                 }`}>
                   <div className="space-y-3 pt-1">
+                    {/* Header */}
                     <div className={`p-3 rounded-xl border text-center ${
                       theme === 'light' ? 'bg-amber-50 border-amber-200' : 'bg-cafe-amber/10 border-cafe-amber/30'
                     }`}>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-cafe-amber">🔔 Security Code Sent</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-cafe-amber">📦 Delivery Verification Code</p>
                       <p className={`text-[11px] mt-0.5 ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
-                        Check the notification &amp; enter the 6-digit code below
+                        Enter the code below to confirm your identity
                       </p>
                     </div>
+                    {/* Code display + copy */}
+                    <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border ${
+                      theme === 'light' ? 'bg-white border-slate-200' : 'bg-neutral-900 border-neutral-700'
+                    }`}>
+                      <span className="text-2xl font-black tracking-[0.35em] text-cafe-amber select-all font-mono flex-1 text-center">
+                        {mockOtpSecret}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          try {
+                            navigator.clipboard.writeText(mockOtpSecret).then(() => {
+                              setOtpCopied(true);
+                              setTimeout(() => setOtpCopied(false), 1500);
+                            }).catch(() => {});
+                          } catch(e) {}
+                        }}
+                        className={`shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all ${
+                          otpCopied
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                            : (theme === 'light' ? 'bg-slate-100 border border-slate-300 text-slate-600 hover:bg-slate-200' : 'bg-neutral-800 border border-neutral-700 text-neutral-300 hover:bg-neutral-700')
+                        }`}
+                      >
+                        {otpCopied ? 'Copied ✓' : 'Copy'}
+                      </button>
+                    </div>
+                    {/* Entry input */}
                     <div>
                       <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>
-                        Enter 6-Digit Security Code
+                        Enter Code to Confirm
                       </label>
                       <input
                         type="text" inputMode="numeric" maxLength="6"
@@ -1505,32 +1560,79 @@
                   />
                 </div>
                 <div>
-                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Delivery Landmarks (Robertsonpet, KGF)</label>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Landmark / Street Details <span className="text-red-500">*</span></label>
                   <textarea
                     required placeholder="E.g., Near Geetha Canteen, 3rd Cross Road" value={landmarks} onChange={e => setLandmarks(e.target.value)}
                     className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cafe-amber h-20 resize-none ${
                       theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
                     }`}
                   />
-                  {/* Fix 1: GPS status indicator (auto-starts, no manual button needed) */}
-                  <div className={`mt-2 w-full py-2 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 ${
-                    gpsSecured
-                      ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                      : gpsFetching
-                        ? 'bg-cafe-amber/10 border-cafe-amber/30 text-cafe-amber'
-                        : 'bg-neutral-900/40 border-neutral-800 text-neutral-500'
-                  }`}>
-                    {gpsFetching ? (
-                      <>
-                        <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                        <span>Acquiring GPS signal...</span>
-                      </>
-                    ) : gpsSecured ? (
-                      <span>✅ Live GPS Locked</span>
-                    ) : (
-                      <span>📍 GPS unavailable — landmarks used</span>
-                    )}
-                  </div>
+                </div>
+                <div>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Area <span className="text-red-500">*</span></label>
+                  <select
+                    required
+                    value={orderArea}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setOrderArea(val);
+                      const PIN_MAP = {
+                        'Robertsonpet (Main KGF)': '563122',
+                        'Andersonpet': '563113',
+                        'Oorgaum': '563120',
+                        'Bharathnagar / BEML Nagar': '563115',
+                        'Champion Reefs': '563117',
+                        'Marikuppam': '563116'
+                      };
+                      if (PIN_MAP[val]) setOrderPinCode(PIN_MAP[val]);
+                    }}
+                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cafe-amber appearance-none ${
+                      theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
+                    }`}
+                  >
+                    <option value="">— Select your area —</option>
+                    <option value="Robertsonpet (Main KGF)">Robertsonpet (Main KGF) — 563122</option>
+                    <option value="Andersonpet">Andersonpet — 563113</option>
+                    <option value="Oorgaum">Oorgaum — 563120</option>
+                    <option value="Bharathnagar / BEML Nagar">Bharathnagar / BEML Nagar — 563115</option>
+                    <option value="Champion Reefs">Champion Reefs — 563117</option>
+                    <option value="Marikuppam">Marikuppam — 563116</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>PIN Code <span className="text-red-500">*</span></label>
+                  <input
+                    type="text" required inputMode="numeric" maxLength="6" placeholder="Auto-filled from Area"
+                    value={orderPinCode}
+                    onChange={e => setOrderPinCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className={`w-full border rounded-xl px-4 py-3 text-sm text-center tracking-widest font-black focus:outline-none focus:border-cafe-amber ${
+                      theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
+                    } ${
+                      orderPinCode && !KGF_PINS.includes(orderPinCode) ? 'border-red-500' : ''
+                    }`}
+                  />
+                  {orderPinCode && !KGF_PINS.includes(orderPinCode) && (
+                    <p className="text-[10px] text-red-400 font-semibold mt-1">⚠ Out of delivery range</p>
+                  )}
+                </div>
+                {/* GPS status indicator */}
+                <div className={`w-full py-2 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 ${
+                  gpsSecured
+                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                    : gpsFetching
+                      ? 'bg-cafe-amber/10 border-cafe-amber/30 text-cafe-amber'
+                      : 'bg-neutral-900/40 border-neutral-800 text-neutral-500'
+                }`}>
+                  {gpsFetching ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                      <span>Acquiring GPS signal...</span>
+                    </>
+                  ) : gpsSecured ? (
+                    <span>✅ Live GPS Locked</span>
+                  ) : (
+                    <span>📍 GPS unavailable — landmarks used</span>
+                  )}
                 </div>
 
                 <div className={tray.length > 0 ? "block" : "hidden"}>
@@ -1569,7 +1671,7 @@
                   </div>
                 )}
 
-                {/* \u2500\u2500 Send-OTP primary button (hidden once OTP section is revealed) \u2500\u2500 */}
+                {/* ── Send-OTP primary button (hidden once OTP section is revealed) ── */}
                 <div className={!isAlreadyAuthenticated && mockOtpSecret ? 'hidden' : 'block'}>
                   <button
                     type="submit" disabled={loading}
@@ -1578,8 +1680,8 @@
                     <div className={`w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin ${loading ? 'block' : 'hidden'}`}></div>
                     <span className={!loading ? 'inline-block' : 'hidden'}>
                       {tray.length === 0
-                        ? (isAlreadyAuthenticated ? 'UPDATE PROFILE DETAILS' : 'VERIFY &amp; GET CODE')
-                        : (isAlreadyAuthenticated ? 'CONFIRM ORDER DETAILS' : 'SECURE &amp; GET CODE \u203a')
+                        ? (isAlreadyAuthenticated ? 'UPDATE PROFILE DETAILS' : 'GET VERIFICATION CODE')
+                        : (isAlreadyAuthenticated ? 'CONFIRM ORDER DETAILS' : 'CONFIRM & SEND CODE ›')
                       }
                     </span>
                     <i data-lucide="arrow-right" className={`w-4 h-4 stroke-[3] ${!loading ? 'inline-block' : 'hidden'}`}></i>
@@ -2630,7 +2732,7 @@
                                 </button>
                               </span>
 
-                              {order.status === 'pending' && ((Date.now() - (order.createdAt?.toDate ? order.createdAt.toDate().getTime() : order.createdAt)) < 300000) && (
+                              {['pending', 'preparing'].includes(order.status) && ((Date.now() - (order.createdAt?.toDate ? order.createdAt.toDate().getTime() : order.createdAt)) < 300000) && (
                                 <button
                                   onClick={async () => {
                                     if (window.confirm("Cancel this order per customer request?")) {
@@ -3155,10 +3257,14 @@
           // Change 5: Mark customer as permanently verified on successful delivery
           const custPhone = (order.customerPhone || '').split(' / ')[0].trim();
           if (custPhone) {
-            db.collection('users').doc(custPhone).update({ verified: true })
-              .catch(e => console.log('Verification update failed', e));
+            // Tiered trust upgrade: flip phoneStatus + trustedUser on first successful delivery
+            db.collection('users').doc(custPhone).update({
+              phoneStatus: 'verified', // 100% — real-world delivery handshake confirmed
+              trustedUser: true,
+              verified: true           // backward-compat boolean mirror
+            }).catch(e => console.log('Trust upgrade failed (user may not exist yet):', e));
           }
-          window.alert('Delivery confirmed! Customer verified. ✅');
+          // No alert — order silently moves to History as status → 'delivered'
         } else {
           window.alert('Incorrect PIN. Ask the customer for their 4-digit Delivery PIN.');
         }
@@ -3275,7 +3381,7 @@
           setLoginLoading(false);
           setPendingPhone(phone);
           try { new Audio('https://assets.mixkit.co/active_storage/sfx/2866/2866-preview.mp3').play().catch(() => {}); } catch(e) {}
-          alert('Crispy Chick Rider Code: ' + mockOtp);
+          // No alert() — code is shown inline in the OTP step panel below
           setLoginStep('otp');
         }, 2500);
       };
@@ -3395,15 +3501,35 @@
                 </form>
               )}
 
-              {/* Step 3: OTP */}
+              {/* Step 3: OTP — shows code inline, no alert */}
               {loginStep === 'otp' && (
                 <form onSubmit={handleOtpVerify} className="space-y-4 text-left">
                   <div className="space-y-1 text-center">
                     <h2 className="text-xl font-bold font-serif">Enter Security Code</h2>
-                    <p className="text-xs text-neutral-400 font-medium">Check the alert popup for your code.</p>
+                    <p className="text-xs text-neutral-400 font-medium">Use the code generated below to continue.</p>
+                  </div>
+                  {/* Live code display + copy */}
+                  <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border bg-neutral-900 border-neutral-700">
+                    <span className="text-2xl font-black tracking-[0.35em] text-cafe-amber select-all font-mono flex-1 text-center" id="rider-otp-display">
+                      {window._riderMockOtp || '——————'}
+                    </span>
+                    <button
+                      type="button"
+                      id="rider-otp-copy-btn"
+                      onClick={() => {
+                        const code = window._riderMockOtp || '';
+                        try {
+                          navigator.clipboard.writeText(code).then(() => {
+                            const btn = document.getElementById('rider-otp-copy-btn');
+                            if (btn) { btn.textContent = 'Copied ✓'; setTimeout(() => { btn.textContent = 'Copy'; }, 1500); }
+                          }).catch(() => {});
+                        } catch(e) {}
+                      }}
+                      className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider bg-neutral-800 border border-neutral-700 text-neutral-300 hover:bg-neutral-700 transition-all"
+                    >Copy</button>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">OTP Code</label>
+                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">Enter Code to Verify</label>
                     <input
                       required type="text" pattern="\d{6}" maxLength="6" placeholder="••••••"
                       value={otpCode} onChange={e => setOtpCode(e.target.value)}
@@ -3413,7 +3539,7 @@
                   <button type="submit" disabled={loginLoading}
                     className="w-full py-3.5 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition flex items-center justify-center text-sm disabled:opacity-60"
                   >
-                    {loginLoading ? <div className="w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin"></div> : <span>VERIFY OTP</span>}
+                    {loginLoading ? <div className="w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin"></div> : <span>VERIFY CODE →</span>}
                   </button>
                   <button type="button" onClick={() => { setLoginStep('phone'); setLoginError(''); setOtpCode(''); }}
                     className="w-full text-[11px] text-neutral-500 hover:text-neutral-300 transition"
@@ -3453,19 +3579,19 @@
         }`}>
           <div className="space-y-6">
             
-            <div className={`flex items-center space-x-3 justify-between pb-4 border-b ${
+            <div className={`flex items-center gap-3 justify-between pb-4 border-b ${
               theme === 'light' ? 'border-slate-200' : 'border-neutral-800'
             }`}>
-              <div className="flex items-center space-x-2 md:space-x-3 min-w-0">
+              <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
                 <img src="./logo.png" className="h-9 w-auto object-contain flex-shrink-0" alt="logo" />
-                <h1 className={`font-sans font-black text-sm sm:text-base md:text-lg tracking-tight flex items-center whitespace-nowrap transition-colors duration-300 ${
+                <h1 className={`font-sans font-black text-sm sm:text-base tracking-tight flex items-center truncate transition-colors duration-300 ${
                   theme === 'light' ? 'text-slate-900' : 'text-white'
                 }`}>
                   Crispy Chick KGF
                 </h1>
               </div>
 
-              <div className="flex items-center space-x-3 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0 pl-2">
                 <button
                   onClick={toggleTheme}
                   className={`p-2 rounded-xl border transition-all duration-300 ${
@@ -3624,7 +3750,11 @@
                             <a
                               href={getOrderMapsUrl(order)}
                               target="_blank" rel="noopener noreferrer"
-                              className="w-full py-3 bg-neutral-805 hover:bg-neutral-700 text-white font-semibold text-xs rounded-xl flex items-center justify-center space-x-2 transition border border-neutral-700 shadow-md block text-center"
+                              className={`w-full py-3 font-semibold text-xs rounded-xl flex items-center justify-center space-x-2 transition border shadow-md block text-center text-white ${
+                                theme === 'light'
+                                  ? 'bg-neutral-900 hover:bg-neutral-800 border-neutral-700'
+                                  : 'bg-neutral-800 hover:bg-neutral-700 border-neutral-700'
+                              }`}
                             >
                               <i data-lucide="navigation" className="w-4 h-4 text-cafe-amber"></i>
                               <span>{order.gpsLat != null && order.gpsLng != null ? 'LAUNCH GPS PINPOINT NAVIGATION' : 'LAUNCH GOOGLE MAPS NAVIGATION'}</span>
