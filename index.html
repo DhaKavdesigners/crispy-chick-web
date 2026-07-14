@@ -1090,7 +1090,9 @@
       const [pinCode, setPinCode] = useState('');
       const [otpCopied, setOtpCopied] = useState(false);
       const [regAddress, setRegAddress] = useState('');
+      const [regStreet, setRegStreet] = useState('');
       const [regCity, setRegCity] = useState('KGF');
+      const [showOtpModal, setShowOtpModal] = useState(false);
 
       // KGF-area PIN whitelist
       const KGF_PINS = ['563122', '563113', '563120', '563115', '563117', '563116'];
@@ -1136,7 +1138,9 @@
           setPinCode('');
           setOtpCopied(false);
           setRegAddress('');
+          setRegStreet('');
           setRegCity('KGF');
+          setShowOtpModal(false);
         } else {
           setTimeout(() => setMounted(true), 50);
         }
@@ -1190,6 +1194,7 @@
         setOtpCopied(false);
         setLoading(false);
         playOtpTone();  // fires immediately — no blocking alert after it
+        setShowOtpModal(true); // open the premium OTP modal
       };
 
       // Resend OTP — regenerates after 2.5 s simulation
@@ -1272,7 +1277,7 @@
           await db.collection('users').doc(phone).set({
             name: finalName,
             phone: phone,
-            address: regAddress.trim(),
+            address: (regAddress + (regStreet ? ', ' + regStreet : '')).trim(),
             city: regCity.trim() || 'KGF',
             pinCode: pinCode.trim(),
             // Tiered verification — phone already passed format + fake-pattern + mock-OTP checks
@@ -1341,6 +1346,118 @@
             onClick={triggerClose}
           />
 
+          {/* ─── PREMIUM OTP VERIFICATION MODAL ─── */}
+          {showOtpModal && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md relative text-center space-y-5">
+
+                {/* Close X */}
+                <button
+                  type="button"
+                  onClick={() => { setShowOtpModal(false); setMockOtpSecret(''); setOtpCode(''); setOtpError(''); }}
+                  className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition font-bold text-base leading-none"
+                  aria-label="Close"
+                >×</button>
+
+                {/* Icon + heading */}
+                <div className="space-y-1 pt-1">
+                  <div className="text-3xl">📦</div>
+                  <h2 className="text-lg font-black text-slate-900 font-serif">Delivery Verification Code</h2>
+                  <p className="text-xs text-slate-500">Enter the code below to confirm your identity</p>
+                </div>
+
+                {/* Code display + copy */}
+                <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border bg-amber-50 border-amber-200">
+                  <span className="text-2xl font-black tracking-[0.35em] text-amber-600 select-all font-mono flex-1 text-center">
+                    {mockOtpSecret}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        navigator.clipboard.writeText(mockOtpSecret).then(() => {
+                          setOtpCopied(true);
+                          setTimeout(() => setOtpCopied(false), 1500);
+                        }).catch(() => {});
+                      } catch(e) {}
+                    }}
+                    className={`shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all border ${
+                      otpCopied
+                        ? 'bg-emerald-50 text-emerald-600 border-emerald-300'
+                        : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >{otpCopied ? 'Copied ✓' : 'Copy'}</button>
+                </div>
+
+                {/* Error */}
+                {otpError && (
+                  <div className="text-[11px] text-red-500 font-bold bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-left">
+                    {otpError}
+                  </div>
+                )}
+
+                {/* Entry input */}
+                <div className="text-left">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-2 text-slate-500">Enter Code to Confirm</label>
+                  <input
+                    type="text" inputMode="numeric" maxLength="6" autoFocus
+                    placeholder="• • • • • •"
+                    value={otpCode}
+                    onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="w-full border border-slate-300 rounded-xl px-4 py-4 text-2xl text-center tracking-[0.6em] font-black focus:outline-none focus:border-amber-500 bg-white text-slate-900"
+                  />
+                </div>
+
+                {/* Confirm + Resend */}
+                <div className="flex gap-3">
+                  <button
+                    type="button" disabled={loading}
+                    onClick={() => {
+                      if (!otpCode || otpCode.length !== 6) { setOtpError('Enter the full 6-digit code.'); return; }
+                      if (otpCode.trim() !== mockOtpSecret) { setOtpError('Incorrect code. Please try again.'); return; }
+                      setOtpError('');
+                      setShowOtpModal(false);
+                      setLoading(true);
+                      db.collection('users').doc(phone).get().then(userDoc => {
+                        if (userDoc.exists) {
+                          const userData = userDoc.data();
+                          const resolvedName = userData.name || name;
+                          localStorage.setItem('cc_customer_name', resolvedName);
+                          localStorage.setItem('cc_customer_phone', phone);
+                          if (setCurrentUser) setCurrentUser({ name: resolvedName, phone: phone });
+                          placeOrderFlow(resolvedName, phone);
+                        } else {
+                          setStep('name');
+                          setLoading(false);
+                        }
+                      }).catch(() => { setStep('name'); setLoading(false); });
+                    }}
+                    className="flex-1 py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60 text-sm"
+                  >
+                    {loading
+                      ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      : 'CONFIRM CODE →'
+                    }
+                  </button>
+                  <button
+                    type="button" disabled={loading}
+                    onClick={handleResendOtp}
+                    className="px-4 py-3.5 rounded-xl border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200 font-extrabold text-xs transition-all disabled:opacity-60"
+                  >
+                    {loading ? <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div> : 'RESEND'}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => { setShowOtpModal(false); setMockOtpSecret(''); setOtpCode(''); setOtpError(''); }}
+                  className="w-full text-[11px] text-slate-400 hover:text-slate-600 font-semibold transition"
+                >← Change Number</button>
+
+              </div>
+            </div>
+          )}
+
           <div className={`w-full max-w-md rounded-t-3xl border p-6 space-y-6 shadow-2xl z-50 max-h-[90vh] overflow-y-auto no-scrollbar transition-all duration-300 transform ${
             theme === 'light' ? 'bg-white border-slate-205 text-slate-900' : 'bg-cafe-card border-neutral-805 text-white'
           } ${
@@ -1391,43 +1508,46 @@
                   />
                 </div>
                 <div>
-                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Delivery Address / Area <span className="text-red-500">*</span></label>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>Address Details <span className="text-neutral-400 font-normal normal-case text-[9px]">(House No, Building Name)</span></label>
                   <input
-                    type="text" required placeholder="E.g., Near Geeta Canteen, 3rd Cross Road"
+                    type="text" required placeholder="E.g., #12, Mahalakshmi Towers"
                     value={regAddress}
                     onChange={e => setRegAddress(e.target.value)}
                     className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cafe-amber ${
-                      theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
+                      theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
                     }`}
                   />
                 </div>
-                <div className="flex gap-3">
-                  <div className="flex-1">
-                    <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>City</label>
-                    <input
-                      type="text" placeholder="KGF"
-                      value={regCity}
-                      onChange={e => setRegCity(e.target.value)}
-                      className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cafe-amber ${
-                        theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
-                      }`}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>PIN Code <span className="text-red-500">*</span></label>
-                    <input
-                      type="text" required inputMode="numeric" maxLength="6" placeholder="563122"
-                      value={pinCode}
-                      onChange={e => setPinCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      className={`w-full border rounded-xl px-4 py-3 text-sm text-center tracking-widest font-black focus:outline-none focus:border-cafe-amber ${
-                        theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
-                      }`}
-                    />
-                  </div>
+                <div>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>Street / Line <span className="text-red-500">*</span></label>
+                  <input
+                    type="text" required placeholder="E.g., 3rd Cross, Near Geeta Canteen"
+                    value={regStreet}
+                    onChange={e => setRegStreet(e.target.value)}
+                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cafe-amber ${
+                      theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
+                    }`}
+                  />
                 </div>
-                <p className={`text-[10px] ${theme === 'light' ? 'text-slate-400' : 'text-neutral-500'}`}>
-                  Valid zones: 563122 · 563113 · 563120 · 563115 · 563117 · 563116
-                </p>
+                <div>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>PIN Code <span className="text-red-500">*</span></label>
+                  <input
+                    type="text" required inputMode="numeric" maxLength="6" placeholder="E.g., 563122"
+                    value={pinCode}
+                    onChange={e => setPinCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className={`w-full border rounded-xl px-4 py-3 text-sm text-center tracking-widest font-black focus:outline-none focus:border-cafe-amber ${
+                      theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
+                    } ${
+                      pinCode && !KGF_PINS.includes(pinCode) ? 'border-red-500' : ''
+                    }`}
+                  />
+                  {pinCode && !KGF_PINS.includes(pinCode) && (
+                    <p className="text-[10px] text-red-400 font-semibold mt-1">⚠ Sorry, out of delivery range.</p>
+                  )}
+                  <p className={`text-[10px] mt-1.5 ${theme === 'light' ? 'text-slate-400' : 'text-neutral-500'}`}>
+                    KGF zones: 563122 · 563113 · 563120 · 563115 · 563117 · 563116
+                  </p>
+                </div>
                 <button type="submit" disabled={loading}
                   className="w-full py-4 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-60"
                 >
@@ -1491,63 +1611,7 @@
                   )}
                 </div>
 
-                {/* ── Inline OTP section — slides in after code is generated ── */}
-                <div className={`transition-all duration-500 ease-in-out overflow-hidden ${
-                  !isAlreadyAuthenticated && mockOtpSecret ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
-                }`}>
-                  <div className="space-y-3 pt-1">
-                    {/* Header */}
-                    <div className={`p-3 rounded-xl border text-center ${
-                      theme === 'light' ? 'bg-amber-50 border-amber-200' : 'bg-cafe-amber/10 border-cafe-amber/30'
-                    }`}>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-cafe-amber">📦 Delivery Verification Code</p>
-                      <p className={`text-[11px] mt-0.5 ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
-                        Enter the code below to confirm your identity
-                      </p>
-                    </div>
-                    {/* Code display + copy */}
-                    <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border ${
-                      theme === 'light' ? 'bg-white border-slate-200' : 'bg-neutral-900 border-neutral-700'
-                    }`}>
-                      <span className="text-2xl font-black tracking-[0.35em] text-cafe-amber select-all font-mono flex-1 text-center">
-                        {mockOtpSecret}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          try {
-                            navigator.clipboard.writeText(mockOtpSecret).then(() => {
-                              setOtpCopied(true);
-                              setTimeout(() => setOtpCopied(false), 1500);
-                            }).catch(() => {});
-                          } catch(e) {}
-                        }}
-                        className={`shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all ${
-                          otpCopied
-                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                            : (theme === 'light' ? 'bg-slate-100 border border-slate-300 text-slate-600 hover:bg-slate-200' : 'bg-neutral-800 border border-neutral-700 text-neutral-300 hover:bg-neutral-700')
-                        }`}
-                      >
-                        {otpCopied ? 'Copied ✓' : 'Copy'}
-                      </button>
-                    </div>
-                    {/* Entry input */}
-                    <div>
-                      <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>
-                        Enter Code to Confirm
-                      </label>
-                      <input
-                        type="text" inputMode="numeric" maxLength="6"
-                        placeholder="• • • • • •"
-                        value={otpCode}
-                        onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        className={`w-full border rounded-xl px-4 py-4 text-2xl text-center tracking-[0.6em] font-black focus:outline-none focus:border-cafe-amber ${
-                          theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
-                        }`}
-                      />
-                    </div>
-                  </div>
-                </div>
+
                 <div className={isAlreadyAuthenticated ? "block" : "hidden"}>
                   <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Alternate Phone Number (Optional)</label>
                   <input
@@ -1686,35 +1750,6 @@
                     </span>
                     <i data-lucide="arrow-right" className={`w-4 h-4 stroke-[3] ${!loading ? 'inline-block' : 'hidden'}`}></i>
                   </button>
-                </div>
-
-                {/* \u2500\u2500 Confirm + Resend (visible once OTP section slides in) \u2500\u2500 */}
-                <div className={!isAlreadyAuthenticated && mockOtpSecret ? 'block space-y-2' : 'hidden'}>
-                  <div className="flex gap-3">
-                    <button
-                      type="submit" disabled={loading}
-                      className="flex-1 py-4 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-60"
-                    >
-                      <div className={`w-4 h-4 border-2 border-cafe-black border-t-transparent rounded-full animate-spin ${loading ? 'block' : 'hidden'}`}></div>
-                      <span className={!loading ? 'inline' : 'hidden'}>CONFIRM CODE \u2192</span>
-                    </button>
-                    <button
-                      type="button" disabled={loading}
-                      onClick={handleResendOtp}
-                      className={`px-5 py-4 rounded-xl border font-extrabold text-xs transition-all disabled:opacity-60 ${
-                        theme === 'light' ? 'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200' : 'border-neutral-700 bg-neutral-800 text-neutral-200 hover:bg-neutral-700'
-                      }`}
-                    >
-                      {loading ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div> : 'RESEND'}
-                    </button>
-                  </div>
-                  <button
-                    type="button" disabled={loading}
-                    onClick={() => { setMockOtpSecret(''); setOtpCode(''); setOtpError(''); }}
-                    className={`w-full text-[11px] font-semibold transition ${
-                      theme === 'light' ? 'text-slate-400 hover:text-slate-700' : 'text-neutral-500 hover:text-neutral-300'
-                    }`}
-                  >\u2190 Change Number</button>
                 </div>
               </form>
             </div>
