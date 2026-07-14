@@ -3217,43 +3217,19 @@
       };
 
       useEffect(() => {
-        let activeList = [];
-        let completedList = [];
-
-        const updateCombinedOrders = () => {
-          const combined = [...activeList, ...completedList];
-          combined.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-          setOrders(combined);
-        };
-
-        const unsubActive = db.collection('orders')
-          .where('status', 'in', ['pending', 'preparing', 'prepared', 'out_for_delivery'])
-          .onSnapshot((snapshot) => {
-            activeList = [];
-            snapshot.forEach(doc => {
-              activeList.push({ id: doc.id, ...doc.data() });
-            });
-            updateCombinedOrders();
-          }, err => console.error('Active query error:', err));
-
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-        const unsubCompleted = db.collection('orders')
-          .where('status', 'in', ['completed', 'delivered'])
+        // Single-field query: no composite index required.
+        // Active/history split happens in JS after fetch.
+        const unsubOrders = db.collection('orders')
           .where('assignedRider', '==', activeRiderProfile)
-          .where('createdAt', '>=', sevenDaysAgo.getTime())
           .onSnapshot((snapshot) => {
-            completedList = [];
-            snapshot.forEach(doc => {
-              completedList.push({ id: doc.id, ...doc.data() });
-            });
-            updateCombinedOrders();
-          }, err => console.error('Completed query error:', err));
+            const all = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Sort newest-first
+            all.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            setOrders(all);
+          }, err => console.error('Rider orders query error:', err));
 
         return () => {
-          unsubActive();
-          unsubCompleted();
+          unsubOrders();
         };
       }, [activeRiderProfile]);
 
@@ -3614,8 +3590,8 @@
         }`}>
           <div className="space-y-6">
             
-            <div className={`flex items-center gap-3 justify-between pb-4 border-b ${
-              theme === 'light' ? 'border-slate-200' : 'border-neutral-800'
+            <div className={`flex items-center gap-3 justify-between w-full px-4 py-3 sticky top-0 z-50 border-b -mx-6 mb-2 ${
+              theme === 'light' ? 'bg-white border-slate-200 shadow-sm' : 'bg-cafe-black border-neutral-800 shadow-md'
             }`}>
               <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
                 <img src="./logo.png" className="h-9 w-auto object-contain flex-shrink-0" alt="logo" />
