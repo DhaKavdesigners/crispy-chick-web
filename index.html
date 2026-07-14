@@ -2069,40 +2069,22 @@
                   </div>
                 </div>
 
-                {(activeOrder.status === 'pending' || activeOrder.status === 'preparing') && (() => {
-                  const isWithin5Mins = activeOrder.createdAt && (Date.now() - (activeOrder.createdAt.toDate ? activeOrder.createdAt.toDate().getTime() : activeOrder.createdAt)) < 300000;
-                  return (
-                    <div className="flex justify-center gap-4 mt-3">
-                      <button
-                        onClick={() => {
-                          window.alert("Call Store: +91 90357 33573");
-                        }}
-                        className="text-[10px] text-red-405 hover:text-red-305 font-bold underline transition"
-                      >
-                        Need Help?
-                      </button>
-                      
-                      {activeOrder.status === 'pending' && isWithin5Mins && (
-                        <button
-                          disabled={activeOrder.cancellationRequested}
-                          onClick={() => {
-                            if (!window.confirm("Are you sure you want to cancel this order?")) return;
-                            db.collection('orders').doc(activeOrder.id).update({ cancellationRequested: true })
-                              .then(() => alert('Cancellation request sent to the kitchen. They will confirm shortly.'))
-                              .catch(() => alert('Failed to request cancellation.'));
-                          }}
-                          className={`text-[10px] font-bold transition ${
-                            activeOrder.cancellationRequested 
-                              ? 'text-neutral-500 cursor-not-allowed' 
-                              : 'text-red-405 hover:text-red-305 underline'
-                          }`}
-                        >
-                          {activeOrder.cancellationRequested ? 'Cancellation Requested...' : 'Request Cancellation'}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })()}
+                {(activeOrder.status === 'pending' || activeOrder.status === 'preparing') && (
+                  <div className="flex justify-center mt-3">
+                    <button
+                      onClick={() => {
+                        window.alert('Store Contact: +91 90357 33573');
+                        const isWithin5Mins = activeOrder.createdAt && (Date.now() - (activeOrder.createdAt.toDate ? activeOrder.createdAt.toDate().getTime() : activeOrder.createdAt)) < 300000;
+                        if (activeOrder.status === 'pending' && isWithin5Mins) {
+                          db.collection('orders').doc(activeOrder.id).update({ cancellationRequested: true }).catch(() => {});
+                        }
+                      }}
+                      className="text-[10px] text-red-405 hover:text-red-305 font-bold underline transition"
+                    >
+                      Need Help?
+                    </button>
+                  </div>
+                )}
 
                 <div className={['successfully_delivered', 'delivered', 'completed', 'rejected', 'cancelled'].includes(activeOrder.status) ? "flex justify-end pt-1 block" : "hidden"}>
                   <button
@@ -2706,7 +2688,7 @@
                                 </button>
                               </span>
 
-                              {order.status === 'pending' && order.cancellationRequested === true && (
+                              { (order.status === 'pending' && order.cancellationRequested === true) && (
                                 <button
                                   onClick={async () => {
                                     if (window.confirm("Cancel this order per customer request?")) {
