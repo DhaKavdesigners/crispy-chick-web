@@ -703,18 +703,6 @@
         return true;
       };
 
-      const getHaversineDistance = (lat1, lon1, lat2, lon2) => {
-        const R = 6371; // Radius of the earth in km
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a =
-          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-          Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c;
-      };
-
       const trayCount = tray.reduce((sum, i) => sum + i.quantity, 0);
       const traySubtotal = tray.reduce((sum, i) => {
         const activePrice = getActivePrice(i.name, i.price);
@@ -723,16 +711,9 @@
 
       const gstAmount = Math.round(traySubtotal * (menuSettings.gstRate / 100));
 
-      const baseRate = Number(menuSettings.deliveryFee || 0);
-      let dynamicDeliveryFee = baseRate;
-      let distance = 0;
-      if (customerGps.lat != null && customerGps.lng != null) {
-        distance = getHaversineDistance(customerGps.lat, customerGps.lng, 12.9592, 78.2747);
-        dynamicDeliveryFee = Math.ceil(distance / 5) * baseRate;
-        if (dynamicDeliveryFee < baseRate) dynamicDeliveryFee = baseRate;
-      }
+      const deliveryFee = Number(menuSettings.deliveryFee || 0);
 
-      const trayTotal = traySubtotal > 0 ? (traySubtotal + gstAmount + dynamicDeliveryFee) : 0;
+      const trayTotal = traySubtotal > 0 ? (traySubtotal + gstAmount + deliveryFee) : 0;
 
       return (
         <AppContext.Provider value={{
@@ -744,7 +725,7 @@
           carouselBannerUrl, updateCarouselBannerUrl,
           activeOrderIds, updateActiveOrderIds, updateActiveOrderId,
           currentUser, setCurrentUser,
-          customerGps, setCustomerGps, dynamicDeliveryFee, distance
+          customerGps, setCustomerGps, deliveryFee
         }}>
           {children}
         </AppContext.Provider>
@@ -950,7 +931,7 @@
         </div>
       );
     };    const TrayCart = ({ onCheckoutTrigger }) => {
-      const { tray, changeQty, trayCount, traySubtotal, gstAmount, trayTotal, removeFromTray, theme, getActivePrice, menuSettings, dynamicDeliveryFee, distance } = useContext(AppContext);
+      const { tray, changeQty, trayCount, traySubtotal, gstAmount, trayTotal, removeFromTray, theme, getActivePrice, menuSettings, deliveryFee } = useContext(AppContext);
       const [isOpen, setIsOpen] = useState(false);
 
       useEffect(() => {
@@ -1040,8 +1021,8 @@
                 <span className="font-bold">₹{gstAmount}</span>
               </div>
               <div className="flex justify-between">
-                <span>Delivery Fee {distance > 0 && `(${distance.toFixed(1)} km)`}:</span>
-                <span className="font-bold">₹{dynamicDeliveryFee}</span>
+                <span>Delivery Fee:</span>
+                <span className="font-bold">₹{deliveryFee}</span>
               </div>
             </div>
 
@@ -1061,7 +1042,7 @@
 
     // Checkout Modal Screen - Strict DOM Retention
     const CheckoutModal = ({ isOpen, onClose, onOrderSuccess }) => {
-      const { trayTotal, traySubtotal, gstAmount, tray, clearTray, theme, menuSettings, updateActiveOrderId, currentUser, setCurrentUser, customerGps, setCustomerGps, dynamicDeliveryFee, distance } = useContext(AppContext);
+      const { trayTotal, traySubtotal, gstAmount, tray, clearTray, theme, menuSettings, updateActiveOrderId, currentUser, setCurrentUser, customerGps, setCustomerGps, deliveryFee } = useContext(AppContext);
       
       const [name, setName] = useState(() => currentUser?.name || localStorage.getItem('cc_customer_name') || '');
       const [phone, setPhone] = useState(() => currentUser?.phone || localStorage.getItem('cc_customer_phone') || '');
@@ -1627,8 +1608,8 @@
                       <span className={`font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>₹{gstAmount}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Delivery Fee {distance > 0 && `(${distance.toFixed(1)} km)`}:</span>
-                      <span className={`font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>₹{dynamicDeliveryFee}</span>
+                      <span>Delivery Fee:</span>
+                      <span className={`font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>₹{deliveryFee}</span>
                     </div>
                     <hr className={`my-1.5 ${theme === 'light' ? 'border-slate-205' : 'border-neutral-805'}`} />
                     <div className="flex justify-between text-sm font-black">
@@ -2830,7 +2811,7 @@
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-neutral-450 uppercase tracking-wider mb-2">Base Delivery Rate (Per 5km) (₹)</label>
+                    <label className="block text-[10px] font-bold text-neutral-450 uppercase tracking-wider mb-2">Fixed Delivery Fee (₹)</label>
                     <input
                       type="number" min="0" value={menuSettings.deliveryFee} onChange={e => handleDeliveryFeeChange(e.target.value)}
                       className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cafe-amber font-sans font-bold ${
