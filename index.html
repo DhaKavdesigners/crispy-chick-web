@@ -1050,6 +1050,14 @@
       const [altPhone, setAltPhone] = useState('');
       const [orderArea, setOrderArea] = useState('');
       const [orderPinCode, setOrderPinCode] = useState('');
+      
+      const [savedAddresses, setSavedAddresses] = useState([]);
+      const [selectedAddressId, setSelectedAddressId] = useState('');
+      const [showAddAddress, setShowAddAddress] = useState(false);
+      const [newAddressTitle, setNewAddressTitle] = useState('');
+      const [newAddressDetails, setNewAddressDetails] = useState('');
+      const [newAddressLandmark, setNewAddressLandmark] = useState('');
+      const [newAddressPinCode, setNewAddressPinCode] = useState('');
       const [gpsFetching, setGpsFetching] = useState(false);
       const [gpsSecured, setGpsSecured] = useState(false);
       
@@ -1122,8 +1130,37 @@
           setRegStreet('');
           setRegCity('KGF');
           setShowOtpModal(false);
+          setSavedAddresses([]);
+          setSelectedAddressId('');
+          setShowAddAddress(false);
+          setNewAddressTitle('');
+          setNewAddressDetails('');
+          setNewAddressLandmark('');
+          setNewAddressPinCode('');
         } else {
           setTimeout(() => setMounted(true), 50);
+          const currentPhone = currentUser?.phone || localStorage.getItem('cc_customer_phone');
+          if (currentPhone) {
+            db.collection('users').doc(currentPhone).get().then(doc => {
+              if (doc.exists) {
+                const data = doc.data();
+                if (data.addresses && Array.isArray(data.addresses) && data.addresses.length > 0) {
+                  setSavedAddresses(data.addresses);
+                  setSelectedAddressId(data.addresses[0].id);
+                } else if (data.addressDetails || data.pinCode) {
+                  const migrated = [{
+                    id: 'default',
+                    title: 'Registered Address',
+                    addressDetails: data.addressDetails || '',
+                    landmark: data.landmark || '',
+                    pinCode: data.pinCode || ''
+                  }];
+                  setSavedAddresses(migrated);
+                  setSelectedAddressId('default');
+                }
+              }
+            }).catch(()=>{});
+          }
         }
         if (window.lucide) window.lucide.createIcons();
       }, [isOpen, currentUser]);
@@ -1204,7 +1241,14 @@
               localStorage.setItem('cc_customer_name', resolvedName);
               localStorage.setItem('cc_customer_phone', phone);
               if (setCurrentUser) setCurrentUser({ name: resolvedName, phone: phone });
-              await placeOrderFlow(resolvedName, phone);
+              
+              let activeAddress = null;
+              if (userData.addresses && Array.isArray(userData.addresses) && userData.addresses.length > 0) {
+                 activeAddress = userData.addresses[0];
+              } else if (userData.addressDetails || userData.pinCode) {
+                 activeAddress = { addressDetails: userData.addressDetails, landmark: userData.landmark, pinCode: userData.pinCode };
+              }
+              await placeOrderFlow(resolvedName, phone, activeAddress);
             } else {
               setStep('name');
             }
@@ -1219,13 +1263,17 @@
 
         // ── Authenticated user — skip verification entirely ──
         if (isAlreadyAuthenticated) {
-          if (!landmarks) return;
-          if (!orderPinCode || !KGF_PINS.includes(orderPinCode.trim())) {
-            setOtpError('Sorry, Out of range for delivery.');
+          if (savedAddresses.length === 0) {
+            setOtpError('Please add a delivery address first.');
             return;
           }
+          const activeAddress = savedAddresses.find(a => a.id === selectedAddressId);
+          if (!activeAddress) {
+             setOtpError('Please select a delivery address.');
+             return;
+          }
           if (altPhone && !validatePhoneOrAlert(altPhone)) return;
-          await placeOrderFlow(currentUser?.name || name, currentUser?.phone || phone);
+          await placeOrderFlow(currentUser?.name || name, currentUser?.phone || phone, activeAddress);
           return;
         }
 
@@ -1282,7 +1330,7 @@
       };
 
       // ─── Shared order placement logic ─────────────────────────────────────────
-      const placeOrderFlow = async (resolvedName, resolvedPhone) => {
+      const placeOrderFlow = async (resolvedName, resolvedPhone, activeAddress = null) => {
         localStorage.setItem('cc_customer_landmarks', landmarks);
 
         if (tray.length === 0) {
@@ -1293,12 +1341,18 @@
         setLoading(true);
         try {
           const primaryPhone = resolvedPhone || (currentUser?.phone || '').trim();
+          
+          const finalAddressDetails = activeAddress ? activeAddress.addressDetails : regAddress;
+          const finalLandmark = activeAddress ? activeAddress.landmark : landmarks;
+          const finalPinCode = activeAddress ? activeAddress.pinCode : orderPinCode;
+
           const orderPayload = {
             customerName: resolvedName || currentUser?.name,
             customerPhone: primaryPhone + (altPhone ? ' / Alt: ' + altPhone.trim() : ''),
-            landmarks: landmarks,
+            addressDetails: finalAddressDetails,
+            landmarks: finalLandmark,
             deliveryArea: orderArea,
-            deliveryPin: orderPinCode,
+            deliveryPin: finalPinCode,
             items: tray,
             totalAmount: trayTotal,
             ...(customerGps.lat != null && customerGps.lng != null ? { gpsLat: customerGps.lat, gpsLng: customerGps.lng } : {})
@@ -1407,7 +1461,14 @@
                           localStorage.setItem('cc_customer_name', resolvedName);
                           localStorage.setItem('cc_customer_phone', phone);
                           if (setCurrentUser) setCurrentUser({ name: resolvedName, phone: phone });
-                          placeOrderFlow(resolvedName, phone);
+                          
+                          let activeAddress = null;
+                          if (userData.addresses && Array.isArray(userData.addresses) && userData.addresses.length > 0) {
+                             activeAddress = userData.addresses[0];
+                          } else if (userData.addressDetails || userData.pinCode) {
+                             activeAddress = { addressDetails: userData.addressDetails, landmark: userData.landmark, pinCode: userData.pinCode };
+                          }
+                          placeOrderFlow(resolvedName, phone, activeAddress);
                         } else {
                           db.collection('users').doc(phone).set({
                             name: name,
@@ -1415,6 +1476,7 @@
                             addressDetails: regAddress,
                             landmark: landmarks,
                             pinCode: orderPinCode,
+                            addresses: [{ id: 'default', title: 'Home', addressDetails: regAddress, landmark: landmarks, pinCode: orderPinCode }],
                             verified: false,
                             createdAt: new Date()
                           }).then(() => {
@@ -1464,7 +1526,7 @@
             
             {/* ── Header ── */}
             <div className="flex justify-between items-center mb-6">
-              <h3 className="font-serif font-bold text-xl text-white">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
                 {step === 'success'
                   ? (isOrderPlaced ? '🎉 Order Placed!' : '🎉 Profile Registered!')
                   : (tray.length === 0 ? '👤 Profile Registration' : '📋 Delivery Checkout')
@@ -1557,25 +1619,112 @@
                     }`}
                   />
                 </div>
-                <div>
+                {/* ── UNAUTHENTICATED ONLY: Manual Landmark & PIN ── */}
+                <div className={!isAlreadyAuthenticated ? "block" : "hidden"}>
                   <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Landmark <span className="text-red-500">*</span></label>
                   <textarea
-                    required placeholder="E.g., Near Geetha Canteen, 3rd Cross Road" value={landmarks} onChange={e => setLandmarks(e.target.value)}
+                    required={!isAlreadyAuthenticated} placeholder="E.g., Near Geetha Canteen, 3rd Cross Road" value={landmarks} onChange={e => setLandmarks(e.target.value)}
                     className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cafe-amber h-20 resize-none ${
                       theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
                     }`}
                   />
                 </div>
-                <div>
+                <div className={!isAlreadyAuthenticated ? "block" : "hidden"}>
                   <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>PIN Code <span className="text-red-500">*</span></label>
                   <input
-                    type="text" required inputMode="numeric" maxLength="6" placeholder="E.g., 563122"
+                    type="text" required={!isAlreadyAuthenticated} inputMode="numeric" maxLength="6" placeholder="E.g., 563122"
                     value={orderPinCode}
                     onChange={e => setOrderPinCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     className={`w-full border rounded-xl px-4 py-3 text-sm text-center tracking-widest font-black focus:outline-none focus:border-cafe-amber ${
                       theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-800 text-white'
                     }`}
                   />
+                </div>
+
+                {/* ── AUTHENTICATED ONLY: Address Book UI ── */}
+                <div className={isAlreadyAuthenticated ? "block space-y-4" : "hidden"}>
+                  <h4 className={`text-sm font-bold ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>Select Delivery Address</h4>
+                  {savedAddresses.map(addr => (
+                    <div 
+                      key={addr.id}
+                      onClick={() => setSelectedAddressId(addr.id)}
+                      className={`relative p-4 rounded-xl border cursor-pointer transition-all ${
+                        selectedAddressId === addr.id 
+                          ? (theme === 'light' ? 'bg-amber-50 border-amber-500 shadow-sm' : 'bg-cafe-amber/10 border-cafe-amber')
+                          : (theme === 'light' ? 'bg-white border-slate-200 hover:border-slate-300' : 'bg-cafe-black border-neutral-800 hover:border-neutral-700')
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const updated = savedAddresses.filter(a => a.id !== addr.id);
+                          setSavedAddresses(updated);
+                          if (selectedAddressId === addr.id) setSelectedAddressId(updated.length > 0 ? updated[0].id : '');
+                          db.collection('users').doc(phone).update({ addresses: updated }).catch(()=>{});
+                        }}
+                        className={`absolute top-3 right-3 p-1 rounded-full ${theme === 'light' ? 'hover:bg-slate-200 text-slate-400 hover:text-red-500' : 'hover:bg-neutral-800 text-neutral-500 hover:text-red-400'} transition`}
+                      >
+                        <i data-lucide="x" className="w-4 h-4"></i>
+                      </button>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <i data-lucide={addr.title.toLowerCase().includes('home') ? 'home' : addr.title.toLowerCase().includes('work') || addr.title.toLowerCase().includes('office') ? 'briefcase' : 'map-pin'} className={`w-4 h-4 ${selectedAddressId === addr.id ? 'text-cafe-amber' : (theme === 'light' ? 'text-slate-500' : 'text-neutral-400')}`}></i>
+                        <span className={`font-bold text-xs uppercase tracking-wider ${selectedAddressId === addr.id ? 'text-cafe-amber' : (theme === 'light' ? 'text-slate-700' : 'text-neutral-300')}`}>{addr.title}</span>
+                      </div>
+                      <p className={`text-xs mt-2 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>{addr.addressDetails}</p>
+                      <p className={`text-[11px] mt-1 ${theme === 'light' ? 'text-slate-500' : 'text-neutral-500'}`}>Landmark: {addr.landmark}</p>
+                      <p className={`text-[11px] font-bold mt-1 ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>PIN: {addr.pinCode}</p>
+                    </div>
+                  ))}
+
+                  {/* Add New Address Form inline */}
+                  {!showAddAddress ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowAddAddress(true)}
+                      className={`w-full py-3 rounded-xl border border-dashed text-xs font-bold transition flex items-center justify-center gap-2 ${
+                        theme === 'light' ? 'border-slate-300 text-slate-500 hover:bg-slate-50 hover:text-slate-700 hover:border-slate-400' : 'border-neutral-700 text-neutral-400 hover:bg-neutral-900 hover:text-white hover:border-neutral-600'
+                      }`}
+                    >
+                      <i data-lucide="plus" className="w-4 h-4"></i>
+                      Add New Address
+                    </button>
+                  ) : (
+                    <div className={`p-4 rounded-xl border space-y-3 ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900 border-neutral-800'}`}>
+                      <div className="flex justify-between items-center mb-2">
+                        <h5 className={`text-xs font-bold uppercase tracking-wider ${theme === 'light' ? 'text-slate-700' : 'text-white'}`}>New Address</h5>
+                        <button type="button" onClick={() => setShowAddAddress(false)} className="text-neutral-500 hover:text-red-400"><i data-lucide="x" className="w-4 h-4"></i></button>
+                      </div>
+                      <input type="text" placeholder="Title (e.g. Home, Office)" value={newAddressTitle} onChange={e => setNewAddressTitle(e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cafe-amber ${theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'}`} />
+                      <input type="text" placeholder="House No, Building Name" value={newAddressDetails} onChange={e => setNewAddressDetails(e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cafe-amber ${theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'}`} />
+                      <input type="text" placeholder="Landmark" value={newAddressLandmark} onChange={e => setNewAddressLandmark(e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cafe-amber ${theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'}`} />
+                      <input type="text" inputMode="numeric" maxLength="6" placeholder="PIN Code *" value={newAddressPinCode} onChange={e => setNewAddressPinCode(e.target.value.replace(/\D/g, '').slice(0, 6))} className={`w-full border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cafe-amber tracking-widest font-bold ${theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'}`} />
+                      
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!newAddressTitle || !newAddressDetails || !newAddressLandmark || !newAddressPinCode) { alert('Please fill all fields'); return; }
+                          if (!KGF_PINS.includes(newAddressPinCode.trim())) { alert('Sorry, this PIN code is out of our KGF delivery range.'); return; }
+                          const newAddr = {
+                            id: Date.now().toString(),
+                            title: newAddressTitle,
+                            addressDetails: newAddressDetails,
+                            landmark: newAddressLandmark,
+                            pinCode: newAddressPinCode
+                          };
+                          const updated = [...savedAddresses, newAddr];
+                          setSavedAddresses(updated);
+                          setSelectedAddressId(newAddr.id);
+                          db.collection('users').doc(phone).update({ addresses: updated }).catch(()=>{});
+                          setShowAddAddress(false);
+                          setNewAddressTitle(''); setNewAddressDetails(''); setNewAddressLandmark(''); setNewAddressPinCode('');
+                        }}
+                        className="w-full py-2.5 bg-cafe-amber text-cafe-black font-extrabold rounded-lg text-xs hover:bg-cafe-crispy transition"
+                      >
+                        Save Address
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {/* GPS status indicator */}
                 <div className={`w-full py-2 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 ${
