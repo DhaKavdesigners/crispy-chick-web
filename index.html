@@ -1526,7 +1526,7 @@
             
             {/* ── Header ── */}
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
                 {step === 'success'
                   ? (isOrderPlaced ? '🎉 Order Placed!' : '🎉 Profile Registered!')
                   : (tray.length === 0 ? '👤 Profile Registration' : '📋 Delivery Checkout')
@@ -1534,7 +1534,7 @@
               </h3>
               <button 
                 onClick={triggerClose} 
-                className={`text-neutral-505 hover:text-yellow transition ${step !== 'success' ? 'block' : 'hidden'}`}
+                className={`text-neutral-505 hover:text-white transition ${step !== 'success' ? 'block' : 'hidden'}`}
               >
                 <i data-lucide="x" className="w-5 h-5"></i>
               </button>
@@ -2137,24 +2137,7 @@
                   <span className="font-semibold text-[10px] text-neutral-450 uppercase">{activeOrder.placementTime}</span>
                 </div>
 
-                <div className="rounded-lg px-3 py-2 border border-neutral-700/50 bg-neutral-800/40">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-cafe-amber block text-center mb-1">Your Order</span>
-                  <p className="text-[11px] font-semibold leading-relaxed text-center text-neutral-100">
-                    {(activeOrder.items || []).map(item => `${item.quantity}x ${item.name}`).join(', ')}
-                  </p>
-                  <p className="text-[10px] font-medium text-center text-neutral-450 pt-1 border-t border-neutral-700/40 mt-1.5">
-                    {getStatusLabel(activeOrder.status)}
-                  </p>
-                  {/* Fix 1: displayId IS the delivery PIN — show it clearly ONLY if out_for_delivery */}
-                  {activeOrder.displayId && activeOrder.status === 'out_for_delivery' && (
-                    <div className="mt-2 pt-2 border-t border-amber-600/20 text-center">
-                      <span className="text-[9px] font-bold uppercase tracking-widest text-neutral-500 block mb-0.5">Delivery PIN</span>
-                      <span className="text-lg font-black tracking-[0.25em] text-cafe-amber">{activeOrder.displayId}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className={activeOrder.status !== 'rejected' ? "w-full block" : "hidden"}>
+                <div className={activeOrder.status !== 'rejected' ? "w-full block mb-3" : "hidden"}>
                   <div className="flex items-center justify-between relative mt-2 px-1">
                     <div className="absolute top-3 left-0 right-0 h-0.5 bg-neutral-800 z-0 rounded-full">
                       <div
@@ -2197,6 +2180,46 @@
                       );
                     })}
                   </div>
+                </div>
+
+                {activeOrder.status === 'out_for_delivery' && (
+                  <div className="rounded-xl px-4 py-3 border border-amber-500/30 bg-amber-500/10 mb-3 flex items-center justify-between shadow-sm">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-cafe-amber/20 text-cafe-amber rounded-full flex items-center justify-center shadow-inner">
+                        <i data-lucide="bike" className="w-5 h-5"></i>
+                      </div>
+                      <div>
+                        <h3 className="font-serif font-bold text-sm text-cafe-amber mb-0.5">🛵 Out for Delivery!</h3>
+                        <p className="text-[10px] text-neutral-300 uppercase tracking-wider">
+                          Rider: <span className="font-bold text-white">{activeOrder.riderName || activeOrder.assignedRider || 'Delivery Rider'}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <a 
+                      href={activeOrder.riderPhone ? `tel:${activeOrder.riderPhone}` : '#'}
+                      className={`px-3 py-2 bg-cafe-amber text-cafe-black font-extrabold rounded-lg text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition-colors ${activeOrder.riderPhone ? 'hover:bg-amber-400' : 'pointer-events-none opacity-50'}`}
+                    >
+                      <i data-lucide="phone" className="w-3.5 h-3.5"></i>
+                      <span>Call Rider</span>
+                    </a>
+                  </div>
+                )}
+
+                <div className="rounded-lg px-3 py-2 border border-neutral-700/50 bg-neutral-800/40">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-cafe-amber block text-center mb-1">Your Order</span>
+                  <p className="text-[11px] font-semibold leading-relaxed text-center text-neutral-100">
+                    {(activeOrder.items || []).map(item => `${item.quantity}x ${item.name}`).join(', ')}
+                  </p>
+                  <p className="text-[10px] font-medium text-center text-neutral-450 pt-1 border-t border-neutral-700/40 mt-1.5">
+                    {getStatusLabel(activeOrder.status)}
+                  </p>
+                  {/* Fix 1: displayId IS the delivery PIN — show it clearly ONLY if out_for_delivery */}
+                  {activeOrder.displayId && activeOrder.status === 'out_for_delivery' && (
+                    <div className="mt-2 pt-2 border-t border-amber-600/20 text-center">
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-neutral-500 block mb-0.5">Delivery PIN</span>
+                      <span className="text-lg font-black tracking-[0.25em] text-cafe-amber">{activeOrder.displayId}</span>
+                    </div>
+                  )}
                 </div>
 
                 {(activeOrder.status === 'pending' || activeOrder.status === 'preparing') && (
@@ -2262,115 +2285,7 @@
             />
           ))}
 
-          {/* Miniature Floating Rider HUD Badge — shows if any order is out for delivery */}
-          <button
-            onClick={() => {
-              const outOrder = activeOrders.find(o => o.status === 'out_for_delivery');
-              if (outOrder) { setRiderPopupOrder(outOrder); setIsRiderPopupOpen(true); }
-            }}
-            className={activeOrders.some(o => o.status === 'out_for_delivery') ? "absolute bottom-28 right-6 z-40 w-12 h-12 rounded-full bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition-transform border border-amber-400/30 animate-pulse block" : "hidden"}
-            title="Track Delivery Rider"
-          >
-            <i data-lucide="bike" className="w-5 h-5"></i>
-            <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 flex items-center justify-center text-[8px] font-black text-white">{activeOrders.filter(o => o.status === 'out_for_delivery').length}</span>
-            </span>
-          </button>
 
-          {/* Sleek Floating Rider Info Popup with Google Maps Intent */}
-          <div className={(riderPopupOrder && riderPopupOrder.status === 'out_for_delivery' && isRiderPopupOpen) ? "absolute inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-xs block" : "hidden"}>
-            <div className={`w-full max-w-xs rounded-3xl border p-5 space-y-4 shadow-2xl relative transition-all duration-300 ${
-              theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-card border-neutral-800 text-white'
-            }`}>
-              {/* Close Button */}
-              <button 
-                onClick={() => setIsRiderPopupOpen(false)}
-                className={`absolute top-4 right-4 p-1.5 rounded-lg transition-colors ${
-                  theme === 'light' ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-350'
-                }`}
-              >
-                <i data-lucide="x" className="w-4 h-4"></i>
-              </button>
-
-              <div className="space-y-3 text-center pt-2">
-                <div className="w-14 h-14 bg-cafe-amber/15 text-cafe-amber rounded-full flex items-center justify-center mx-auto shadow-inner border border-amber-500/20">
-                  <i data-lucide="bike" className="w-7 h-7"></i>
-                </div>
-                <div className="space-y-1">
-                  <span className="block text-[9px] text-neutral-450 uppercase font-black tracking-wider">Rider Out For Delivery</span>
-                  <h4 className="font-bold text-base text-cafe-amber">{riderPopupOrder?.riderName || 'Delivery Rider'}</h4>
-                </div>
-              </div>
-
-              <div className={`p-4 rounded-xl border space-y-3 text-xs ${
-                theme === 'light' ? 'bg-slate-50 border-slate-205' : 'bg-neutral-900 border-neutral-850'
-              }`}>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-neutral-500 font-bold uppercase">Call Contact</span>
-                  <a 
-                    href={riderPopupOrder?.riderPhone ? `tel:${riderPopupOrder.riderPhone}` : '#'}
-                    className={`text-cafe-amber hover:underline font-extrabold flex items-center space-x-1 ${riderPopupOrder?.riderPhone ? '' : 'pointer-events-none opacity-50'}`}
-                  >
-                    <i data-lucide="phone" className="w-3 h-3"></i>
-                    <span>{riderPopupOrder?.riderPhone || 'Unavailable'}</span>
-                  </a>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-neutral-500 font-bold uppercase">Rider ETA</span>
-                  <span className="font-bold text-cafe-crispy font-sans">
-                    <ETACountdown order={riderPopupOrder} />
-                  </span>
-                </div>
-                
-                <div className="pt-1.5 border-t border-neutral-900/10 dark:border-neutral-800/60">
-                  <span className="block text-[9px] text-neutral-500 font-bold uppercase mb-1">Robertsonpet Landmark</span>
-                  <p className={`text-[11px] leading-relaxed italic ${
-                    theme === 'light' ? 'text-slate-600' : 'text-neutral-400'
-                  }`}>
-                    {riderPopupOrder?.landmarks}
-                  </p>
-                </div>
-              </div>
-
-              <a 
-                href={`https://www.google.com/maps/dir/?api=1&origin=Crispy+Chick+KGF&destination=${encodeURIComponent(riderPopupOrder?.landmarks || '')}`}
-                target="_blank" rel="noopener noreferrer"
-                className="w-full py-3 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold text-xs rounded-xl flex items-center justify-center space-x-1.5 transition shadow-lg hover:shadow-orange-500/10 block text-center"
-              >
-                <i data-lucide="navigation" className="w-4 h-4 stroke-[3]"></i>
-                <span>LAUNCH NAVIGATION MAP</span>
-              </a>
-            </div>
-          </div>
-
-          {/* Rider Auto-Popup Modal */}
-          {showRiderPopup && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-xs">
-              <div className={`w-full max-w-xs rounded-3xl border p-6 space-y-4 shadow-2xl relative ${
-                theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-card border-neutral-800 text-white'
-              }`}>
-                <button
-                  onClick={() => setShowRiderPopup(false)}
-                  className="absolute top-4 right-4 text-neutral-500 hover:text-neutral-300 transition"
-                >
-                  <i data-lucide="x" className="w-5 h-5"></i>
-                </button>
-                <div className="text-center space-y-3 pt-2">
-                  <div className="w-12 h-12 bg-cafe-amber/20 text-cafe-amber rounded-full flex items-center justify-center mx-auto">
-                    <i data-lucide="bike" className="w-6 h-6"></i>
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="font-serif font-bold text-base text-cafe-amber">🛵 Out for Delivery!</h3>
-                    <p className="text-xs text-neutral-450 font-medium leading-relaxed mt-1">
-                      Your rider is <span className="font-bold text-cafe-crispy">{riderPopupOrder?.assignedRider || 'on the way'}</span>.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           <div className={isCheckoutOpen ? "block fixed inset-0 z-50" : "hidden"}>
             <CheckoutModal 
@@ -3323,7 +3238,9 @@
           // Stop the looping alarm when delivery is confirmed
           riderAlert.pause();
           riderAlert.currentTime = 0;
-          await updateOrderStatus(order.id, 'delivered');
+          await updateOrderStatus(order.id, 'delivered', {
+            deliveredAt: Date.now()
+          });
           // Change 5: Mark customer as permanently verified on successful delivery
           const custPhone = (order.customerPhone || '').split(' / ')[0].trim();
           if (custPhone) {
@@ -3391,7 +3308,7 @@
       }).length;
 
       const groupedOrders = completedJobs.reduce((acc, order) => {
-        const dateStr = parseDate(order.createdAt);
+        const dateStr = parseDate(order.deliveredAt || order.createdAt);
         if (!acc[dateStr]) acc[dateStr] = [];
         acc[dateStr].push(order);
         return acc;
@@ -3932,7 +3849,9 @@
                                     {order.displayId} {typeof order.items === 'string' ? order.items : (order.items || []).map(i => `${i.quantity}x ${i.name}`).join(', ')}
                                   </div>
                                   <div className="text-neutral-450 text-[10px] mt-0.5">
-                                    {order.placementTime} | ₹{order.total ?? order.totalAmount}
+                                    Delivered At: {order.deliveredAt 
+                                      ? (order.deliveredAt.toDate ? order.deliveredAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date(order.deliveredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) 
+                                      : (order.placementTime || (order.createdAt ? new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'))} | ₹{order.total ?? order.totalAmount}
                                   </div>
                                   <small className="text-gray-500 block mt-0.5">
                                     {order.customerName}
