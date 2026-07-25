@@ -3157,6 +3157,7 @@
       const [mockUpdateOtp, setMockUpdateOtp] = useState('');
       const [isUpdateLoading, setIsUpdateLoading] = useState(false);
       const [showUpdateOtpInput, setShowUpdateOtpInput] = useState(false);
+      const [qrModalOrder, setQrModalOrder] = useState(null);
 
       useEffect(() => {
         if (riderId && !loginTime) {
@@ -3763,6 +3764,12 @@
                             </div>
                           </div>
 
+                          {/* Prominent Collectible Amount Badge */}
+                          <div className={order.status === 'out_for_delivery' ? "w-full my-3 p-3 bg-emerald-50 dark:bg-emerald-950/50 border-2 border-emerald-500/40 rounded-xl text-center block" : "hidden"}>
+                            <span className="block text-xs font-extrabold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">COLLECT CASH / UPI PAYMENT</span>
+                            <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400">₹{order.totalAmount}</span>
+                          </div>
+
                           {/* Map Direction turn-by-turn Link */}
                           <div className={order.status === 'out_for_delivery' ? "block" : "hidden"}>
                             <a
@@ -3791,6 +3798,13 @@
 
                           {/* Order ID Delivery Confirmation form */}
                           <div className={(order.status === 'out_for_delivery') ? "block" : "hidden"}>
+                            {/* Show Payment QR Button */}
+                            <button
+                              onClick={() => setQrModalOrder(order)}
+                              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 mb-2 shadow-sm"
+                            >
+                              📲 Show Payment QR
+                            </button>
                             <form onSubmit={(e) => handleOtpSubmit(e, order)} className="space-y-3 pt-2">
                               <div className={`border rounded-xl p-3 space-y-2 ${theme === 'light' ? 'bg-slate-100/60 border-slate-205' : 'bg-neutral-900 border-neutral-800'}`}>
                                 {/* Fix 1: Unified — rider enters the displayId which IS the Delivery PIN */}
@@ -3829,6 +3843,80 @@
                     );
                   })}
                 </div>
+
+                {/* UPI QR Payment Modal */}
+                {qrModalOrder && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                    <div className={`w-full max-w-sm rounded-3xl border p-6 space-y-3 shadow-2xl relative ${
+                      theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-card border-neutral-800 text-white'
+                    }`}>
+                      {/* Close Button */}
+                      <button
+                        onClick={() => setQrModalOrder(null)}
+                        className={`absolute top-4 right-4 p-1.5 rounded-lg transition-colors ${
+                          theme === 'light' ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-350'
+                        }`}
+                      >
+                        <i data-lucide="x" className="w-4 h-4"></i>
+                      </button>
+
+                      {/* Header */}
+                      <div className="text-center space-y-1 pt-1">
+                        <div className="w-12 h-12 bg-indigo-500/15 text-indigo-400 rounded-full flex items-center justify-center mx-auto shadow-inner border border-indigo-500/20">
+                          <i data-lucide="qr-code" className="w-6 h-6"></i>
+                        </div>
+                        <h3 className="font-serif font-bold text-base">Collect Payment via UPI</h3>
+                        <p className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">Scan & Pay ₹{qrModalOrder.totalAmount}</p>
+                      </div>
+
+                      {/* QR Code Image */}
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=upi://pay?pa=9035733573@upi%26pn=Crispy%20Chick%20KGF%26am=${qrModalOrder.totalAmount}`}
+                        alt="UPI Payment QR"
+                        className="mx-auto rounded-xl border p-2 bg-white shadow-inner my-3"
+                        style={{ width: '240px', height: '240px' }}
+                      />
+
+                      {/* Caption */}
+                      <p className={`text-center text-[11px] font-medium ${
+                        theme === 'light' ? 'text-slate-500' : 'text-neutral-450'
+                      }`}>
+                        Ask customer to scan with Google Pay, PhonePe, or Paytm.
+                      </p>
+
+                      {/* Complete Order Button */}
+                      <button
+                        onClick={async () => {
+                          const userInput = String(otpInputs[qrModalOrder.id] || '').trim();
+                          const correctPin = String(qrModalOrder.displayId || '').trim();
+                          if (!userInput || userInput !== correctPin) {
+                            window.alert('Enter the correct 4-digit Delivery PIN from the customer before completing.');
+                            setQrModalOrder(null);
+                            return;
+                          }
+                          riderAlert.pause();
+                          riderAlert.currentTime = 0;
+                          await updateOrderStatus(qrModalOrder.id, 'delivered', {
+                            deliveredAt: Date.now()
+                          });
+                          const custPhone = (qrModalOrder.customerPhone || '').split(' / ')[0].trim();
+                          if (custPhone) {
+                            db.collection('users').doc(custPhone).update({
+                              phoneStatus: 'verified',
+                              trustedUser: true,
+                              verified: true
+                            }).catch(e => console.log('Trust upgrade failed:', e));
+                          }
+                          setQrModalOrder(null);
+                          window.alert('✅ Payment received & order delivered successfully!');
+                        }}
+                        className="w-full py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-extrabold text-sm rounded-xl shadow-lg transition-all active:scale-98 flex items-center justify-center gap-2"
+                      >
+                        ✅ Payment Received & Complete Order
+                      </button>
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
