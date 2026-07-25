@@ -2746,8 +2746,8 @@
                                 </button>
                               )}
 
-                              <span className={`text-xs text-neutral-555 italic font-medium ${order.status === 'out_for_delivery' ? 'inline' : 'hidden'}`}>
-                                Out with Rider
+                              <span className={order.status === 'out_for_delivery' ? "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800" : "hidden"}>
+                                {order.status === 'out_for_delivery' ? `Out with Rider: ${order.pickedUpBy || order.assignedRider || 'Rider'}` : ''}
                               </span>
                               
                               <span className={`text-xs text-emerald-555 font-bold font-sans ${['successfully_delivered', 'delivered', 'completed'].includes(order.status) ? 'inline' : 'hidden'}`}>
@@ -2800,51 +2800,72 @@
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${theme === 'light' ? 'divide-slate-200' : 'divide-neutral-900/60'}`}>
-                      {Object.entries(groupedArchivedOrders).map(([dateLabel, orders]) => (
-                        <React.Fragment key={dateLabel}>
-                          <tr className="sticky top-0 bg-gray-200 z-10">
-                            <th colSpan="4" className="py-2 px-3 text-left font-bold text-sm text-gray-800">
-                              {dateLabel}
-                            </th>
-                          </tr>
-                          {orders.map(order => {
-                            const formattedTime = order.createdAt 
-                              ? new Date(order.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) 
-                              : (order.placementTime || '--:--');
-                            return (
-                              <tr key={order.displayId || order.id} className="hover:bg-neutral-900/5 transition-colors">
-                                <td className="px-3 py-3 text-xs font-semibold font-sans">{formattedTime}</td>
-                                <td className="px-3 py-3 font-bold text-xs leading-relaxed whitespace-normal break-words">
-                                  #{order.displayId || order.id.slice(-4).toUpperCase()}
-                                  <div className="text-[10px] font-normal text-neutral-455 mt-0.5 whitespace-normal leading-normal">
-                                    {order.items.map(i => `${i.name} (x${i.quantity})`).join(', ')}
+                      {Object.entries(groupedArchivedOrders).map(([dateString, groupOrders]) => {
+                        const deliveredOrders = groupOrders.filter(o => ['successfully_delivered', 'delivered', 'completed'].includes(o.status));
+                        const rejectedOrders = groupOrders.filter(o => ['cancelled', 'rejected'].includes(o.status));
+
+                        const totalDeliveredCount = deliveredOrders.length;
+                        const totalRevenueCollected = deliveredOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+
+                        const totalRejectedCount = rejectedOrders.length;
+                        const totalLostAmount = rejectedOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+
+                        return (
+                          <React.Fragment key={dateString}>
+                            <tr className="bg-transparent">
+                              <td colSpan="4" className="p-2 border-0">
+                                <div className="w-full bg-slate-100 dark:bg-slate-800 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3 my-4">
+                                  <span className="font-extrabold text-slate-800 dark:text-slate-100">{dateString}</span>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <div className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                      ✅ Orders: {totalDeliveredCount} | Collected: ₹{totalRevenueCollected}
+                                    </div>
+                                    <div className="px-3 py-1 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 rounded-lg text-xs font-bold text-rose-700 dark:text-rose-400">
+                                      ❌ Rejected: {totalRejectedCount} | Lost: ₹{totalLostAmount}
+                                    </div>
                                   </div>
-                                  <div className={`text-[10px] mt-0.5 ${
-                                    ['successfully_delivered', 'delivered', 'completed'].includes(order.status) 
-                                      ? 'text-green-600 font-bold' 
-                                      : 'text-red-600 font-bold'
-                                  }`}>
-                                    ₹{order.totalAmount}
-                                  </div>
-                                </td>
-                                <td className="px-3 py-3 text-[11px] text-neutral-400 leading-normal whitespace-normal break-words">
-                                  <div className="font-bold text-neutral-505">{order.customerName} ({order.customerPhone})</div>
-                                  <div className="mt-0.5 italic text-neutral-455">{order.landmarks || order.address || order.customerAddress}</div>
-                                </td>
-                                <td className="px-3 py-3 text-center">
-                                  <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] uppercase tracking-wide ${
-                                    ['successfully_delivered', 'delivered', 'completed'].includes(order.status) 
-                                      ? 'bg-emerald-500/10 text-green-600 font-bold border border-emerald-500/20' 
-                                      : 'bg-red-500/10 text-red-600 font-bold border border-red-500/20'
-                                  }`}>
-                                    {['successfully_delivered', 'delivered', 'completed'].includes(order.status) ? 'Delivered' : 'Cancelled'}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </React.Fragment>
-                      ))}
+                                </div>
+                              </td>
+                            </tr>
+                            {groupOrders.map(order => {
+                              const formattedTime = order.createdAt 
+                                ? new Date(order.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) 
+                                : (order.placementTime || '--:--');
+                              return (
+                                <tr key={order.displayId || order.id} className="hover:bg-neutral-900/5 transition-colors">
+                                  <td className="px-3 py-3 text-xs font-semibold font-sans">{formattedTime}</td>
+                                  <td className="px-3 py-3 font-bold text-xs leading-relaxed whitespace-normal break-words">
+                                    #{order.displayId || order.id.slice(-4).toUpperCase()}
+                                    <div className="text-[10px] font-normal text-neutral-455 mt-0.5 whitespace-normal leading-normal">
+                                      {order.items.map(i => `${i.name} (x${i.quantity})`).join(', ')}
+                                    </div>
+                                    <div className={`text-[10px] mt-0.5 ${
+                                      ['successfully_delivered', 'delivered', 'completed'].includes(order.status) 
+                                        ? 'text-green-600 font-bold' 
+                                        : 'text-red-600 font-bold'
+                                    }`}>
+                                      ₹{order.totalAmount}
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-3 text-[11px] text-neutral-400 leading-normal whitespace-normal break-words">
+                                    <div className="font-bold text-neutral-505">{order.customerName} ({order.customerPhone})</div>
+                                    <div className="mt-0.5 italic text-neutral-455">{order.landmarks || order.address || order.customerAddress}</div>
+                                  </td>
+                                  <td className="px-3 py-3 text-center">
+                                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] uppercase tracking-wide ${
+                                      ['successfully_delivered', 'delivered', 'completed'].includes(order.status) 
+                                        ? 'bg-emerald-500/10 text-green-600 font-bold border border-emerald-500/20' 
+                                        : 'bg-red-500/10 text-red-600 font-bold border border-red-500/20'
+                                    }`}>
+                                      {['successfully_delivered', 'delivered', 'completed'].includes(order.status) ? 'Delivered' : 'Cancelled'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </React.Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -3284,6 +3305,7 @@
         await updateOrderStatus(orderId, 'out_for_delivery', {
           riderName: riderName,
           riderPhone: riderPhone,
+          pickedUpBy: riderName,
           dispatchedAt: Date.now()
         });
         showRideSafeToast(orderId);
