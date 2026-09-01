@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Crispy Chick KGF - Premium Food Delivery</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet" />
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- PWA & Mobile Meta Tags -->
+  <meta name="theme-color" content="#080808" />
+  <meta name="description" content="Order fresh, hot, and crispy chicken, burgers, and side orders online from Crispy Chick KGF with live tracking." />
+  <link rel="icon" type="image/png" href="/logo.png" />
+  <link rel="apple-touch-icon" href="/logo.png" />
+
+  <!-- Custom Core Styles -->
+  <style type="text/css">
+    /* Hide scrollbars but keep functionality */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Cinematic background ambient glow */
+    body {
+      background-color: #080808;
+      color: #ffffff;
+      font-family: 'Outfit', sans-serif;
+      margin: 0;
+      overflow-x: hidden;
+      transition: background-color 0.3s ease;
+    }
+
+    /* Falling food tray animations */
+    @keyframes drop-to-tray {
+      0% {
+        transform: translate(-50%, -50%) scale(1.5) rotate(0deg);
+        opacity: 1;
+      }
+      50% {
+        transform: translate(-50%, calc(-50% - 120px)) scale(2) rotate(45deg);
+        opacity: 1;
+      }
+      100% {
+        left: 50%;
+        top: calc(100vh - 90px);
+        transform: translate(-50%, -50%) scale(0.4) rotate(360deg);
+        opacity: 0.1;
+      }
+    }
+
+    .floating-food {
+      position: fixed;
+      pointer-events: none;
+      z-index: 100;
+      animation: drop-to-tray 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    /* Custom styles for egg hatching */
+    .egg-top {
+      transition: transform 0.6s cubic-bezier(0.68, -0.6, 0.32, 1.6);
+      transform-origin: top center;
+    }
+    .egg-bottom {
+      transition: transform 0.6s cubic-bezier(0.68, -0.6, 0.32, 1.6);
+      transform-origin: bottom center;
+    }
+    .hatch-active .egg-top {
+      transform: translateY(-80px) rotate(-15deg);
+      opacity: 0;
+    }
+    .hatch-active .egg-bottom {
+      transform: translateY(80px) rotate(15deg);
+      opacity: 0;
+    }
+
+    /* Glowing Warm Borders */
+    .cafe-glow {
+      box-shadow: 0 0 25px rgba(217, 119, 6, 0.08);
+      border: 1px solid rgba(217, 119, 6, 0.15);
+    }
+    .cafe-glow:hover {
+      box-shadow: 0 0 35px rgba(217, 119, 6, 0.15);
+      border: 1px solid rgba(217, 119, 6, 0.3);
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-CZgrdpOC.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/vendor-nf7bT_Uh.js">
+  <link rel="modulepreload" crossorigin href="/assets/firebase-core-DLFksTk0.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-Dk2oMfi3.css">
+<link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
+<body class="bg-cafe-black">
+  <div id="recaptcha-anchor" class="hidden"></div>
+  <div id="root"></div>
+</body>
+</html>

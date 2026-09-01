@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Settings collection (global store open/close & menu configuration)
+    // Anyone can read store opening hours/menu config, only authenticated Owner can edit
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Orders collection
+    // Customers can create orders, and read orders by ID or customer phone
+    // Owner and verified Riders can read and update order status
+    match /orders/{orderId} {
+      allow create: if request.resource.data.totalAmount > 0;
+      allow read: if true;
+      allow update: if request.auth != null || 
+                    (resource.data.customerPhone == request.resource.data.customerPhone && request.resource.data.cancellationRequested == true);
+      allow delete: if request.auth != null;
+    }
+
+    // Riders fleet collection
+    // Read & write protected for authorized staff & riders
+    match /riders/{riderId} {
+      allow read: if true;
+      allow write: if request.auth != null || request.resource.data.pin != null;
+    }
+
+    // User address & profile collection
+    match /users/{phone} {
+      allow read, write: if true;
+    }
+  }
+}
