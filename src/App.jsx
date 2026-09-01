@@ -228,44 +228,68 @@ import 'firebase/compat/auth';
       soundInterval = setInterval(playKitchenBellSequence, 3200);
     };
 
-    // --- Menu Data Catalog Mapping (descriptive local images) ---
+    // --- Menu Data Catalog Mapping (Appetizing Red & White System) ---
     const MENU_CATALOG = {
       "Fried Chicken": [
-        { name: "Crispy Fried Chicken (1pc)", price: 55, image: "fried_chicken.png" },
-        { name: "Crunchy Masala Fried Chicken (1Leg pc)", price: 50, image: "fried_chicken.png" },
-        { name: "Chicken Lolly Pop (3pcs)", price: 55, image: "fried_chicken.png" },
-        { name: "Mini Bucket Fried Chicken (4pcs)", price: 200, image: "fried_chicken.png" },
-        { name: "Bucket Fried Chicken (8pcs)", price: 400, image: "fried_chicken.png" },
-        { name: "Hot Chicken Wings (3pcs)", price: 55, image: "fried_chicken.png" },
-        { name: "Chicken Nuggets (3 pc)", price: 30, image: "fried_chicken.png" },
-        { name: "Chicken Strips (3pcs)", price: 60, image: "fried_chicken.png" },
-        { name: "Spicy Wings (4 pcs)", price: 65, image: "fried_chicken.png" }
+        { name: "Crispy Fried Chicken (1pc)", price: 55, image: "fried_chicken.png", isVeg: false, desc: "Crisp golden skin, juicy tender chicken inside", badge: "Bestseller" },
+        { name: "Crunchy Masala Fried Chicken (1Leg pc)", price: 50, image: "fried_chicken.png", isVeg: false, desc: "Marinated with aromatic spicy Indian masalas", badge: "Chef's Special" },
+        { name: "Chicken Lolly Pop (3pcs)", price: 55, image: "fried_chicken.png", isVeg: false, desc: "Classic fried chicken drumettes with spicy tang" },
+        { name: "Mini Bucket Fried Chicken (4pcs)", price: 200, image: "fried_chicken.png", isVeg: false, desc: "4 crispy pieces perfect for quick sharing", badge: "Hot Deal" },
+        { name: "Bucket Fried Chicken (8pcs)", price: 400, image: "fried_chicken.png", isVeg: false, desc: "8 juicy jumbo crispy chicken pieces bucket", badge: "Family Feast" },
+        { name: "Hot Chicken Wings (3pcs)", price: 55, image: "fried_chicken.png", isVeg: false, desc: "Tossed in fiery hot crispy glaze" },
+        { name: "Chicken Nuggets (6pcs)", price: 60, image: "fried_chicken.png", isVeg: false, desc: "Bite-sized minced chicken crunch nuggets" },
+        { name: "Chicken Strips (3pcs)", price: 60, image: "fried_chicken.png", isVeg: false, desc: "100% boneless breast chicken fillets" },
+        { name: "Spicy Peri-Peri Wings (4pcs)", price: 65, image: "fried_chicken.png", isVeg: false, desc: "Extra crunchy seasoned wings" }
+      ],
+      "Fresh Pizzas": [
+        { name: "Crispy Chicken Tikka Pizza", price: 160, image: "burger.png", isVeg: false, desc: "Spiced chicken tikka, onions, capsicum & mozzarella", badge: "Bestseller" },
+        { name: "Classic Margherita Pizza", price: 120, image: "burger.png", isVeg: true, desc: "Rich tomato sauce with 100% molten mozzarella cheese" },
+        { name: "BBQ Smoked Chicken Pizza", price: 175, image: "burger.png", isVeg: false, desc: "Smokey BBQ shredded chicken with melted cheese blend", badge: "Must Try" },
+        { name: "Cheesy Paneer Delight Pizza", price: 145, image: "burger.png", isVeg: true, desc: "Marinated spiced paneer cubes with sweet corn & paprika" },
+        { name: "Farmhouse Veggie Supreme Pizza", price: 135, image: "burger.png", isVeg: true, desc: "Loaded with capsicum, onion, tomato & mushrooms" },
+        { name: "Spicy Peri-Peri Chicken Pizza", price: 165, image: "burger.png", isVeg: false, desc: "Peri-peri seasoned chicken chunks with spicy kick" }
       ],
       "Veg Burgers": [
-        { name: "Paneer Burger", price: 75, image: "burger.png" },
-        { name: "Deluxe Veg Burger", price: 40, image: "burger.png" }
+        { name: "Paneer Tikka Burger", price: 75, image: "burger.png", isVeg: true, desc: "Crispy fried paneer patty with creamy mayo & lettuce", badge: "Bestseller" },
+        { name: "Deluxe Veggie Burger", price: 40, image: "burger.png", isVeg: true, desc: "Herbed vegetable patty with tomato slices & sauces" },
+        { name: "Crispy Corn & Cheese Burger", price: 55, image: "burger.png", isVeg: true, desc: "Sweet corn and molten cheese crunch patty", badge: "Chef Pick" },
+        { name: "Spicy Aloo Crunch Burger", price: 35, image: "burger.png", isVeg: true, desc: "Golden spiced potato patty with mint mayo" },
+        { name: "Mushroom Melt Burger", price: 65, image: "burger.png", isVeg: true, desc: "Sauteed mushrooms with melted cheese slice" }
       ],
       "Non-Veg Burgers": [
-        { name: "Chicken Burger", price: 40, image: "burger.png" },
-        { name: "Crunchy Burger", price: 50, image: "burger.png" },
-        { name: "Double Chicken Burger", price: 70, image: "burger.png" },
-        { name: "Pizza Burger", price: 70, image: "burger.png" },
-        { name: "Mutton Burger", price: 85, image: "burger.png" }
+        { name: "Crispy Chicken Burger", price: 40, image: "burger.png", isVeg: false, desc: "Juicy chicken patty with house sauce in toasted bun" },
+        { name: "Crunchy Zinger Burger", price: 50, image: "burger.png", isVeg: false, desc: "Crispy fried whole chicken fillet burger", badge: "Bestseller" },
+        { name: "Double Chicken Patty Burger", price: 70, image: "burger.png", isVeg: false, desc: "Double patty overloaded with melted cheese" },
+        { name: "Smokey BBQ Chicken Burger", price: 65, image: "burger.png", isVeg: false, desc: "Grilled patty glazed with hickory BBQ sauce" },
+        { name: "Pizza Herb Chicken Burger", price: 70, image: "burger.png", isVeg: false, desc: "Infused with pizza herbs, marinara & cheese melt" },
+        { name: "Mutton Royal Burger", price: 85, image: "burger.png", isVeg: false, desc: "Juicy minced mutton patty with grilled onions", badge: "Premium" }
       ],
       "Side Orders": [
-        { name: "French Fries", price: 40, image: "fries.png" },
-        { name: "Smiley", price: 40, image: "fries.png" },
-        { name: "Veg Nuggets", price: 40, image: "fried_chicken.png" },
-        { name: "Chicky Stick", price: 40, image: "fried_chicken.png" },
-        { name: "Chicken Pizza", price: 140, image: "burger.png" },
-        { name: "Chicken Popcorn", price: 75, image: "fried_chicken.png" }
+        { name: "French Fries (Salted)", price: 40, image: "fries.png", isVeg: true, desc: "Classic salted golden crispy potato fries", badge: "Popular" },
+        { name: "Peri-Peri Spicy Fries", price: 50, image: "fries.png", isVeg: true, desc: "Tossed in fiery African peri-peri spice dust" },
+        { name: "Cheese Loaded Fries", price: 65, image: "fries.png", isVeg: true, desc: "Crispy fries smothered in warm cheese sauce", badge: "Hot" },
+        { name: "Smiley Potato Bites (5pcs)", price: 40, image: "fries.png", isVeg: true, desc: "Golden fried smiley potato treats" },
+        { name: "Veg Nuggets (6pcs)", price: 40, image: "fried_chicken.png", isVeg: true, desc: "Crispy seasoned vegetable bites" },
+        { name: "Chicky Sticks (4pcs)", price: 40, image: "fried_chicken.png", isVeg: false, desc: "Fried chicken sticks with savory dipping spices" },
+        { name: "Chicken Popcorn Crunch", price: 75, image: "fried_chicken.png", isVeg: false, desc: "Bite-sized crunchy popping chicken rocks", badge: "Favorite" }
       ],
       "Add-ons": [
-        { name: "Cheese Slice", price: 10, image: "drink.png" },
-        { name: "Mayo Dips", price: 10, image: "drink.png" },
-        { name: "Smoothies", price: 40, image: "drink.png" },
-        { name: "Cokefloat", price: 30, image: "drink.png" }
+        { name: "Smoothies (Mango/Berry)", price: 40, image: "drink.png", isVeg: true, desc: "Chilled rich blended fruit smoothie", badge: "Refreshing" },
+        { name: "Cokefloat Classic", price: 30, image: "drink.png", isVeg: true, desc: "Chilled Coca-Cola with vanilla scoop float" },
+        { name: "Chilled Soft Drink (Can)", price: 35, image: "drink.png", isVeg: true, desc: "300ml chilled beverage can" },
+        { name: "Extra Cheddar Cheese Slice", price: 10, image: "drink.png", isVeg: true, desc: "Extra melted cheddar cheese slice" },
+        { name: "Creamy Garlic Mayo Dip", price: 10, image: "drink.png", isVeg: true, desc: "Creamy garlic mayonnaise dip cup" },
+        { name: "Spicy Tandoori Dip", price: 10, image: "drink.png", isVeg: true, desc: "Tangy smoky tandoori sauce dip" }
       ]
+    };
+
+    const CATEGORY_META = {
+      "Fried Chicken": { icon: "🍗", label: "Fried Chicken" },
+      "Fresh Pizzas": { icon: "🍕", label: "Fresh Pizzas" },
+      "Non-Veg Burgers": { icon: "🍔", label: "Non-Veg Burgers" },
+      "Veg Burgers": { icon: "🌱", label: "Veg Burgers" },
+      "Side Orders": { icon: "🍟", label: "Sides & Fries" },
+      "Add-ons": { icon: "🥤", label: "Drinks & Dips" }
     };
 
     // Developer-Governed Multi-Role Authentication Database
@@ -558,7 +582,7 @@ import 'firebase/compat/auth';
 
     // --- Custom Components ---
 
-    // Top Header Component (Governs global theme context switcher for Customer view)
+    // Top Header Component (Red & White Brand System, logo_rm_bg.png, Crispy Chick branding)
     const TopBar = ({ onSignInClick, onProfileClick }) => {
       const { theme, toggleTheme, currentUser } = useContext(AppContext);
 
@@ -567,28 +591,34 @@ import 'firebase/compat/auth';
       }, [theme, currentUser]);
 
       return (
-        <header className={`flex items-center justify-between px-6 py-4 sticky top-0 z-30 transition-colors duration-305 ${
-          theme === 'light' ? 'bg-neutral-50/95 border-b border-slate-200' : 'bg-cafe-card/95 border-b border-neutral-805/80'
+        <header className={`flex items-center justify-between px-4 sm:px-6 py-3 sticky top-0 z-30 transition-colors duration-300 backdrop-blur-md ${
+          theme === 'light' ? 'bg-white/95 border-b border-red-100 shadow-sm' : 'bg-cafe-card/95 border-b border-neutral-800 shadow-md'
         }`}>
-          {/* Logo & Typography Text Side-by-Side (scales down beautifully) */}
-          <div className="flex items-center space-x-2 md:space-x-3 min-w-0">
-            <img src="./logo.png" className="h-9 w-auto object-contain flex-shrink-0" alt="logo" />
-            <h1 className={`font-sans font-black text-sm sm:text-base md:text-lg tracking-tight flex items-center whitespace-nowrap transition-colors duration-300 ${
-              theme === 'light' ? 'text-slate-900' : 'text-white'
-            }`}>
-              Crispy Chick KGF
-            </h1>
+          {/* Logo & Typography Text Side-by-Side */}
+          <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
+            <img src="./logo_rm_bg.png" className="h-10 sm:h-11 w-auto object-contain flex-shrink-0 drop-shadow-sm" alt="Crispy Chick Logo" />
+            <div className="min-w-0">
+              <h1 className={`font-sans font-black text-base sm:text-lg tracking-tight flex items-center whitespace-nowrap leading-none transition-colors duration-300 ${
+                theme === 'light' ? 'text-red-600' : 'text-white'
+              }`}>
+                Crispy Chick
+              </h1>
+              <span className={`text-[9.5px] font-bold uppercase tracking-wider block mt-0.5 ${theme === 'light' ? 'text-slate-400' : 'text-neutral-400'}`}>
+                Taste The Real Crunch
+              </span>
+            </div>
           </div>
           
-          <div className="flex items-center space-x-3 flex-shrink-0">
+          <div className="flex items-center space-x-2 sm:space-x-2.5 flex-shrink-0">
             {/* Theme Switcher Widget */}
             <button
               onClick={toggleTheme}
-              className={`p-2.5 rounded-xl border transition-all duration-300 ${
+              className={`p-2 sm:p-2.5 rounded-xl border transition-all duration-300 ${
                 theme === 'dark'
-                  ? 'bg-neutral-850 border-neutral-800 text-cafe-amber hover:text-white'
-                  : 'bg-white border-slate-200 text-cafe-crispy hover:text-cafe-black shadow-sm'
+                  ? 'bg-neutral-850 border-neutral-800 text-amber-400 hover:text-white'
+                  : 'bg-red-50/80 border-red-100 text-red-600 hover:bg-red-100 shadow-sm'
               }`}
+              title="Toggle theme"
             >
               <i data-lucide="sun" className={theme === 'dark' ? "w-4 h-4 block" : "hidden"}></i>
               <i data-lucide="moon" className={theme === 'light' ? "w-4 h-4 block" : "hidden"}></i>
@@ -597,10 +627,10 @@ import 'firebase/compat/auth';
             {/* Customer Profile (logged in) or Sign In (guest) */}
             <button
               onClick={currentUser ? onProfileClick : onSignInClick}
-              className={`text-xs font-bold px-3.5 py-2.5 rounded-xl border transition-all duration-300 flex items-center space-x-1.5 ${
+              className={`text-xs font-black px-3.5 py-2 rounded-xl border transition-all duration-300 flex items-center space-x-1.5 shadow-sm active:scale-95 ${
                 theme === 'dark'
-                  ? 'bg-neutral-850 border-neutral-800 text-cafe-amber hover:text-white'
-                  : 'bg-white border-slate-200 text-cafe-crispy hover:text-cafe-black shadow-sm'
+                  ? 'bg-neutral-850 border-neutral-800 text-red-400 hover:text-white'
+                  : 'bg-gradient-to-r from-red-600 to-rose-600 text-white border-transparent hover:brightness-110 shadow-red-500/20'
               }`}
               title={currentUser ? `Profile: ${currentUser.name}` : "Sign In"}
             >
@@ -615,7 +645,7 @@ import 'firebase/compat/auth';
       );
     };
 
-    // Horizontal Sliding Banner Carousel with CMS target control
+    // Horizontal Sliding Banner Carousel with CMS target control (Compact Sleek Pro)
     const PromoCarousel = () => {
       const { theme } = useContext(AppContext);
       
@@ -631,17 +661,17 @@ import 'firebase/compat/auth';
       }, [slides.length]);
 
       return (
-        <div className="px-6 py-4">
-          <div className={`rounded-2xl border transition-all duration-300 relative overflow-hidden aspect-[16/5] flex items-center justify-center ${
+        <div className="px-3.5 sm:px-4 pt-2 pb-1">
+          <div className={`rounded-xl border transition-all duration-300 relative overflow-hidden aspect-[16/4.5] max-h-[92px] flex items-center justify-center shadow-xs ${
             theme === 'light'
-              ? 'bg-slate-105 border-slate-200'
-              : 'bg-neutral-900 border-neutral-800'
+              ? 'bg-slate-100 border-slate-200 shadow-slate-200/40'
+              : 'bg-neutral-900 border-neutral-800 shadow-black/40'
           }`}>
             {slides.map((slide, idx) => (
               <img
                 key={slide.url}
                 src={slide.url}
-                className={`w-full h-full object-cover aspect-[16/5] absolute inset-0 transition-opacity duration-500 ${
+                className={`w-full h-full object-cover aspect-[16/4.5] absolute inset-0 transition-opacity duration-500 ${
                   idx === currentIdx ? 'opacity-100 block' : 'opacity-0 hidden'
                 }`}
                 alt={`Promo Banner ${idx + 1}`}
@@ -652,12 +682,12 @@ import 'firebase/compat/auth';
             ))}
             
             {/* Carousel indicator dots */}
-            <div className="absolute bottom-3 left-0 right-0 flex justify-center space-x-1.5 z-10">
+            <div className="absolute bottom-1.5 left-0 right-0 flex justify-center space-x-1.5 z-10">
               {slides.map((_, idx) => (
                 <span
                   key={idx}
-                  className={`w-1.5 h-1.5 rounded-full transition-all ${
-                    idx === currentIdx ? 'bg-cafe-amber w-3' : 'bg-white/50'
+                  className={`h-1 rounded-full transition-all duration-300 ${
+                    idx === currentIdx ? 'bg-red-600 w-3.5 shadow-xs' : 'bg-white/70 w-1'
                   }`}
                 />
               ))}
@@ -667,29 +697,32 @@ import 'firebase/compat/auth';
       );
     };
 
-    // Product Category swiper
+    // Product Category swiper (with icons & counts - Compact)
     const CategorySwiper = ({ activeCategory, setActiveCategory }) => {
       const { theme } = useContext(AppContext);
       const categories = Object.keys(MENU_CATALOG);
+
       return (
-        <div className={`flex overflow-x-auto py-4 px-6 space-x-3 no-scrollbar scroll-smooth sticky top-[69px] z-20 backdrop-blur-md transition-colors duration-300 ${
-          theme === 'light' ? 'border-b border-slate-200 bg-white/90' : 'border-b border-neutral-900/50 bg-cafe-black/90'
+        <div className={`flex overflow-x-auto py-2 px-3.5 sm:px-4 space-x-2 no-scrollbar scroll-smooth sticky top-[53px] z-20 backdrop-blur-md transition-colors duration-300 ${
+          theme === 'light' ? 'border-b border-red-50 bg-white/95 shadow-xs' : 'border-b border-neutral-900/80 bg-cafe-black/95 shadow-xs'
         }`}>
           {categories.map(cat => {
             const isActive = activeCategory === cat;
+            const meta = CATEGORY_META[cat] || { icon: "🍽️", label: cat };
             return (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`px-5 py-2.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-300 ${
+                className={`px-3 py-1.5 rounded-full text-xs font-black whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 select-none ${
                   isActive
-                    ? 'bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black shadow-lg shadow-cafe-amber/25 scale-105'
+                    ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-xs scale-102 ring-1 ring-red-500/20'
                     : theme === 'light'
-                      ? 'bg-slate-100 text-slate-605 hover:text-slate-900 border border-slate-205 shadow-sm'
+                      ? 'bg-slate-100/80 text-slate-700 hover:text-red-600 hover:bg-red-50 border border-slate-200/80'
                       : 'bg-cafe-card text-neutral-400 hover:text-white border border-neutral-800'
                 }`}
               >
-                {cat}
+                <span className="text-xs">{meta.icon}</span>
+                <span>{meta.label}</span>
               </button>
             );
           })}
@@ -697,64 +730,118 @@ import 'firebase/compat/auth';
       );
     };
 
-    // Product Card Component (Light Theme Adaptive)
+    // Product Card Component (Spacious, Balanced Square Pro Red & White UI)
     const ProductCard = ({ product, onAdd, categoryName }) => {
-      const { theme, getActivePrice, getActiveAvailability } = useContext(AppContext);
+      const { theme, getActivePrice, getActiveAvailability, tray, changeQty } = useContext(AppContext);
       
       const price = getActivePrice(product.name, product.price);
       const isAvailable = getActiveAvailability(product.name);
+      const trayItem = (tray || []).find(t => t.name === product.name);
+      const qtyInCart = trayItem ? trayItem.quantity : 0;
+      const isVeg = product.isVeg === true;
 
       return (
-        <div className={`rounded-2xl p-4 transition-all duration-300 relative flex flex-col justify-between h-48 overflow-hidden group ${
-          !isAvailable ? 'opacity-55 grayscale' : 'hover:scale-[1.02]'
+        <div className={`rounded-3xl border transition-all duration-300 flex flex-col justify-between overflow-hidden group shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-xl p-3.5 sm:p-4 relative ${
+          !isAvailable ? 'opacity-55 grayscale' : 'hover:-translate-y-0.5'
         } ${
           theme === 'light' 
-            ? 'bg-slate-50 border border-slate-200/80 shadow-[0_4px_15px_rgba(0,0,0,0.02)] hover:shadow-orange-500/10'
-            : 'bg-cafe-card border border-neutral-800/80 cafe-glow'
+            ? 'bg-white border-slate-100 hover:border-red-200 hover:shadow-red-500/10' 
+            : 'bg-neutral-900 border-neutral-800/90 hover:border-red-900/50'
         }`}>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-cafe-amber/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-bl-full pointer-events-none"></div>
-          
-          <div className="flex justify-between items-start">
-            <div className="flex-1 pr-2">
-              <h3 className={`font-semibold text-sm leading-snug group-hover:text-cafe-amber transition-colors duration-300 ${
-                theme === 'light' ? 'text-slate-900' : 'text-white'
-              }`}>
-                {product.name}
-              </h3>
-              <span className={!isAvailable ? "inline-block mt-1 bg-red-650/10 border border-red-500/20 text-red-500 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase block w-max" : "hidden"}>
-                Sold Out
+          {/* Top Row: Floating Veg/Non-Veg & Custom Badges */}
+          <div className="flex items-center justify-between w-full mb-1 z-10">
+            {/* Veg / Non-Veg Indicator Badge */}
+            <div className="flex items-center bg-white/95 dark:bg-black/90 backdrop-blur-sm p-1 rounded-md shadow-xs border border-slate-200/80 dark:border-neutral-700">
+              <span className={`w-2.5 h-2.5 rounded-xs border flex items-center justify-center ${isVeg ? 'border-emerald-600' : 'border-red-600'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${isVeg ? 'bg-emerald-600' : 'bg-red-600'}`}></span>
               </span>
             </div>
+
+            {/* Custom Badge (Bestseller, Hot Deal, etc.) */}
+            {product.badge ? (
+              <span className="bg-gradient-to-r from-red-600 to-rose-600 text-white text-[8.5px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-xs">
+                {product.badge}
+              </span>
+            ) : <span />}
+          </div>
+
+          {/* Card Middle: Clean Floating Food Visual with Soft Hover Glow */}
+          <div className="relative w-full h-24 sm:h-28 flex items-center justify-center my-1.5">
             <img 
               src={product.image} 
-              className="w-16 h-16 object-cover rounded-xl shadow-md border border-neutral-800/10 group-hover:rotate-3 transition-transform duration-300" 
+              className="w-full h-full object-contain drop-shadow-md group-hover:scale-110 transition-transform duration-400 ease-out" 
               alt={product.name} 
+              onError={(e) => {
+                e.target.src = isVeg ? 'burger.png' : 'fried_chicken.png';
+              }}
             />
           </div>
           
-          <div className="flex items-center justify-between mt-auto">
+          {/* Card Body: Title & Description */}
+          <div className="flex flex-col flex-1 justify-between mt-1">
             <div>
-              <span className={`text-[10px] block font-medium uppercase tracking-wider ${
-                theme === 'light' ? 'text-slate-400' : 'text-neutral-400'
-              }`}>Price</span>
-              <span className={`text-base font-bold font-sans ${
+              <h3 className={`font-bold text-[13px] sm:text-sm leading-snug group-hover:text-red-600 transition-colors line-clamp-1 ${
                 theme === 'light' ? 'text-slate-900' : 'text-white'
-              }`}>₹{price}</span>
+              }`} title={product.name}>
+                {product.name}
+              </h3>
+              {product.desc && (
+                <p className={`text-[11px] font-normal leading-tight mt-0.5 line-clamp-1 ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  {product.desc}
+                </p>
+              )}
             </div>
             
-            <button
-              onClick={(e) => onAdd(e, product)}
-              className={isAvailable ? `p-2.5 rounded-xl transition-all duration-300 shadow-md flex items-center justify-center font-bold opacity-100 bg-cafe-amber text-cafe-black hover:bg-cafe-amberGlow block` : "hidden"}
-            >
-              <i data-lucide="plus" className="w-4 h-4 stroke-[3]"></i>
-            </button>
-            <span className={!isAvailable ? "text-xs text-neutral-550 font-bold uppercase tracking-wider select-none pr-1 block" : "hidden"}>
-              Out
-            </span>
+            {/* Card Footer: Price & Add / Quantity Stepper */}
+            <div className="flex items-center justify-between pt-3 mt-1">
+              <div>
+                <span className={`text-[9px] block font-bold uppercase tracking-wider ${
+                  theme === 'light' ? 'text-slate-400' : 'text-neutral-500'
+                }`}>Price</span>
+                <span className={`text-sm sm:text-base font-extrabold ${
+                  theme === 'light' ? 'text-slate-900' : 'text-white'
+                }`}>₹{price}</span>
+              </div>
+              
+              {/* In-Card Stepper or Add Button */}
+              {!isAvailable ? (
+                <span className="text-[9px] font-bold uppercase tracking-wider text-red-500 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 px-2 py-1 rounded-lg">
+                  Sold Out
+                </span>
+              ) : qtyInCart > 0 ? (
+                <div className="flex items-center space-x-1.5 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800/50 rounded-xl p-1 shadow-xs">
+                  <button
+                    onClick={() => changeQty(product.name, -1)}
+                    className="w-6 h-6 rounded-lg bg-white dark:bg-neutral-800 text-red-600 hover:bg-red-600 hover:text-white flex items-center justify-center font-black text-xs transition shadow-xs"
+                  >
+                    -
+                  </button>
+                  <span className="font-sans font-bold text-xs text-red-600 px-1 min-w-[12px] text-center">
+                    {qtyInCart}
+                  </span>
+                  <button
+                    onClick={() => changeQty(product.name, 1)}
+                    className="w-6 h-6 rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center justify-center font-black text-xs transition shadow-xs"
+                  >
+                    +
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => onAdd(e, product)}
+                  className="px-3.5 py-1.5 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-1 font-bold text-xs bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-red-500/20 active:scale-95"
+                >
+                  <span>+ ADD</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       );
-    };    const TrayCart = ({ onCheckoutTrigger }) => {
+    };
+
+    // Modern Red & White Floating Food Tray Cart Bar & Drawer
+    const TrayCart = ({ onCheckoutTrigger }) => {
       const { tray, changeQty, trayCount, traySubtotal, gstAmount, trayTotal, removeFromTray, theme, getActivePrice, menuSettings, deliveryFee } = useContext(AppContext);
       const [isOpen, setIsOpen] = useState(false);
 
@@ -764,68 +851,73 @@ import 'firebase/compat/auth';
 
       return (
         <div className={tray.length > 0 ? "block" : "hidden"}>
+          {/* Backdrop Blur overlay when drawer is open */}
           <div 
-            className={isOpen ? "fixed inset-0 bg-black/70 z-40 transition-opacity duration-300 backdrop-blur-sm block" : "hidden"}
+            className={isOpen ? "fixed inset-0 bg-black/75 z-40 transition-opacity duration-300 backdrop-blur-sm block" : "hidden"}
             onClick={() => setIsOpen(false)}
           />
 
-          <div className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-gradient-to-b rounded-t-3xl border-t z-50 p-4 transition-all duration-550 transform ${
+          {/* Floating Bottom Bar / Slide-up Sheet */}
+          <div className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto rounded-t-3xl border-t z-50 p-4 transition-all duration-500 transform shadow-2xl ${
             theme === 'light'
-              ? 'from-red-700 to-red-900 border-red-500/50 shadow-[-10px_-10px_35px_rgba(220,38,38,0.15)] text-white'
-              : 'from-red-800 to-red-950 border-red-500/80 shadow-[-10px_-10px_35px_rgba(220,38,38,0.25)] text-white'
+              ? 'bg-gradient-to-b from-red-600 via-red-700 to-red-800 border-red-500 text-white'
+              : 'bg-gradient-to-b from-red-800 via-red-900 to-neutral-950 border-red-700 text-white'
           } ${
-            isOpen ? 'translate-y-0' : 'translate-y-[calc(100%-80px)]'
+            isOpen ? 'translate-y-0' : 'translate-y-[calc(100%-74px)]'
           }`}>
             
+            {/* Header / Summary Tap Bar */}
             <div 
-              className="flex items-center justify-between pb-4 border-b border-red-700/50 cursor-pointer"
+              className="flex items-center justify-between pb-3 border-b border-red-500/40 cursor-pointer select-none"
               onClick={() => setIsOpen(!isOpen)}
             >
-              <div className="flex items-center space-x-3">
-                <span className="text-2xl animate-bounce-slow">🍱</span>
+              <div className="flex items-center space-x-2.5">
+                <span className="text-2xl animate-bounce-slow">🍗</span>
                 <div>
-                  <h3 className="font-bold text-white tracking-wide text-sm flex items-center">
+                  <h3 className="font-black text-white tracking-wide text-xs sm:text-sm flex items-center">
                     YOUR FOOD TRAY 
-                    <span className="ml-2 bg-white text-red-900 rounded-full px-2.5 py-0.5 text-xs font-extrabold shadow-md">
-                      {trayCount}
+                    <span className="ml-2 bg-white text-red-600 rounded-full px-2 py-0.5 text-[11px] font-black shadow-md">
+                      {trayCount} {trayCount === 1 ? 'item' : 'items'}
                     </span>
                   </h3>
-                  <p className="text-[10px] text-red-200 font-semibold tracking-wider">
-                    {isOpen ? 'Tap to collapse tray' : 'Tap to review / checkout'}
+                  <p className="text-[10px] text-red-100 font-semibold">
+                    {isOpen ? 'Tap to close tray' : 'Tap to review items & bill details'}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center space-x-4">
-                <span className="text-xl font-black text-white font-sans">₹{trayTotal}</span>
+              <div className="flex items-center space-x-3">
+                <span className="text-lg sm:text-xl font-black text-white font-sans">₹{trayTotal}</span>
                 <i data-lucide={isOpen ? "chevron-down" : "chevron-up"} className="w-5 h-5 text-white"></i>
               </div>
             </div>
 
-            <div className={isOpen ? "max-h-[220px] overflow-y-auto py-4 space-y-3 no-scrollbar border-b border-red-700/50 block" : "hidden"}>
+            {/* Scrollable Item Rows */}
+            <div className={isOpen ? "max-h-[220px] overflow-y-auto py-3 space-y-2.5 no-scrollbar border-b border-red-500/40 block" : "hidden"}>
               {tray.map(item => {
                 const activePrice = getActivePrice(item.name, item.price);
                 return (
-                  <div key={item.name} className="flex items-center justify-between bg-red-900/40 p-3 rounded-xl border border-red-700/30">
-                    <div className="flex-1 flex items-center space-x-3">
-                      <img src={item.image} className="w-10 h-10 object-cover rounded-lg border border-red-500/20" alt="" />
-                      <div>
-                        <h4 className="font-semibold text-white text-sm leading-normal">{item.name}</h4>
-                        <span className="text-xs text-red-202 font-medium">₹{activePrice} each</span>
+                  <div key={item.name} className="flex items-center justify-between bg-red-950/40 p-2.5 rounded-xl border border-red-500/25">
+                    <div className="flex-1 flex items-center space-x-2.5 min-w-0 pr-2">
+                      <img src={item.image} className="w-9 h-9 object-cover rounded-lg border border-red-400/30 flex-shrink-0" alt="" />
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-white text-xs leading-tight truncate">{item.name}</h4>
+                        <span className="text-[11px] text-red-200 font-medium">₹{activePrice} each</span>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2 flex-shrink-0">
                       <button 
                         onClick={() => changeQty(item.name, -1)}
-                        className="w-7 h-7 rounded-lg bg-red-750/70 hover:bg-red-600 flex items-center justify-center font-extrabold text-white transition-colors"
+                        className="w-6 h-6 rounded-lg bg-red-800/80 hover:bg-red-600 flex items-center justify-center font-black text-white transition text-xs"
                       >-</button>
-                      <span className="text-white font-bold font-sans text-sm">{item.quantity}</span>
+                      <span className="text-white font-black font-sans text-xs min-w-[12px] text-center">{item.quantity}</span>
                       <button 
                         onClick={() => changeQty(item.name, 1)}
-                        className="w-7 h-7 rounded-lg bg-red-750/70 hover:bg-red-600 flex items-center justify-center font-extrabold text-white transition-colors"
+                        className="w-6 h-6 rounded-lg bg-red-800/80 hover:bg-red-600 flex items-center justify-center font-black text-white transition text-xs"
                       >+</button>
                       <button 
                         onClick={() => removeFromTray(item.name)}
-                        className="ml-2 text-red-202 hover:text-white"
+                        className="ml-1 text-red-300 hover:text-white transition"
+                        title="Remove item"
                       >
                         <i data-lucide="trash-2" className="w-4 h-4"></i>
                       </button>
@@ -835,28 +927,30 @@ import 'firebase/compat/auth';
               })}
             </div>
 
-            <div className={isOpen ? "py-3 text-[11px] text-red-200 font-medium space-y-1 block" : "hidden"}>
+            {/* Bill Breakdown */}
+            <div className={isOpen ? "py-2.5 text-[11px] text-red-100 font-medium space-y-1 block" : "hidden"}>
               <div className="flex justify-between">
                 <span>Subtotal:</span>
-                <span className="font-bold">₹{traySubtotal}</span>
+                <span className="font-bold text-white">₹{traySubtotal}</span>
               </div>
               <div className="flex justify-between">
                 <span>GST Surcharge ({menuSettings.gstRate}%):</span>
-                <span className="font-bold">₹{gstAmount}</span>
+                <span className="font-bold text-white">₹{gstAmount}</span>
               </div>
               <div className="flex justify-between">
                 <span>Delivery Fee:</span>
-                <span className="font-bold">₹{deliveryFee}</span>
+                <span className="font-bold text-white">₹{deliveryFee}</span>
               </div>
             </div>
 
-            <div className="pt-3 mt-1">
+            {/* Main Action Button */}
+            <div className="pt-2">
               <button
                 onClick={onCheckoutTrigger}
-                className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-cafe-black font-extrabold text-center rounded-xl shadow-lg hover:shadow-orange-500/20 active:scale-95 transition-all tracking-wider text-sm flex items-center justify-center space-x-2"
+                className="w-full py-3.5 bg-white hover:bg-slate-100 text-red-600 font-black text-center rounded-xl shadow-lg hover:shadow-xl active:scale-98 transition-all tracking-wider text-xs sm:text-sm flex items-center justify-center space-x-2"
               >
-                <span>ORDER NOW (CASH / UPI)</span>
-                <i data-lucide="arrow-right" className="w-4 h-4 text-cafe-black stroke-[3]"></i>
+                <span>PROCEED TO CHECKOUT (₹{trayTotal})</span>
+                <i data-lucide="arrow-right" className="w-4 h-4 text-red-600 stroke-[3]"></i>
               </button>
             </div>
           </div>
@@ -2037,13 +2131,6 @@ import 'firebase/compat/auth';
                   <p className="text-[10px] font-medium text-center text-neutral-450 pt-1 border-t border-neutral-700/40 mt-1.5">
                     {getStatusLabel(activeOrder.status)}
                   </p>
-                  {/* Fix 1: displayId IS the delivery PIN — show it clearly ONLY if out_for_delivery */}
-                  {activeOrder.displayId && activeOrder.status === 'out_for_delivery' && (
-                    <div className="mt-2 pt-2 border-t border-amber-600/20 text-center">
-                      <span className="text-[9px] font-bold uppercase tracking-widest text-neutral-500 block mb-0.5">Delivery PIN</span>
-                      <span className="text-lg font-black tracking-[0.25em] text-cafe-amber">{activeOrder.displayId}</span>
-                    </div>
-                  )}
                 </div>
 
                 {(activeOrder.status === 'pending' || activeOrder.status === 'preparing') && (
@@ -2089,7 +2176,7 @@ import 'firebase/compat/auth';
               <PromoCarousel />
               <CategorySwiper activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
               
-              <main className="flex-1 p-6 grid grid-cols-2 gap-4 max-h-[calc(100vh-320px)] overflow-y-auto no-scrollbar font-sans">
+              <main className="flex-1 p-3.5 sm:p-4 grid grid-cols-2 gap-3 sm:gap-3.5 auto-rows-max items-start content-start overflow-y-auto no-scrollbar font-sans pb-28">
                 {filteredProducts.map(prod => (
                   <ProductCard key={prod.name} product={prod} onAdd={handleAdd} categoryName={activeCategory} />
                 ))}
@@ -2167,7 +2254,7 @@ import 'firebase/compat/auth';
           <div className="fixed inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-amber-955 via-neutral-950 to-neutral-950 pointer-events-none z-0"></div>
           
           <div className="w-full max-w-sm bg-cafe-card rounded-3xl border border-neutral-800 p-8 space-y-6 shadow-2xl relative z-10 text-center">
-            <img src="./logo.png" className="h-16 mx-auto object-contain mb-2" alt="logo" />
+            <img src="./logo_rm_bg.png" className="h-16 mx-auto object-contain mb-2 drop-shadow-sm" alt="Crispy Chick Logo" />
             <div className="space-y-1">
               <h2 className="text-xl font-bold font-serif text-white">Central Verification Gate</h2>
               <p className="text-xs text-neutral-400 font-medium">Log in using your workspace credentials</p>
@@ -2217,18 +2304,109 @@ import 'firebase/compat/auth';
       const [fleetRiders, setFleetRiders] = useState([]);
       const prevOrdersRef = useRef([]);
 
-      // Live-fetch verified riders from Firebase
+      // In-Counter Rider Management State
+      const [showAddRider, setShowAddRider] = useState(false);
+      const [newRiderName, setNewRiderName] = useState('');
+      const [newRiderPhone, setNewRiderPhone] = useState('');
+      const [newRiderPin, setNewRiderPin] = useState('');
+      const [riderFormError, setRiderFormError] = useState('');
+      const [riderFormLoading, setRiderFormLoading] = useState(false);
+
+      // Live-fetch fleet riders from Firebase
       useEffect(() => {
         const unsubRiders = db.collection('riders').onSnapshot(snap => {
           const list = [];
           snap.forEach(doc => {
             const d = doc.data();
-            if (d.verified === true && d.name) list.push({ id: doc.id, name: d.name, phone: d.phone });
+            if (d.name) {
+              list.push({
+                id: doc.id,
+                pin: d.pin || doc.id,
+                name: d.name,
+                phone: d.phone,
+                isActive: d.isActive !== false,
+                isOnline: d.isOnline === true,
+                dutyStartTime: d.dutyStartTime || null,
+                verified: d.verified !== false,
+                createdAt: d.createdAt || 0
+              });
+            }
           });
           setFleetRiders(list);
         }, err => console.warn('Riders fetch error:', err));
         return () => unsubRiders();
       }, []);
+
+      const generateRandomPin = () => {
+        const pin = Math.floor(100000 + Math.random() * 900000).toString();
+        setNewRiderPin(pin);
+      };
+
+      const handleAddRider = async (e) => {
+        e.preventDefault();
+        const trimmedName = newRiderName.trim();
+        const trimmedPhone = newRiderPhone.trim();
+        const trimmedPin = newRiderPin.trim();
+
+        if (!trimmedName) {
+          setRiderFormError('Please enter rider full name.');
+          return;
+        }
+        if (!/^[6-9]\d{9}$/.test(trimmedPhone)) {
+          setRiderFormError('Enter a valid 10-digit mobile number starting 6-9.');
+          return;
+        }
+        if (!/^\d{6}$/.test(trimmedPin)) {
+          setRiderFormError('Rider PIN must be exactly 6 digits.');
+          return;
+        }
+        if (fleetRiders.some(r => r.pin === trimmedPin || r.id === trimmedPin)) {
+          setRiderFormError('This 6-digit PIN is already assigned to another rider.');
+          return;
+        }
+
+        setRiderFormLoading(true);
+        setRiderFormError('');
+
+        try {
+          await db.collection('riders').doc(trimmedPin).set({
+            name: trimmedName,
+            phone: trimmedPhone,
+            pin: trimmedPin,
+            verified: true,
+            isActive: true,
+            isOnline: false,
+            createdAt: Date.now()
+          });
+          setNewRiderName('');
+          setNewRiderPhone('');
+          setNewRiderPin('');
+          setShowAddRider(false);
+        } catch (err) {
+          console.error("Failed to add rider:", err);
+          setRiderFormError('Database error. Please try again.');
+        } finally {
+          setRiderFormLoading(false);
+        }
+      };
+
+      const handleDeleteRider = async (rider) => {
+        const pin = rider.pin || rider.id;
+        // Step 1 Confirmation
+        const confirmFirst = window.confirm(`Remove rider "${rider.name}" from the delivery fleet?`);
+        if (!confirmFirst) return;
+
+        // Step 2 Final Safety Confirmation to prevent accidental touches
+        const confirmFinal = window.confirm(`⚠️ FINAL CONFIRMATION:\nAre you absolutely sure you want to permanently delete "${rider.name}" (PIN: ${pin})?\nThis will revoke their login access immediately.`);
+        if (!confirmFinal) return;
+
+        try {
+          await db.collection('riders').doc(pin).delete();
+        } catch (err) {
+          console.error("Failed to delete rider:", err);
+          alert("Error deleting rider. Please try again.");
+        }
+      };
 
       useEffect(() => {
         const unsubscribe = subscribeOrders((data) => {
@@ -2290,10 +2468,22 @@ import 'firebase/compat/auth';
       };
 
       const handleAssignAndDispatch = async (orderId) => {
-        const rider = selectedRiders[orderId] || (fleetRiders[0] ? fleetRiders[0].name : '');
+        const onlineRidersList = fleetRiders.filter(r => r.isOnline === true);
+        if (onlineRidersList.length === 0) {
+          window.alert('⚠️ Cannot assign order: No delivery riders are currently online. Ask a rider to turn on duty in their app first.');
+          return;
+        }
+
+        const chosenRiderName = selectedRiders[orderId] || (onlineRidersList[0] ? onlineRidersList[0].name : '');
+        const matchedOnlineRider = onlineRidersList.find(r => r.name === chosenRiderName);
+        if (!matchedOnlineRider) {
+          window.alert('⚠️ Cannot assign order: The selected rider is currently offline. Please choose a rider who is online.');
+          return;
+        }
+
         await db.collection('orders').doc(orderId).update({
           status: 'prepared',
-          assignedRider: rider,
+          assignedRider: matchedOnlineRider.name,
           dispatchedAt: Date.now()
         });
       };
@@ -2302,8 +2492,85 @@ import 'firebase/compat/auth';
         setSelectedRiders(prev => ({ ...prev, [orderId]: riderName }));
       };
 
+      const onlineRiders = fleetRiders.filter(r => r.isOnline === true);
       const activeOrdersList = orders.filter(o => ['pending', 'preparing', 'prepared', 'out_for_delivery'].includes(o.status));
       const archivedOrdersList = orders.filter(o => ['successfully_delivered', 'delivered', 'completed', 'rejected'].includes(o.status));
+
+      // Live Rider Status & Assignment Computation
+      const getRiderStatus = (rider) => {
+        const activeOrder = activeOrdersList.find(o => 
+          (o.assignedRider === rider.name || o.pickedUpBy === rider.name) &&
+          ['prepared', 'out_for_delivery'].includes(o.status)
+        );
+
+        if (activeOrder) {
+          if (activeOrder.status === 'out_for_delivery') {
+            return {
+              status: 'delivering',
+              label: `🛵 Delivering #${activeOrder.displayId || activeOrder.id.slice(-4).toUpperCase()}`,
+              sublabel: `To: ${activeOrder.customerName}`,
+              orderId: activeOrder.id,
+              badgeClass: 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
+            };
+          }
+          if (activeOrder.status === 'prepared') {
+            return {
+              status: 'prepared',
+              label: `📦 Pickup Pending #${activeOrder.displayId || activeOrder.id.slice(-4).toUpperCase()}`,
+              sublabel: `Waiting at counter`,
+              orderId: activeOrder.id,
+              badgeClass: 'bg-purple-500/10 text-purple-400 border border-purple-500/30'
+            };
+          }
+        }
+
+        if (rider.isOnline !== true) {
+          return {
+            status: 'offline',
+            label: '⚪ Offline',
+            sublabel: 'Rider off duty',
+            badgeClass: 'bg-neutral-800/80 text-neutral-400 border border-neutral-700'
+          };
+        }
+
+        return {
+          status: 'available',
+          label: '🟢 Online (Ready)',
+          sublabel: formatRiderDutyDuration(rider.dutyStartTime),
+          badgeClass: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold'
+        };
+      };
+
+      const formatRiderDutyDuration = (dutyStartTime) => {
+        if (!dutyStartTime) return 'Ready for orders';
+        const mins = Math.floor(Math.max(0, Date.now() - dutyStartTime) / 60000);
+        if (mins < 60) return `${mins}m on duty`;
+        const hrs = Math.floor(mins / 60);
+        const remMins = mins % 60;
+        return `${hrs}h ${remMins}m on duty`;
+      };
+
+      const getRiderTodayDeliveriesCount = (riderName) => {
+        const today = new Date();
+        return archivedOrdersList.filter(o => {
+          if (!['successfully_delivered', 'delivered', 'completed'].includes(o.status)) return false;
+          if (o.assignedRider !== riderName && o.pickedUpBy !== riderName) return false;
+          const ts = o.deliveredAt || o.createdAt;
+          const d = ts && ts.toDate ? ts.toDate() : new Date(ts || 0);
+          return d.toDateString() === today.toDateString();
+        }).length;
+      };
+
+      const getRiderTodayAmountCollected = (riderName) => {
+        const today = new Date();
+        return archivedOrdersList.filter(o => {
+          if (!['successfully_delivered', 'delivered', 'completed'].includes(o.status)) return false;
+          if (o.assignedRider !== riderName && o.pickedUpBy !== riderName) return false;
+          const ts = o.deliveredAt || o.createdAt;
+          const d = ts && ts.toDate ? ts.toDate() : new Date(ts || 0);
+          return d.toDateString() === today.toDateString();
+        }).reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+      };
 
       const parseKitchenDate = (createdAt) => {
         if (!createdAt) return 'unknown date';
@@ -2354,11 +2621,9 @@ import 'firebase/compat/auth';
         updateMenuSettings({ ...menuSettings, items: currentItems });
       };
 
-
-
       useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-      }, [orders, menuSettings, theme]);
+      }, [orders, menuSettings, theme, fleetRiders, showAddRider]);
 
       const catalogList = [];
       Object.keys(MENU_CATALOG).forEach(cat => {
@@ -2385,11 +2650,11 @@ import 'firebase/compat/auth';
           }`}>
             {/* Logo & Shop Name Typography side-by-side */}
             <div className="flex items-center space-x-2 md:space-x-3 min-w-0">
-              <img src="./logo.png" className="h-10 w-auto object-contain flex-shrink-0" alt="logo" />
+              <img src="./logo_rm_bg.png" className="h-10 w-auto object-contain flex-shrink-0 drop-shadow-sm" alt="Crispy Chick Logo" />
               <h1 className={`font-sans font-black text-base sm:text-lg md:text-xl tracking-tight flex items-center whitespace-nowrap transition-colors duration-300 ${
                 theme === 'light' ? 'text-slate-900' : 'text-white'
               }`}>
-                Crispy Chick KGF
+                Crispy Chick
               </h1>
             </div>
 
@@ -2537,24 +2802,36 @@ import 'firebase/compat/auth';
                               </button>
 
                               <span className={order.status === 'prepared' ? "inline-flex items-center gap-2" : "hidden"}>
-                                <select
-                                  value={selectedRiders[order.id] || (fleetRiders[0] ? fleetRiders[0].name : '')}
-                                  onChange={(e) => handleRiderSelectChange(order.id, e.target.value)}
-                                  className={`border rounded-lg text-xs px-2 py-1 focus:outline-none focus:border-cafe-amber font-bold ${
-                                    theme === 'light' ? 'bg-white border-slate-200 text-slate-800' : 'bg-neutral-850 border-neutral-750 text-white'
-                                  }`}
-                                >
-                                  {fleetRiders.length === 0 && <option value="">No riders registered</option>}
-                                  {fleetRiders.map(rider => (
-                                    <option key={rider.id} value={rider.name}>{rider.name}</option>
-                                  ))}
-                                </select>
-                                <button
-                                  onClick={() => handleAssignAndDispatch(order.id)}
-                                  className="bg-teal-500/10 hover:bg-teal-500 hover:text-white text-teal-400 text-[11px] px-2 py-1 rounded-lg border border-teal-500/20 transition font-bold"
-                                >
-                                  Assign & Dispatch
-                                </button>
+                                {onlineRiders.length === 0 ? (
+                                  <span className="text-[11px] font-bold text-amber-500 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-lg">
+                                    ⚠️ No riders online
+                                  </span>
+                                ) : (
+                                  <>
+                                    <select
+                                      value={selectedRiders[order.id] || (onlineRiders[0] ? onlineRiders[0].name : '')}
+                                      onChange={(e) => handleRiderSelectChange(order.id, e.target.value)}
+                                      className={`border rounded-lg text-xs px-2 py-1 focus:outline-none focus:border-cafe-amber font-bold ${
+                                        theme === 'light' ? 'bg-white border-slate-200 text-slate-800' : 'bg-neutral-850 border-neutral-750 text-white'
+                                      }`}
+                                    >
+                                      {onlineRiders.map(rider => {
+                                        const st = getRiderStatus(rider);
+                                        return (
+                                          <option key={rider.id} value={rider.name}>
+                                            {rider.name} ({st.status === 'available' ? '🟢 Ready' : st.status === 'delivering' ? '🛵 Delivering' : '📦 Assigned'})
+                                          </option>
+                                        );
+                                      })}
+                                    </select>
+                                    <button
+                                      onClick={() => handleAssignAndDispatch(order.id)}
+                                      className="bg-teal-500/10 hover:bg-teal-500 hover:text-white text-teal-400 text-[11px] px-2 py-1 rounded-lg border border-teal-500/20 transition font-bold"
+                                    >
+                                      Assign & Dispatch
+                                    </button>
+                                  </>
+                                )}
                               </span>
 
                               { (order.status === 'pending' && order.cancellationRequested === true) && (
@@ -2699,9 +2976,246 @@ import 'firebase/compat/auth';
             {/* Right Panel */}
             <div className="space-y-6">
               
+              {/* Delivery Fleet & Live Rider Status Hub (Top Priority) */}
+              <div className={`rounded-2xl border shadow-xl p-6 space-y-5 ${
+                theme === 'light' ? 'bg-white border-slate-205' : 'bg-cafe-card border-neutral-800'
+              }`}>
+                <div className="flex items-center justify-between pb-3 border-b border-neutral-900/10">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xl">🛵</span>
+                    <div>
+                      <h3 className={`font-serif font-bold text-base ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                        Delivery Fleet Management
+                      </h3>
+                      <p className="text-[10px] text-neutral-450 font-semibold">Live Rider Profiles & Operational Status</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      generateRandomPin();
+                      setShowAddRider(true);
+                      setRiderFormError('');
+                    }}
+                    className="px-3 py-1.5 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold text-xs rounded-xl shadow hover:opacity-95 transition flex items-center space-x-1"
+                  >
+                    <span>+ Add Rider</span>
+                  </button>
+                </div>
 
+                {/* Fleet Quick Status Summary Badges */}
+                <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-bold">
+                  <div className={`p-2 rounded-xl border ${
+                    theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900/60 border-neutral-800'
+                  }`}>
+                    <span className="text-neutral-450 block">Fleet</span>
+                    <span className="text-base font-black text-amber-500 font-mono">{fleetRiders.length}</span>
+                  </div>
+                  <div className={`p-2 rounded-xl border ${
+                    theme === 'light' ? 'bg-emerald-50/50 border-emerald-200' : 'bg-emerald-950/20 border-emerald-800/40'
+                  }`}>
+                    <span className="text-emerald-500 block">Available</span>
+                    <span className="text-base font-black text-emerald-500 font-mono">
+                      {fleetRiders.filter(r => getRiderStatus(r).status === 'available').length}
+                    </span>
+                  </div>
+                  <div className={`p-2 rounded-xl border ${
+                    theme === 'light' ? 'bg-blue-50/50 border-blue-200' : 'bg-blue-950/20 border-blue-800/40'
+                  }`}>
+                    <span className="text-blue-400 block">Delivering</span>
+                    <span className="text-base font-black text-blue-400 font-mono">
+                      {fleetRiders.filter(r => ['delivering', 'prepared'].includes(getRiderStatus(r).status)).length}
+                    </span>
+                  </div>
+                </div>
 
-              {/* Permanent Store Configuration Panel */}
+                {/* Registered Riders List */}
+                <div className="space-y-3">
+                  <span className="block text-[10px] font-bold text-neutral-450 uppercase tracking-wider">
+                    Roster & Real-Time Tracking
+                  </span>
+
+                  {fleetRiders.length === 0 ? (
+                    <div className="text-center py-8 text-neutral-500 text-xs">
+                      No riders registered yet. Click <strong>+ Add Rider</strong> to create one.
+                    </div>
+                  ) : (
+                    <div className={`max-h-[360px] overflow-y-auto border rounded-xl no-scrollbar divide-y ${
+                      theme === 'light' ? 'bg-slate-50 border-slate-200 divide-slate-200' : 'bg-cafe-black/40 border-neutral-805 divide-neutral-900/60'
+                    }`}>
+                      {fleetRiders.map(rider => {
+                        const st = getRiderStatus(rider);
+                        const todayCount = getRiderTodayDeliveriesCount(rider.name);
+                        const todayCollected = getRiderTodayAmountCollected(rider.name);
+
+                        return (
+                          <div key={rider.id} className="p-3.5 space-y-2.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="flex items-center space-x-2">
+                                  <h4 className={`font-bold text-xs ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                                    {rider.name}
+                                  </h4>
+                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-800 text-amber-400 font-bold border border-neutral-700">
+                                    PIN: {rider.pin || rider.id}
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-neutral-450 mt-1">
+                                  <a href={`tel:${rider.phone}`} className="hover:text-amber-500 font-medium">
+                                    📞 {rider.phone || 'No phone'}
+                                  </a>
+                                  <span>•</span>
+                                  <span className="text-emerald-500 font-bold">₹{todayCollected} collected</span>
+                                  <span>•</span>
+                                  <span className="text-neutral-400 font-semibold">{todayCount} orders</span>
+                                </div>
+                              </div>
+
+                              {/* Live Status Badge */}
+                              <div className="text-right">
+                                <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${st.badgeClass}`}>
+                                  {st.label}
+                                </span>
+                                {st.sublabel && (
+                                  <span className="block text-[9px] text-neutral-450 font-medium mt-0.5">
+                                    {st.sublabel}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Rider Quick Action Toolbar (Self-Governed Duty Status + Double-Confirmed Delete) */}
+                            <div className="flex items-center justify-between pt-1 border-t border-neutral-900/10 dark:border-neutral-800/60 text-[10px]">
+                              <div className="text-[10px] text-neutral-400 font-medium flex items-center gap-1.5">
+                                <span className={`w-2 h-2 rounded-full ${rider.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-neutral-500'}`} />
+                                <span>{rider.isOnline ? 'Active on shift' : 'Currently offline'}</span>
+                              </div>
+
+                              <button
+                                onClick={() => handleDeleteRider(rider)}
+                                className="text-red-500 hover:text-red-400 font-bold uppercase px-2 py-1 transition flex items-center gap-1"
+                                title="Safely remove rider from fleet"
+                              >
+                                ✕ Delete
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Add New Rider Modal */}
+              {showAddRider && (
+                <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                  <div className={`w-full max-w-sm rounded-2xl border shadow-2xl p-6 space-y-4 ${
+                    theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-card border-neutral-800 text-white'
+                  }`}>
+                    <div className="flex justify-between items-center pb-2 border-b border-neutral-800/40">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xl">🛵</span>
+                        <h3 className="font-serif font-bold text-base">Register New Delivery Rider</h3>
+                      </div>
+                      <button
+                        onClick={() => setShowAddRider(false)}
+                        className="text-neutral-400 hover:text-white p-1"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {riderFormError && (
+                      <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-xs font-semibold">
+                        {riderFormError}
+                      </div>
+                    )}
+
+                    <form onSubmit={handleAddRider} className="space-y-3.5">
+                      <div>
+                        <label className="block text-[10px] font-bold text-neutral-450 uppercase tracking-wider mb-1">
+                          Rider Full Name
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={newRiderName}
+                          onChange={(e) => setNewRiderName(e.target.value)}
+                          placeholder="e.g. Ramesh Kumar"
+                          className={`w-full border rounded-xl px-3.5 py-2 text-xs font-semibold focus:outline-none focus:border-cafe-amber ${
+                            theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-neutral-900 border-neutral-800 text-white'
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-neutral-450 uppercase tracking-wider mb-1">
+                          10-Digit Mobile Number
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          maxLength={10}
+                          value={newRiderPhone}
+                          onChange={(e) => setNewRiderPhone(e.target.value.replace(/\D/g, ''))}
+                          placeholder="e.g. 9876543210"
+                          className={`w-full border rounded-xl px-3.5 py-2 text-xs font-semibold focus:outline-none focus:border-cafe-amber ${
+                            theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-neutral-900 border-neutral-800 text-white'
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="block text-[10px] font-bold text-neutral-450 uppercase tracking-wider">
+                            6-Digit Login PIN
+                          </label>
+                          <button
+                            type="button"
+                            onClick={generateRandomPin}
+                            className="text-[10px] text-cafe-amber hover:underline font-bold"
+                          >
+                            🎲 Auto-Generate
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          maxLength={6}
+                          value={newRiderPin}
+                          onChange={(e) => setNewRiderPin(e.target.value.replace(/\D/g, ''))}
+                          placeholder="6-digit PIN (e.g. 456789)"
+                          className={`w-full border rounded-xl px-3.5 py-2 text-xs font-mono font-bold tracking-widest text-center focus:outline-none focus:border-cafe-amber ${
+                            theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-neutral-900 border-neutral-800 text-white'
+                          }`}
+                        />
+                        <span className="block text-[9px] text-neutral-500 mt-1">
+                          The rider will use this 6-digit PIN to sign in to the Delivery Portal.
+                        </span>
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowAddRider(false)}
+                          className="flex-1 py-2.5 rounded-xl border border-neutral-700 hover:bg-neutral-800 text-xs font-bold text-neutral-300 transition"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={riderFormLoading}
+                          className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black text-xs font-extrabold shadow hover:opacity-95 transition disabled:opacity-50"
+                        >
+                          {riderFormLoading ? 'Registering...' : 'Register Rider'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Permanent Store Configuration Panel (Below Fleet) */}
               <div className={`rounded-2xl border shadow-xl p-6 space-y-6 ${
                 theme === 'light' ? 'bg-white border-slate-205' : 'bg-cafe-card border-neutral-800'
               }`}>
@@ -2983,6 +3497,45 @@ import 'firebase/compat/auth';
       const [showUpdateOtpInput, setShowUpdateOtpInput] = useState(false);
       const [qrModalOrder, setQrModalOrder] = useState(null);
 
+      // Rider Online Duty & Shift Tracking State
+      const [isOnline, setIsOnline] = useState(false);
+      const [dutyStartTime, setDutyStartTime] = useState(null);
+      const [dutyTimerText, setDutyTimerText] = useState('');
+
+      useEffect(() => {
+        if (!riderId) return;
+        const unsub = db.collection('riders').doc(riderId).onSnapshot(doc => {
+          if (doc.exists) {
+            const data = doc.data();
+            setIsOnline(data.isOnline === true);
+            setDutyStartTime(data.dutyStartTime || null);
+          }
+        }, err => console.warn('Rider duty sync error:', err));
+        return () => unsub();
+      }, [riderId]);
+
+      // Ticking timer for active duty shift
+      useEffect(() => {
+        if (!isOnline || !dutyStartTime) {
+          setDutyTimerText('');
+          return;
+        }
+        const updateTimer = () => {
+          const diffMs = Math.max(0, Date.now() - dutyStartTime);
+          const totalMins = Math.floor(diffMs / 60000);
+          const hrs = Math.floor(totalMins / 60);
+          const mins = totalMins % 60;
+          if (hrs > 0) {
+            setDutyTimerText(`${hrs}h ${mins}m`);
+          } else {
+            setDutyTimerText(`${mins}m`);
+          }
+        };
+        updateTimer();
+        const interval = setInterval(updateTimer, 30000);
+        return () => clearInterval(interval);
+      }, [isOnline, dutyStartTime]);
+
       useEffect(() => {
         if (riderId && !loginTime) {
           const timeStr = new Date().toLocaleTimeString();
@@ -3076,35 +3629,29 @@ import 'firebase/compat/auth';
         };
       }, []);
 
-      const handleOtpSubmit = async (e, order) => {
-        e.preventDefault();
-        const userInput = String(otpInputs[order.id] || '').trim();
-        const correctPin = String(order.displayId || '').trim();
-        if (userInput === correctPin) {
-          // Stop the looping alarm when delivery is confirmed
-          riderAlert.pause();
-          riderAlert.currentTime = 0;
-          await updateOrderStatus(order.id, 'delivered', {
-            deliveredAt: Date.now()
-          });
-          // Change 5: Mark customer as permanently verified on successful delivery
-          const custPhone = (order.customerPhone || '').split(' / ')[0].trim();
-          if (custPhone) {
-            // Tiered trust upgrade: flip phoneStatus + trustedUser on first successful delivery
-            db.collection('users').doc(custPhone).update({
-              phoneStatus: 'verified', // 100% — real-world delivery handshake confirmed
-              trustedUser: true,
-              verified: true           // backward-compat boolean mirror
-            }).catch(e => console.log('Trust upgrade failed (user may not exist yet):', e));
-          }
-          // No alert — order silently moves to History as status → 'delivered'
-        } else {
-          window.alert('Incorrect PIN. Ask the customer for their 4-digit Delivery PIN.');
+      const handleConfirmPaymentAndDelivery = async (order) => {
+        const orderNum = order.displayId || order.id.slice(-4).toUpperCase();
+        if (!window.confirm(`Confirm payment received (₹${order.totalAmount}) and mark Order #${orderNum} as delivered?`)) {
+          return;
         }
-      };
 
-      const handleOtpChange = (orderId, val) => {
-        setOtpInputs(prev => ({ ...prev, [orderId]: val }));
+        // Stop the alert audio if running
+        riderAlert.pause();
+        riderAlert.currentTime = 0;
+
+        await updateOrderStatus(order.id, 'delivered', {
+          deliveredAt: Date.now(),
+          paymentConfirmedByRider: true
+        });
+
+        const custPhone = (order.customerPhone || '').split(' / ')[0].trim();
+        if (custPhone) {
+          db.collection('users').doc(custPhone).update({
+            phoneStatus: 'verified',
+            trustedUser: true,
+            verified: true
+          }).catch(e => console.log('Trust upgrade failed:', e));
+        }
       };
 
       const showRideSafeToast = (orderId) => {
@@ -3140,19 +3687,57 @@ import 'firebase/compat/auth';
         if (window.lucide) window.lucide.createIcons();
       }, [orders, otpInputs, theme, rideSafeToast, isProfileOpen]);
 
-      const activeJobs = orders.filter(o => o.assignedRider === activeRiderProfile && ['preparing', 'prepared', 'out_for_delivery'].includes(o.status));
-      const completedJobs = orders.filter(o => o.assignedRider === activeRiderProfile && ['successfully_delivered', 'delivered', 'completed', 'rejected', 'cancelled'].includes(o.status));
+      const activeJobs = orders.filter(o => (o.assignedRider === activeRiderProfile || o.pickedUpBy === activeRiderProfile) && ['preparing', 'prepared', 'out_for_delivery'].includes(o.status));
+      const completedJobs = orders.filter(o => (o.assignedRider === activeRiderProfile || o.pickedUpBy === activeRiderProfile) && ['successfully_delivered', 'delivered', 'completed', 'rejected', 'cancelled'].includes(o.status));
 
-      // Count deliveries confirmed today (status='delivered', matched by calendar date)
-      const todaysDeliveries = completedJobs.filter(order => {
-        if (order.status !== 'delivered') return false;
-        const ts = order.createdAt;
+      // Count deliveries and total cash collected confirmed today
+      const todaysCompletedJobs = completedJobs.filter(order => {
+        if (!['delivered', 'successfully_delivered', 'completed'].includes(order.status)) return false;
+        const ts = order.deliveredAt || order.createdAt;
         const orderDate = ts && typeof ts.toDate === 'function' ? ts.toDate() : new Date(ts || 0);
         const today = new Date();
         return orderDate.getDate() === today.getDate() &&
                orderDate.getMonth() === today.getMonth() &&
                orderDate.getFullYear() === today.getFullYear();
-      }).length;
+      });
+
+      const todaysDeliveries = todaysCompletedJobs.length;
+      const todaysCollected = todaysCompletedJobs.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+
+      const toggleDutyOnline = async () => {
+        if (!riderId) return;
+        const willBeOnline = !isOnline;
+
+        // Prevent going offline if currently delivering an order
+        if (!willBeOnline) {
+          const hasActiveDelivery = activeJobs.some(o => o.status === 'out_for_delivery');
+          if (hasActiveDelivery) {
+            alert('⚠️ You cannot go offline while delivering an active order! Please complete the delivery handshake first.');
+            return;
+          }
+        }
+
+        try {
+          if (willBeOnline) {
+            const now = Date.now();
+            await db.collection('riders').doc(riderId).update({
+              isOnline: true,
+              dutyStartTime: now
+            });
+            setIsOnline(true);
+            setDutyStartTime(now);
+          } else {
+            await db.collection('riders').doc(riderId).update({
+              isOnline: false,
+              dutyEndTime: Date.now()
+            });
+            setIsOnline(false);
+          }
+        } catch (err) {
+          console.error('Failed to toggle duty status:', err);
+          alert('Could not update duty status. Please check your internet connection.');
+        }
+      };
 
       const groupedOrders = completedJobs.reduce((acc, order) => {
         const dateStr = parseDate(order.deliveredAt || order.createdAt);
@@ -3276,7 +3861,7 @@ import 'firebase/compat/auth';
             <div className="fixed inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-amber-955 via-neutral-950 to-neutral-950 pointer-events-none z-0"></div>
 
             <div className="w-full max-w-sm bg-cafe-card rounded-3xl border border-neutral-800 p-8 space-y-6 shadow-2xl relative z-10 text-center">
-              <img src="./logo.png" className="h-16 mx-auto object-contain mb-2" alt="logo" />
+              <img src="./logo_rm_bg.png" className="h-16 mx-auto object-contain mb-2 drop-shadow-sm" alt="Crispy Chick Logo" />
 
               {/* Step indicator */}
               <div className="flex justify-center gap-2">
@@ -3428,11 +4013,11 @@ import 'firebase/compat/auth';
               theme === 'light' ? 'bg-white border-slate-200 shadow-sm' : 'bg-cafe-black border-neutral-800 shadow-md'
             }`}>
               <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
-                <img src="./logo.png" className="h-9 w-auto object-contain flex-shrink-0" alt="logo" />
+                <img src="./logo_rm_bg.png" className="h-9 w-auto object-contain flex-shrink-0 drop-shadow-sm" alt="Crispy Chick Logo" />
                 <h1 className={`font-sans font-black text-sm sm:text-base tracking-tight flex items-center truncate transition-colors duration-300 ${
                   theme === 'light' ? 'text-slate-900' : 'text-white'
                 }`}>
-                  Crispy Chick KGF
+                  Crispy Chick
                 </h1>
               </div>
 
@@ -3465,26 +4050,101 @@ import 'firebase/compat/auth';
               </div>
             </div>
 
-            {/* ── Today's Deliveries metric badge ── */}
-            <div className={`flex items-center justify-between px-4 py-3 rounded-2xl border shadow-sm ${
-              theme === 'light'
-                ? 'bg-gradient-to-r from-green-50 to-emerald-100 border-green-200'
-                : 'bg-gradient-to-r from-green-900/30 to-emerald-800/30 border-green-800'
+            {/* ── Duty Online / Offline Toggle & Shift Duration Tracker ── */}
+            <div className={`p-4 rounded-2xl border shadow-md space-y-3 transition-all ${
+              isOnline 
+                ? (theme === 'light' ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-300 shadow-emerald-500/10' : 'bg-gradient-to-r from-emerald-950/40 to-teal-950/30 border-emerald-700/60') 
+                : (theme === 'light' ? 'bg-slate-100 border-slate-200' : 'bg-neutral-900/60 border-neutral-800')
             }`}>
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🏆</span>
-                <div>
-                  <p className={`text-[10px] font-bold uppercase tracking-wider ${
-                    theme === 'light' ? 'text-green-700' : 'text-green-400'
-                  }`}>Today's Deliveries</p>
-                  <p className={`text-[10px] ${
-                    theme === 'light' ? 'text-green-600' : 'text-green-500'
-                  }`}>Confirmed handshakes this session</p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <div className={`w-3.5 h-3.5 rounded-full flex-shrink-0 ${isOnline ? 'bg-emerald-500 animate-pulse ring-4 ring-emerald-500/20' : 'bg-neutral-500'}`} />
+                  <div className="min-w-0">
+                    <span className={`text-xs font-black uppercase tracking-wider block truncate ${
+                      isOnline ? (theme === 'light' ? 'text-emerald-700' : 'text-emerald-400') : (theme === 'light' ? 'text-slate-600' : 'text-neutral-400')
+                    }`}>
+                      {isOnline ? '🟢 DUTY ACTIVE (ONLINE)' : '⚪ DUTY INACTIVE (OFFLINE)'}
+                    </span>
+                    <span className={`text-[10px] block truncate ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
+                      {isOnline ? 'Ready to accept incoming delivery rides' : 'You are currently offline'}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={toggleDutyOnline}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-all active:scale-95 flex-shrink-0 flex items-center gap-1.5 ${
+                    isOnline 
+                      ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-600/30' 
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30'
+                  }`}
+                >
+                  {isOnline ? (
+                    <>
+                      <span>🔴</span>
+                      <span>GO OFFLINE</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🟢</span>
+                      <span>GO ONLINE 🚀</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {isOnline && (
+                <div className={`pt-2 border-t flex items-center justify-between text-[11px] font-semibold ${
+                  theme === 'light' ? 'border-emerald-200/80 text-emerald-700' : 'border-emerald-800/40 text-emerald-400'
+                }`}>
+                  <span className="flex items-center gap-1">
+                    <span>⏱️ Duty Time:</span>
+                    <span className="font-mono font-black">{dutyTimerText || 'Just started'}</span>
+                  </span>
+                  <span className="text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded-full font-bold uppercase">
+                    Monitoring Rides
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* ── Today's Deliveries & Cash Collected Metrics ── */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className={`p-3.5 rounded-2xl border shadow-sm ${
+                theme === 'light'
+                  ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200'
+                  : 'bg-gradient-to-r from-emerald-950/40 to-teal-900/30 border-emerald-800/60'
+              }`}>
+                <div className="flex items-center space-x-1.5 mb-1">
+                  <span className="text-base">🏆</span>
+                  <p className={`text-[10px] font-extrabold uppercase tracking-wider ${
+                    theme === 'light' ? 'text-emerald-800' : 'text-emerald-400'
+                  }`}>Deliveries</p>
+                </div>
+                <div className={`text-2xl font-black tabular-nums ${
+                  theme === 'light' ? 'text-emerald-700' : 'text-emerald-300'
+                }`}>
+                  {todaysDeliveries} <span className="text-[11px] font-semibold text-neutral-400">orders</span>
                 </div>
               </div>
-              <span className={`text-3xl font-black tabular-nums ${
-                theme === 'light' ? 'text-green-600' : 'text-green-400'
-              }`}>{todaysDeliveries}</span>
+
+              <div className={`p-3.5 rounded-2xl border shadow-sm ${
+                theme === 'light'
+                  ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200'
+                  : 'bg-gradient-to-r from-amber-950/40 to-orange-900/30 border-amber-800/60'
+              }`}>
+                <div className="flex items-center space-x-1.5 mb-1">
+                  <span className="text-base">💰</span>
+                  <p className={`text-[10px] font-extrabold uppercase tracking-wider ${
+                    theme === 'light' ? 'text-amber-800' : 'text-amber-400'
+                  }`}>Collected</p>
+                </div>
+                <div className={`text-2xl font-black tabular-nums ${
+                  theme === 'light' ? 'text-amber-700' : 'text-amber-300'
+                }`}>
+                  ₹{todaysCollected}
+                </div>
+              </div>
             </div>
 
             {/* Navigation Tabs */}
@@ -3620,42 +4280,23 @@ import 'firebase/compat/auth';
                             </button>
                           </div>
 
-                          {/* Order ID Delivery Confirmation form */}
-                          <div className={(order.status === 'out_for_delivery') ? "block" : "hidden"}>
+                          {/* Manual Confirm Payment & Complete Delivery Action */}
+                          <div className={(order.status === 'out_for_delivery') ? "block space-y-2.5 pt-2" : "hidden"}>
                             {/* Show Payment QR Button */}
                             <button
                               onClick={() => setQrModalOrder(order)}
-                              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 mb-2 shadow-sm"
+                              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-98"
                             >
-                              📲 Show Payment QR
+                              <span>📲 SHOW UPI PAYMENT QR (₹{order.totalAmount})</span>
                             </button>
-                            <form onSubmit={(e) => handleOtpSubmit(e, order)} className="space-y-3 pt-2">
-                              <div className={`border rounded-xl p-3 space-y-2 ${theme === 'light' ? 'bg-slate-100/60 border-slate-205' : 'bg-neutral-900 border-neutral-800'}`}>
-                                {/* Fix 1: Unified — rider enters the displayId which IS the Delivery PIN */}
-                                <label className="block text-[10px] font-bold text-neutral-455 uppercase tracking-widest text-center">
-                                  Ask customer for their 4-digit Delivery PIN
-                                </label>
-                                <div className="text-center text-[10px] text-neutral-450 font-medium pb-1">
-                                  Order: <span className="text-cafe-amber font-extrabold">#{order.displayId || order.id.slice(-4).toUpperCase()}</span>
-                                </div>
-                                <div className="flex gap-2">
-                                  <input
-                                    type="text" required maxLength="4" placeholder="Enter 4-digit PIN"
-                                    value={otpInputs[order.id] || ''}
-                                    onChange={e => handleOtpChange(order.id, e.target.value)}
-                                    className={`flex-1 border rounded-lg p-2 text-center text-sm focus:outline-none tracking-widest font-black ${
-                                      theme === 'light' ? 'bg-white border-slate-205 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
-                                    }`}
-                                  />
-                                  <button 
-                                    type="submit"
-                                    className="bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold px-4 text-xs rounded-lg transition-all"
-                                  >
-                                    Confirm
-                                  </button>
-                                </div>
-                              </div>
-                            </form>
+
+                            {/* Manual Confirm Payment & Deliver */}
+                            <button
+                              onClick={() => handleConfirmPaymentAndDelivery(order)}
+                              className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm rounded-xl shadow-lg transition-all active:scale-98 flex items-center justify-center gap-2"
+                            >
+                              <span>✅ CONFIRM PAYMENT & COMPLETE DELIVERY</span>
+                            </button>
                           </div>
 
                           <div className={isDelivered ? "bg-emerald-950/20 border border-emerald-500/20 rounded-xl p-4 text-center space-y-1 block" : "hidden"}>
@@ -3711,17 +4352,15 @@ import 'firebase/compat/auth';
                       {/* Complete Order Button */}
                       <button
                         onClick={async () => {
-                          const userInput = String(otpInputs[qrModalOrder.id] || '').trim();
-                          const correctPin = String(qrModalOrder.displayId || '').trim();
-                          if (!userInput || userInput !== correctPin) {
-                            window.alert('Enter the correct 4-digit Delivery PIN from the customer before completing.');
-                            setQrModalOrder(null);
+                          const orderNum = qrModalOrder.displayId || qrModalOrder.id.slice(-4).toUpperCase();
+                          if (!window.confirm(`Confirm payment received (₹${qrModalOrder.totalAmount}) and mark Order #${orderNum} as delivered?`)) {
                             return;
                           }
                           riderAlert.pause();
                           riderAlert.currentTime = 0;
                           await updateOrderStatus(qrModalOrder.id, 'delivered', {
-                            deliveredAt: Date.now()
+                            deliveredAt: Date.now(),
+                            paymentConfirmedByRider: true
                           });
                           const custPhone = (qrModalOrder.customerPhone || '').split(' / ')[0].trim();
                           if (custPhone) {
@@ -3732,11 +4371,10 @@ import 'firebase/compat/auth';
                             }).catch(e => console.log('Trust upgrade failed:', e));
                           }
                           setQrModalOrder(null);
-                          window.alert('✅ Payment received & order delivered successfully!');
                         }}
-                        className="w-full py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-extrabold text-sm rounded-xl shadow-lg transition-all active:scale-98 flex items-center justify-center gap-2"
+                        className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm rounded-xl shadow-lg transition-all active:scale-98 flex items-center justify-center gap-2"
                       >
-                        ✅ Payment Received & Complete Order
+                        ✅ PAYMENT RECEIVED & DELIVER ORDER
                       </button>
                     </div>
                   </div>
