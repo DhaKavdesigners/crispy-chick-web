@@ -482,6 +482,14 @@ import 'firebase/compat/auth';
         };
       }, []);
 
+      useEffect(() => {
+        if (theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      }, [theme]);
+
       const updateMenuSettings = (newSettings) => {
         setMenuSettings(newSettings);
         localStorage.setItem('crispy_menu_settings', JSON.stringify(newSettings));
@@ -501,6 +509,11 @@ import 'firebase/compat/auth';
         const nextTheme = theme === 'dark' ? 'light' : 'dark';
         setTheme(nextTheme);
         localStorage.setItem('crispy_theme_settings', nextTheme);
+        if (nextTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
         window.dispatchEvent(new Event('storage'));
       };
 
@@ -645,7 +658,7 @@ import 'firebase/compat/auth';
       );
     };
 
-    // Horizontal Sliding Banner Carousel with CMS target control (Compact Sleek Pro)
+    // Horizontal Sliding Banner Carousel with CMS target control
     const PromoCarousel = () => {
       const { theme } = useContext(AppContext);
       
@@ -661,17 +674,17 @@ import 'firebase/compat/auth';
       }, [slides.length]);
 
       return (
-        <div className="px-3.5 sm:px-4 pt-2 pb-1">
-          <div className={`rounded-xl border transition-all duration-300 relative overflow-hidden aspect-[16/4.5] max-h-[92px] flex items-center justify-center shadow-xs ${
+        <div className="px-4 sm:px-5 pt-3 pb-1.5">
+          <div className={`rounded-2xl border transition-all duration-300 relative overflow-hidden aspect-[16/5] w-full shadow-sm ${
             theme === 'light'
-              ? 'bg-slate-100 border-slate-200 shadow-slate-200/40'
+              ? 'bg-slate-100 border-slate-200/80 shadow-slate-200/40'
               : 'bg-neutral-900 border-neutral-800 shadow-black/40'
           }`}>
             {slides.map((slide, idx) => (
               <img
                 key={slide.url}
                 src={slide.url}
-                className={`w-full h-full object-cover aspect-[16/4.5] absolute inset-0 transition-opacity duration-500 ${
+                className={`w-full h-full object-cover rounded-2xl absolute inset-0 transition-opacity duration-500 ${
                   idx === currentIdx ? 'opacity-100 block' : 'opacity-0 hidden'
                 }`}
                 alt={`Promo Banner ${idx + 1}`}
@@ -682,12 +695,12 @@ import 'firebase/compat/auth';
             ))}
             
             {/* Carousel indicator dots */}
-            <div className="absolute bottom-1.5 left-0 right-0 flex justify-center space-x-1.5 z-10">
+            <div className="absolute bottom-2 left-0 right-0 flex justify-center space-x-1.5 z-10 pointer-events-none">
               {slides.map((_, idx) => (
                 <span
                   key={idx}
-                  className={`h-1 rounded-full transition-all duration-300 ${
-                    idx === currentIdx ? 'bg-red-600 w-3.5 shadow-xs' : 'bg-white/70 w-1'
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    idx === currentIdx ? 'bg-red-600 w-4 shadow-sm' : 'bg-white/80 w-1.5'
                   }`}
                 />
               ))}
@@ -703,7 +716,7 @@ import 'firebase/compat/auth';
       const categories = Object.keys(MENU_CATALOG);
 
       return (
-        <div className={`flex overflow-x-auto py-2 px-3.5 sm:px-4 space-x-2 no-scrollbar scroll-smooth sticky top-[53px] z-20 backdrop-blur-md transition-colors duration-300 ${
+        <div className={`flex overflow-x-auto py-2.5 px-4 sm:px-5 space-x-2 no-scrollbar scroll-smooth sticky top-[53px] z-20 backdrop-blur-md transition-colors duration-300 ${
           theme === 'light' ? 'border-b border-red-50 bg-white/95 shadow-xs' : 'border-b border-neutral-900/80 bg-cafe-black/95 shadow-xs'
         }`}>
           {categories.map(cat => {
@@ -713,7 +726,7 @@ import 'firebase/compat/auth';
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`px-3 py-1.5 rounded-full text-xs font-black whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 select-none ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-black whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 select-none ${
                   isActive
                     ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-xs scale-102 ring-1 ring-red-500/20'
                     : theme === 'light'
@@ -1435,126 +1448,130 @@ import 'firebase/compat/auth';
             </div>
           )}
 
-          <div className={`w-full max-w-md rounded-t-3xl border p-6 space-y-6 shadow-2xl z-50 max-h-[90vh] overflow-y-auto no-scrollbar transition-all duration-300 transform ${
-            theme === 'light' ? 'bg-white border-slate-205 text-slate-900' : 'bg-cafe-card border-neutral-805 text-white'
+          <div className={`w-full max-w-md rounded-t-3xl border p-6 space-y-5 shadow-2xl z-50 max-h-[90vh] overflow-y-auto no-scrollbar transition-all duration-300 transform ${
+            theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-card border-neutral-800 text-white'
           } ${
             mounted && !isClosing ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
           }`}>
 
-            
             {/* ── Header ── */}
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-                {step === 'success'
-                  ? (isOrderPlaced ? '🎉 Order Placed!' : '🎉 Profile Registered!')
-                  : (tray.length === 0 ? '👤 Profile Registration' : '📋 Delivery Checkout')
-                }
-              </h3>
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100 dark:border-neutral-800">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">👤</span>
+                <h3 className={`text-xl font-bold tracking-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                  {step === 'success'
+                    ? (isOrderPlaced ? '🎉 Order Placed!' : '🎉 Profile Registered!')
+                    : (tray.length === 0 ? 'Profile Registration' : 'Delivery Checkout')
+                  }
+                </h3>
+              </div>
               <button 
                 onClick={triggerClose} 
-                className={`text-neutral-505 hover:text-white transition ${step !== 'success' ? 'block' : 'hidden'}`}
+                className={`p-1.5 rounded-xl transition ${
+                  theme === 'light'
+                    ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                    : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                } ${step !== 'success' ? 'block' : 'hidden'}`}
+                title="Close"
               >
                 <i data-lucide="x" className="w-5 h-5"></i>
               </button>
             </div>
-
-
-
 
             {/* Info / Send-OTP form — always mounted, hidden on other steps */}
             <div className={step === 'info' ? 'block' : 'hidden'}>
               <form onSubmit={handleCombinedInfoSubmit} className="space-y-4">
                 
                 {/* Authenticated User Banner */}
-                <div className={isAlreadyAuthenticated ? `p-3.5 rounded-xl border flex items-center justify-between text-xs ${theme === 'light' ? 'bg-slate-105 border-slate-200 text-slate-900' : 'bg-neutral-900 border-neutral-800 text-white'}` : "hidden"}>
+                <div className={isAlreadyAuthenticated ? `p-3.5 rounded-xl border flex items-center justify-between text-xs ${theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-neutral-900 border-neutral-800 text-white'}` : "hidden"}>
                   <div>
-                    <span className="block text-[10px] text-neutral-450 font-bold uppercase tracking-wider">Signed In User</span>
-                    <span className="font-bold text-sm text-cafe-amber">{name}</span>
+                    <span className="block text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Signed In User</span>
+                    <span className="font-bold text-sm text-red-600 dark:text-amber-400">{name}</span>
                     <span className="block text-[10.5px] text-neutral-400 mt-0.5">Primary Phone: {phone}</span>
                   </div>
                   <span className="text-xl">✅</span>
                 </div>
 
                 <div className={!isAlreadyAuthenticated ? "block" : "hidden"}>
-                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Customer Name <span className="text-red-500">*</span></label>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>Customer Name <span className="text-red-500">*</span></label>
                   <input
                     type="text" required={!isAlreadyAuthenticated} placeholder="Enter your full name"
                     pattern="[A-Za-z\s]+" title="Letters and spaces only"
                     value={name} onChange={e => setName(e.target.value.replace(/[^A-Za-z\s]/g, ''))}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cafe-amber ${
-                      theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
+                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500 transition ${
+                      theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400' : 'bg-cafe-black border-neutral-800 text-white placeholder:text-neutral-500'
                     }`}
                   />
                 </div>
                 <div className={!isAlreadyAuthenticated ? "block" : "hidden"}>
-                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Phone Number <span className="text-red-500">*</span></label>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>Phone Number <span className="text-red-500">*</span></label>
                   <input
                     type="tel" required={!isAlreadyAuthenticated} placeholder="10-digit mobile (starts with 6–9)"
                     maxLength={10} minLength={10} pattern="[6-9][0-9]{9}" inputMode="numeric"
                     value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cafe-amber ${
-                      theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
+                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500 transition ${
+                      theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400' : 'bg-cafe-black border-neutral-800 text-white placeholder:text-neutral-500'
                     }`}
                   />
                 </div>
                 <div className={!isAlreadyAuthenticated ? "block" : "hidden"}>
-                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Confirm Phone Number <span className="text-red-500">*</span></label>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>Confirm Phone Number <span className="text-red-500">*</span></label>
                   <input
                     type="tel" required={!isAlreadyAuthenticated} placeholder="Re-enter mobile number"
                     maxLength={10} minLength={10} pattern="[6-9][0-9]{9}" inputMode="numeric"
                     value={confirmPhone} onChange={e => setConfirmPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cafe-amber ${
-                      theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
+                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500 transition ${
+                      theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400' : 'bg-cafe-black border-neutral-800 text-white placeholder:text-neutral-500'
                     } ${
                       confirmPhone && confirmPhone !== phone ? 'border-red-500' : ''
                     }`}
                   />
                   {confirmPhone && confirmPhone !== phone && (
-                    <p className="text-[10px] text-red-400 font-semibold mt-1">⚠ Numbers don't match</p>
+                    <p className="text-[10px] text-red-500 font-semibold mt-1">⚠ Numbers don't match</p>
                   )}
                 </div>
 
                 <div className={!isAlreadyAuthenticated ? "block" : "hidden"}>
-                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Address Details (House No, Building Name) <span className="text-red-500">*</span></label>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>Address Details (House No, Building Name) <span className="text-red-500">*</span></label>
                   <input
                     type="text" required={!isAlreadyAuthenticated} placeholder="E.g., #12, Mahalakshmi Towers"
                     value={regAddress}
                     onChange={e => setRegAddress(e.target.value)}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cafe-amber ${
-                      theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
+                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500 transition ${
+                      theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400' : 'bg-cafe-black border-neutral-800 text-white placeholder:text-neutral-500'
                     }`}
                   />
                 </div>
 
                 <div className={isAlreadyAuthenticated ? "block" : "hidden"}>
-                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Alternate Phone Number (Optional)</label>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>Alternate Phone Number (Optional)</label>
                   <input
                     type="tel" placeholder="Enter 10-digit alternate number"
                     maxLength={10} minLength={10} pattern="[0-9]*" inputMode="numeric"
                     value={altPhone} onChange={e => setAltPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cafe-amber ${
-                      theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
+                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500 transition ${
+                      theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400' : 'bg-cafe-black border-neutral-800 text-white placeholder:text-neutral-500'
                     }`}
                   />
                 </div>
                 {/* ── UNAUTHENTICATED ONLY: Manual Landmark & PIN ── */}
                 <div className={!isAlreadyAuthenticated ? "block" : "hidden"}>
-                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>Landmark <span className="text-red-500">*</span></label>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>Landmark <span className="text-red-500">*</span></label>
                   <textarea
                     required={!isAlreadyAuthenticated} placeholder="E.g., Near Geetha Canteen, 3rd Cross Road" value={landmarks} onChange={e => setLandmarks(e.target.value)}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cafe-amber h-20 resize-none ${
-                      theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-808 text-white'
+                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500 h-20 resize-none transition ${
+                      theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400' : 'bg-cafe-black border-neutral-800 text-white placeholder:text-neutral-500'
                     }`}
                   />
                 </div>
                 <div className={!isAlreadyAuthenticated ? "block" : "hidden"}>
-                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-2 ${theme === 'light' ? 'text-slate-505' : 'text-neutral-400'}`}>PIN Code <span className="text-red-500">*</span></label>
+                  <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>PIN Code <span className="text-red-500">*</span></label>
                   <input
                     type="text" required={!isAlreadyAuthenticated} inputMode="numeric" maxLength="6" placeholder="E.g., 563122"
                     value={orderPinCode}
                     onChange={e => setOrderPinCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm text-center tracking-widest font-black focus:outline-none focus:border-cafe-amber ${
-                      theme === 'light' ? 'bg-neutral-55 border-slate-200 text-slate-905' : 'bg-cafe-black border-neutral-800 text-white'
+                    className={`w-full border rounded-xl px-4 py-3 text-sm text-center tracking-widest font-bold focus:outline-none focus:border-red-500 transition ${
+                      theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400' : 'bg-cafe-black border-neutral-800 text-white placeholder:text-neutral-500'
                     }`}
                   />
                 </div>
@@ -1687,15 +1704,15 @@ import 'firebase/compat/auth';
                 </div>
 
                 <div className={tray.length === 0 ? "block" : "hidden"}>
-                  <div className={`p-4 rounded-xl border text-xs text-center ${theme === 'light' ? 'bg-slate-105/60 border-slate-200/80 text-slate-600' : 'bg-neutral-900/60 border-neutral-800/80 text-neutral-400'}`}>
-                    <p className="font-semibold text-cafe-amber">No active items in food tray.</p>
-                    <p className="text-[10px] mt-1">Submit your details to register and verify your profile for instant future orders.</p>
+                  <div className={`p-3.5 rounded-xl border text-xs text-center ${theme === 'light' ? 'bg-red-50/70 border-red-100 text-slate-600' : 'bg-neutral-900/60 border-neutral-800/80 text-neutral-400'}`}>
+                    <p className="font-bold text-red-600 dark:text-amber-400">No active items in food tray.</p>
+                    <p className="text-[11px] mt-1">Submit your details to register and verify your profile for instant future orders.</p>
                   </div>
                 </div>
 
                 {/* Error banner — always on info step */}
                 {otpError && step === 'info' && (
-                  <div className="text-[11px] text-red-400 font-bold bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                  <div className="text-[11px] text-red-500 font-bold bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
                     {otpError}
                   </div>
                 )}
@@ -1704,16 +1721,16 @@ import 'firebase/compat/auth';
                 <div className={!isAlreadyAuthenticated && mockOtpSecret ? 'hidden' : 'block'}>
                   <button
                     type="submit" disabled={loading}
-                    className="w-full py-4 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-60"
+                    className="w-full py-3.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-bold text-sm tracking-wide rounded-xl shadow-md shadow-red-500/20 transition-all flex items-center justify-center space-x-2 disabled:opacity-60 active:scale-98"
                   >
-                    <div className={`w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin ${loading ? 'block' : 'hidden'}`}></div>
+                    <div className={`w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin ${loading ? 'block' : 'hidden'}`}></div>
                     <span className={!loading ? 'inline-block' : 'hidden'}>
                       {tray.length === 0
                         ? (isAlreadyAuthenticated ? 'UPDATE PROFILE DETAILS' : 'GET VERIFICATION CODE')
                         : (isAlreadyAuthenticated ? 'CONFIRM ORDER DETAILS' : 'CONFIRM & SEND CODE ›')
                       }
                     </span>
-                    <i data-lucide="arrow-right" className={`w-4 h-4 stroke-[3] ${!loading ? 'inline-block' : 'hidden'}`}></i>
+                    <i data-lucide="arrow-right" className={`w-4 h-4 stroke-[3] text-white ${!loading ? 'inline-block' : 'hidden'}`}></i>
                   </button>
                 </div>
               </form>
