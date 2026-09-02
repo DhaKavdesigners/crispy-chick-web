@@ -134,10 +134,34 @@ import 'firebase/compat/auth';
     };
 
     const getOrderMapsUrl = (order) => {
-      if (order && order.gpsLat != null && order.gpsLng != null) {
-        return `https://www.google.com/maps/search/?api=1&query=${order.gpsLat},${order.gpsLng}`;
+      if (!order) return 'https://www.google.com/maps';
+
+      // Build clean destination query from the selected address fields
+      const addressQueryParts = [
+        order.addressDetails,
+        order.landmarks,
+        order.deliveryArea,
+        order.deliveryPin ? `PIN ${order.deliveryPin}` : '',
+        'KGF, Karnataka'
+      ].filter(Boolean).join(', ');
+
+      // If user selected a saved address (or destinationType is saved_address or addressTitle exists):
+      // Navigate directly to the text address in Google Maps, NOT the customer phone's live GPS!
+      if (order.destinationType === 'saved_address' || order.addressTitle || (!order.gpsLat && addressQueryParts)) {
+        return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addressQueryParts)}`;
       }
-      return `https://www.google.com/maps/dir/?api=1&origin=Crispy+Chick+KGF&destination=${encodeURIComponent((order && order.landmarks) || '')}`;
+
+      // If order was explicitly placed via live GPS without a selected saved address:
+      if (order.destinationType === 'live_gps' && order.gpsLat != null && order.gpsLng != null) {
+        return `https://www.google.com/maps/dir/?api=1&destination=${order.gpsLat},${order.gpsLng}`;
+      }
+
+      // Fallback
+      if (order.gpsLat != null && order.gpsLng != null) {
+        return `https://www.google.com/maps/dir/?api=1&destination=${order.gpsLat},${order.gpsLng}`;
+      }
+
+      return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addressQueryParts || order.landmarks || 'KGF, Karnataka')}`;
     };
 
     // Telegram Fallback API Trigger
@@ -1273,20 +1297,29 @@ import 'firebase/compat/auth';
         try {
           const primaryPhone = resolvedPhone || (currentUser?.phone || '').trim();
           
+          const finalAddressTitle = activeAddress ? (activeAddress.title || '') : '';
           const finalAddressDetails = activeAddress ? activeAddress.addressDetails : regAddress;
           const finalLandmark = activeAddress ? activeAddress.landmark : landmarks;
           const finalPinCode = activeAddress ? activeAddress.pinCode : orderPinCode;
+          const finalArea = orderArea || (finalPinCode && KGF_AREA_NAMES[finalPinCode]) || '';
+
+          // When user selects a saved address (like College, Railway Station, Home):
+          // The rider navigates to that selected text address, NOT the customer device's live GPS!
+          const isSavedAddressSelected = !!activeAddress;
+          const shouldUseDeviceGps = !isSavedAddressSelected && customerGps.lat != null && customerGps.lng != null;
 
           const orderPayload = {
             customerName: resolvedName || currentUser?.name,
             customerPhone: primaryPhone + (altPhone ? ' / Alt: ' + altPhone.trim() : ''),
+            addressTitle: finalAddressTitle,
             addressDetails: finalAddressDetails,
             landmarks: finalLandmark,
-            deliveryArea: orderArea,
+            deliveryArea: finalArea,
             deliveryPin: finalPinCode,
             items: tray,
             totalAmount: trayTotal,
-            ...(customerGps.lat != null && customerGps.lng != null ? { gpsLat: customerGps.lat, gpsLng: customerGps.lng } : {})
+            destinationType: isSavedAddressSelected ? 'saved_address' : (shouldUseDeviceGps ? 'live_gps' : 'manual_address'),
+            ...(shouldUseDeviceGps ? { gpsLat: customerGps.lat, gpsLng: customerGps.lng } : {})
           };
           const newOrder = await addOrder(orderPayload);
           setGeneratedOtp(newOrder.otp);
@@ -1661,25 +1694,42 @@ import 'firebase/compat/auth';
                     </div>
                   )}
                 </div>
-                {/* GPS status indicator */}
-                <div className={`w-full py-2 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 ${
-                  gpsSecured
-                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
-                    : gpsFetching
-                      ? 'bg-cafe-amber/10 border-cafe-amber/30 text-cafe-amber'
-                      : 'bg-neutral-900/40 border-neutral-800 text-neutral-500'
-                }`}>
-                  {gpsFetching ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                      <span>Acquiring GPS signal...</span>
-                    </>
-                  ) : gpsSecured ? (
-                    <span>✅ Live GPS Locked</span>
-                  ) : (
-                    <span>📍 GPS unavailable — landmarks used</span>
-                  )}
-                </div>
+                {/* Delivery Location Confirmation indicator */}
+                {isAlreadyAuthenticated && selectedAddressId ? (
+                  (() => {
+                    const currentSelectedAddr = savedAddresses.find(a => a.id === selectedAddressId);
+                    if (!currentSelectedAddr) return null;
+                    return (
+                      <div className={`w-full py-2.5 px-3.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition ${
+                        theme === 'light'
+                          ? 'bg-red-50/80 border-red-200 text-red-700'
+                          : 'bg-red-950/30 border-red-700/50 text-red-300'
+                      }`}>
+                        <span>📍</span>
+                        <span>Delivering to: <strong className="uppercase font-black">{currentSelectedAddr.title}</strong> ({currentSelectedAddr.pinCode})</span>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div className={`w-full py-2 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 ${
+                    gpsSecured
+                      ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                      : gpsFetching
+                        ? 'bg-cafe-amber/10 border-cafe-amber/30 text-cafe-amber'
+                        : 'bg-neutral-900/40 border-neutral-800 text-neutral-500'
+                  }`}>
+                    {gpsFetching ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                        <span>Acquiring GPS signal...</span>
+                      </>
+                    ) : gpsSecured ? (
+                      <span>✅ Live GPS Locked</span>
+                    ) : (
+                      <span>📍 GPS unavailable — landmarks used</span>
+                    )}
+                  </div>
+                )}
 
                 <div className={tray.length > 0 ? "block" : "hidden"}>
                   <div className={`p-4 rounded-xl border text-xs space-y-1.5 ${theme === 'light' ? 'bg-slate-105/60 border-slate-200/80 text-slate-600' : 'bg-neutral-900/60 border-neutral-800/80 text-neutral-400'}`}>
@@ -2781,7 +2831,14 @@ import 'firebase/compat/auth';
                             </td>
                             <td className="px-6 py-4 space-y-1">
                               <div className={`text-xs font-semibold ${theme === 'light' ? 'text-slate-800' : 'text-slate-300'}`}>{order.customerName} ({order.customerPhone})</div>
-                              <div className="text-[11px] text-neutral-450 italic max-w-xs truncate">{order.landmarks}</div>
+                              {order.addressTitle && (
+                                <span className="inline-block px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 font-bold text-[9px] uppercase tracking-wide mr-1">
+                                  {order.addressTitle}
+                                </span>
+                              )}
+                              <div className="text-[11px] text-neutral-400 leading-tight">
+                                {order.addressDetails ? `${order.addressDetails}, ` : ''}{order.landmarks}{order.deliveryPin ? ` (${order.deliveryPin})` : ''}
+                              </div>
                             </td>
                             <td className="px-6 py-4 text-center">
                               <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${
@@ -4248,20 +4305,43 @@ import 'firebase/compat/auth';
                             </div>
                           </div>
 
-                          <div className="space-y-2 text-xs">
+                          <div className="space-y-2.5 text-xs">
                             <div className="flex items-center space-x-2">
-                              <i data-lucide="user" className="w-4 h-4 text-neutral-550"></i>
+                              <i data-lucide="user" className="w-4 h-4 text-neutral-500"></i>
                               <span className={`font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{order.customerName}</span>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <i data-lucide="phone" className="w-4 h-4 text-neutral-550"></i>
-                              <a href={`tel:${order.customerPhone}`} className="text-cafe-amber hover:underline font-semibold font-sans">
+                              <i data-lucide="phone" className="w-4 h-4 text-neutral-500"></i>
+                              <a href={`tel:${order.customerPhone}`} className="text-red-600 dark:text-amber-400 hover:underline font-bold font-sans">
                                 {order.customerPhone}
                               </a>
                             </div>
-                            <div className="flex items-start space-x-2">
-                              <i data-lucide="map-pin" className="w-4 h-4 text-neutral-550 mt-0.5"></i>
-                              <span className={`${theme === 'light' ? 'text-slate-600' : 'text-neutral-300'} leading-normal`}>{order.landmarks}</span>
+
+                            {/* Complete Delivery Address Details Card */}
+                            <div className={`p-2.5 rounded-xl border space-y-1 ${
+                              theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900 border-neutral-800'
+                            }`}>
+                              <div className="flex items-center gap-1.5 font-bold text-xs">
+                                <i data-lucide="map-pin" className="w-3.5 h-3.5 text-red-600 dark:text-amber-400"></i>
+                                <span className="uppercase text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 font-black">
+                                  {order.addressTitle || (order.destinationType === 'live_gps' ? 'Live GPS' : 'Delivery Address')}
+                                </span>
+                              </div>
+                              {order.addressDetails && (
+                                <p className={`font-bold text-xs ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
+                                  {order.addressDetails}
+                                </p>
+                              )}
+                              {order.landmarks && (
+                                <p className={`text-[11px] ${theme === 'light' ? 'text-slate-600' : 'text-neutral-300'}`}>
+                                  <span className="font-semibold">Landmark:</span> {order.landmarks}
+                                </p>
+                              )}
+                              {order.deliveryPin && (
+                                <p className={`text-[11px] font-bold ${theme === 'light' ? 'text-slate-700' : 'text-neutral-400'}`}>
+                                  PIN: {order.deliveryPin} {order.deliveryArea ? `(${order.deliveryArea})` : ''}
+                                </p>
+                              )}
                             </div>
                           </div>
 
@@ -4276,14 +4356,20 @@ import 'firebase/compat/auth';
                             <a
                               href={getOrderMapsUrl(order)}
                               target="_blank" rel="noopener noreferrer"
-                              className={`w-full py-3 font-semibold text-xs rounded-xl flex items-center justify-center space-x-2 transition border shadow-md block text-center text-white ${
+                              className={`w-full py-3 font-bold text-xs rounded-xl flex items-center justify-center space-x-2 transition border shadow-md block text-center text-white ${
                                 theme === 'light'
                                   ? 'bg-neutral-900 hover:bg-neutral-800 border-neutral-700'
                                   : 'bg-neutral-800 hover:bg-neutral-700 border-neutral-700'
                               }`}
                             >
-                              <i data-lucide="navigation" className="w-4 h-4 text-cafe-amber"></i>
-                              <span>{order.gpsLat != null && order.gpsLng != null ? 'LAUNCH GPS PINPOINT NAVIGATION' : 'LAUNCH GOOGLE MAPS NAVIGATION'}</span>
+                              <i data-lucide="navigation" className="w-4 h-4 text-red-500 dark:text-amber-400"></i>
+                              <span>
+                                {order.addressTitle
+                                  ? `NAVIGATE TO ${order.addressTitle.toUpperCase()} IN MAPS`
+                                  : (order.destinationType === 'live_gps' && order.gpsLat != null
+                                    ? 'LAUNCH GPS PINPOINT NAVIGATION'
+                                    : 'LAUNCH GOOGLE MAPS NAVIGATION')}
+                              </span>
                             </a>
                           </div>
 
