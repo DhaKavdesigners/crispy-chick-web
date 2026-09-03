@@ -318,8 +318,18 @@ import 'firebase/compat/auth';
 
     // Developer-Governed Multi-Role Authentication Database
     const AUTHORIZED_USERS_DATABASE = [
-      { email: 'owner@crispychick.com', password: 'OwnerPassKGFcode77', role: 'OWNER_COUNTER' },
-      { email: 'rider@crispychick.com', password: 'RiderPassKGFcode88', role: 'DELIVERY_RIDER' }
+      {
+        identifiers: ['owner', 'own', 'own.com', 'owner.com', 'owner@crispychick.com'],
+        passwords: ['crispy', 'OwnerPassKGFcode77'],
+        email: 'owner@crispychick.com',
+        role: 'OWNER_COUNTER'
+      },
+      {
+        identifiers: ['rider', 'rider.com', 'rider@crispychick.com'],
+        passwords: ['crispyrider', 'RiderPassKGFcode88'],
+        email: 'rider@crispychick.com',
+        role: 'DELIVERY_RIDER'
+      }
     ];
 
     // DELIVERY_FLEET is now fetched dynamically from db.collection('riders')
@@ -354,12 +364,20 @@ import 'firebase/compat/auth';
         checkMockAuth();
       }, []);
 
-      const login = async (email, password) => {
-        const matched = AUTHORIZED_USERS_DATABASE.find(
-          u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-        );
+      const login = async (identifier, password) => {
+        const cleanId = (identifier || '').trim().toLowerCase();
+        const cleanPass = (password || '').trim();
+
+        const matched = AUTHORIZED_USERS_DATABASE.find(u => {
+          const idMatch = (u.identifiers && u.identifiers.some(id => id.toLowerCase() === cleanId)) ||
+                          (u.email && u.email.toLowerCase() === cleanId);
+          const passMatch = (u.passwords && u.passwords.includes(cleanPass)) ||
+                            (u.password && u.password === cleanPass);
+          return idMatch && passMatch;
+        });
+
         if (matched) {
-          const session = { email: matched.email, role: matched.role };
+          const session = { email: cleanId, role: matched.role };
           if (matched.role === 'OWNER_COUNTER') {
             localStorage.setItem('cc_operator_auth_token', JSON.stringify(session));
             setOwnerUser(session);
@@ -369,7 +387,7 @@ import 'firebase/compat/auth';
           }
           return session;
         } else {
-          throw new Error("Invalid authorized email or password.");
+          throw new Error("Invalid username or password.");
         }
       };
 
@@ -2333,9 +2351,9 @@ import 'firebase/compat/auth';
 
             <form onSubmit={handleLoginSubmit} className="space-y-4 text-left">
               <div>
-                <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">Email Address</label>
+                <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">Username or Email</label>
                 <input
-                  type="email" required placeholder="name@crispychick.com" value={email} onChange={e => setEmail(e.target.value)}
+                  type="text" required placeholder="Enter username or email" value={email} onChange={e => setEmail(e.target.value)}
                   className="w-full bg-cafe-black border border-neutral-805 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cafe-amber"
                 />
               </div>
@@ -3575,6 +3593,7 @@ import 'firebase/compat/auth';
       const [isOnline, setIsOnline] = useState(false);
       const [dutyStartTime, setDutyStartTime] = useState(null);
       const [dutyTimerText, setDutyTimerText] = useState('');
+      const [showOfflineModal, setShowOfflineModal] = useState(false);
 
       useEffect(() => {
         if (!riderId) return;
@@ -3759,20 +3778,16 @@ import 'firebase/compat/auth';
 
       useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-      }, [orders, otpInputs, theme, rideSafeToast, isProfileOpen]);
+      }, [orders, otpInputs, theme, rideSafeToast, isProfileOpen, qrModalOrder, showOfflineModal]);
 
       const activeJobs = orders.filter(o => (o.assignedRider === activeRiderProfile || o.pickedUpBy === activeRiderProfile) && ['preparing', 'prepared', 'out_for_delivery'].includes(o.status));
       const completedJobs = orders.filter(o => (o.assignedRider === activeRiderProfile || o.pickedUpBy === activeRiderProfile) && ['successfully_delivered', 'delivered', 'completed', 'rejected', 'cancelled'].includes(o.status));
 
       // Count deliveries and total cash collected confirmed today
       const todaysCompletedJobs = completedJobs.filter(order => {
-        if (!['delivered', 'successfully_delivered', 'completed'].includes(order.status)) return false;
-        const ts = order.deliveredAt || order.createdAt;
-        const orderDate = ts && typeof ts.toDate === 'function' ? ts.toDate() : new Date(ts || 0);
+        const orderDate = new Date(order.deliveredAt || order.createdAt);
         const today = new Date();
-        return orderDate.getDate() === today.getDate() &&
-               orderDate.getMonth() === today.getMonth() &&
-               orderDate.getFullYear() === today.getFullYear();
+        return orderDate.toDateString() === today.toDateString();
       });
 
       const todaysDeliveries = todaysCompletedJobs.length;
@@ -3780,19 +3795,19 @@ import 'firebase/compat/auth';
 
       const toggleDutyOnline = async () => {
         if (!riderId) return;
-        const willBeOnline = !isOnline;
 
-        // Prevent going offline if currently delivering an order
-        if (!willBeOnline) {
+        // If rider is currently online and wants to switch to offline:
+        if (isOnline) {
           const hasActiveDelivery = activeJobs.some(o => o.status === 'out_for_delivery');
           if (hasActiveDelivery) {
             alert('⚠️ You cannot go offline while delivering an active order! Please complete the delivery handshake first.');
             return;
           }
-        }
-
-        try {
-          if (willBeOnline) {
+          // Open confirmation modal to prevent accidental miss-touches
+          setShowOfflineModal(true);
+        } else {
+          // Going online -> activate duty immediately
+          try {
             const now = Date.now();
             await db.collection('riders').doc(riderId).update({
               isOnline: true,
@@ -3800,15 +3815,24 @@ import 'firebase/compat/auth';
             });
             setIsOnline(true);
             setDutyStartTime(now);
-          } else {
-            await db.collection('riders').doc(riderId).update({
-              isOnline: false,
-              dutyEndTime: Date.now()
-            });
-            setIsOnline(false);
+          } catch (err) {
+            console.error('Failed to go online:', err);
+            alert('Could not update duty status. Please check your internet connection.');
           }
+        }
+      };
+
+      const confirmGoOffline = async () => {
+        if (!riderId) return;
+        try {
+          await db.collection('riders').doc(riderId).update({
+            isOnline: false,
+            dutyEndTime: Date.now()
+          });
+          setIsOnline(false);
+          setShowOfflineModal(false);
         } catch (err) {
-          console.error('Failed to toggle duty status:', err);
+          console.error('Failed to go offline:', err);
           alert('Could not update duty status. Please check your internet connection.');
         }
       };
@@ -4413,24 +4437,30 @@ import 'firebase/compat/auth';
                 </div>
 
                 {/* UPI QR Payment Modal */}
+                {/* UPI QR Payment Modal */}
                 {qrModalOrder && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                  <div 
+                    onClick={(e) => { if (e.target === e.currentTarget) setQrModalOrder(null); }}
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+                  >
                     <div className={`w-full max-w-sm rounded-3xl border p-6 space-y-3 shadow-2xl relative ${
                       theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-card border-neutral-800 text-white'
                     }`}>
                       {/* Close Button */}
                       <button
+                        type="button"
                         onClick={() => setQrModalOrder(null)}
                         className={`absolute top-4 right-4 p-1.5 rounded-lg transition-colors ${
                           theme === 'light' ? 'bg-slate-100 hover:bg-slate-200 text-slate-600' : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-350'
                         }`}
+                        title="Close QR"
                       >
                         <i data-lucide="x" className="w-4 h-4"></i>
                       </button>
 
                       {/* Header */}
                       <div className="text-center space-y-1 pt-1">
-                        <div className="w-12 h-12 bg-indigo-500/15 text-indigo-400 rounded-full flex items-center justify-center mx-auto shadow-inner border border-indigo-500/20">
+                        <div className="w-12 h-12 bg-indigo-500/15 text-indigo-500 dark:text-indigo-400 rounded-full flex items-center justify-center mx-auto shadow-inner border border-indigo-500/20">
                           <i data-lucide="qr-code" className="w-6 h-6"></i>
                         </div>
                         <h3 className="font-serif font-bold text-base">Collect Payment via UPI</h3>
@@ -4452,33 +4482,90 @@ import 'firebase/compat/auth';
                         Ask customer to scan with Google Pay, PhonePe, or Paytm.
                       </p>
 
-                      {/* Complete Order Button */}
-                      <button
-                        onClick={async () => {
-                          const orderNum = qrModalOrder.displayId || qrModalOrder.id.slice(-4).toUpperCase();
-                          if (!window.confirm(`Confirm payment received (₹${qrModalOrder.totalAmount}) and mark Order #${orderNum} as delivered?`)) {
-                            return;
-                          }
-                          riderAlert.pause();
-                          riderAlert.currentTime = 0;
-                          await updateOrderStatus(qrModalOrder.id, 'delivered', {
-                            deliveredAt: Date.now(),
-                            paymentConfirmedByRider: true
-                          });
-                          const custPhone = (qrModalOrder.customerPhone || '').split(' / ')[0].trim();
-                          if (custPhone) {
-                            db.collection('users').doc(custPhone).update({
-                              phoneStatus: 'verified',
-                              trustedUser: true,
-                              verified: true
-                            }).catch(e => console.log('Trust upgrade failed:', e));
-                          }
-                          setQrModalOrder(null);
-                        }}
-                        className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm rounded-xl shadow-lg transition-all active:scale-98 flex items-center justify-center gap-2"
-                      >
-                        ✅ PAYMENT RECEIVED & DELIVER ORDER
-                      </button>
+                      {/* Action Buttons: Explicit Confirm Delivery vs Safe Exit */}
+                      <div className="space-y-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const orderNum = qrModalOrder.displayId || qrModalOrder.id.slice(-4).toUpperCase();
+                            if (!window.confirm(`⚠️ RIDER CONFIRMATION REQUIRED:\n\nHave you verified that ₹${qrModalOrder.totalAmount} was paid by the customer for Order #${orderNum}?\n\nClick OK only if payment has been received.`)) {
+                              return;
+                            }
+                            riderAlert.pause();
+                            riderAlert.currentTime = 0;
+                            await updateOrderStatus(qrModalOrder.id, 'delivered', {
+                              deliveredAt: Date.now(),
+                              paymentConfirmedByRider: true
+                            });
+                            const custPhone = (qrModalOrder.customerPhone || '').split(' / ')[0].trim();
+                            if (custPhone) {
+                              db.collection('users').doc(custPhone).update({
+                                phoneStatus: 'verified',
+                                trustedUser: true,
+                                verified: true
+                              }).catch(e => console.log('Trust upgrade failed:', e));
+                            }
+                            setQrModalOrder(null);
+                          }}
+                          className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs sm:text-sm rounded-xl shadow-lg transition-all active:scale-98 flex items-center justify-center gap-2"
+                        >
+                          <span>✅ CONFIRM PAYMENT & COMPLETE DELIVERY</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setQrModalOrder(null)}
+                          className={`w-full py-2.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1.5 transition ${
+                            theme === 'light'
+                              ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700'
+                              : 'bg-neutral-800 hover:bg-neutral-700 border-neutral-700 text-neutral-300'
+                          }`}
+                        >
+                          <i data-lucide="x" className="w-4 h-4"></i>
+                          <span>CLOSE QR (RETURN TO ORDER)</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rider Offline Confirmation Modal */}
+                {showOfflineModal && (
+                  <div 
+                    onClick={(e) => { if (e.target === e.currentTarget) setShowOfflineModal(false); }}
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+                  >
+                    <div className={`w-full max-w-sm rounded-3xl border p-6 space-y-4 shadow-2xl relative text-center ${
+                      theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-card border-neutral-800 text-white'
+                    }`}>
+                      <div className="w-14 h-14 rounded-full bg-red-500/15 text-red-500 flex items-center justify-center mx-auto text-2xl border border-red-500/30">
+                        🛑
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-bold">Go Offline?</h3>
+                        <p className={`text-xs leading-relaxed ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
+                          You will be marked as offline and will not receive any new delivery orders until you switch back online.
+                        </p>
+                      </div>
+
+                      <div className="space-y-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={confirmGoOffline}
+                          className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-98"
+                        >
+                          YES, SWITCH TO OFFLINE
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowOfflineModal(false)}
+                          className={`w-full py-3 rounded-xl border font-bold text-xs uppercase tracking-wider transition-all ${
+                            theme === 'light' ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700' : 'bg-neutral-800 hover:bg-neutral-700 border-neutral-700 text-neutral-300'
+                          }`}
+                        >
+                          CANCEL (STAY ONLINE)
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
