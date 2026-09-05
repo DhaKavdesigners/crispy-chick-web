@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, createContext, useContext } from 'r
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
 import 'firebase/compat/auth';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 
     
@@ -33,7 +35,36 @@ import 'firebase/compat/auth';
 
       render() {
         if (this.state.hasError) {
-          return null; 
+          return (
+            <div style={{
+              minHeight: '100vh', background: '#0a0a0a', display: 'flex',
+              flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'sans-serif', color: '#fff', padding: '24px', textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>🍗</div>
+              <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '8px', color: '#f59e0b' }}>
+                Crispy Chick — Something Went Wrong
+              </h2>
+              <p style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '24px', maxWidth: '320px' }}>
+                A temporary error occurred. Tap the button below to reload the app.
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                style={{
+                  background: '#f59e0b', color: '#000', fontWeight: '800',
+                  padding: '12px 28px', borderRadius: '12px', border: 'none',
+                  cursor: 'pointer', fontSize: '14px'
+                }}
+              >
+                Reload App
+              </button>
+              {this.state.error && (
+                <p style={{ fontSize: '10px', color: '#6b7280', marginTop: '16px', maxWidth: '360px', wordBreak: 'break-all' }}>
+                  Error: {this.state.error.message}
+                </p>
+              )}
+            </div>
+          );
         }
         return this.props.children;
       }
@@ -136,6 +167,11 @@ import 'firebase/compat/auth';
     const getOrderMapsUrl = (order) => {
       if (!order) return 'https://www.google.com/maps';
 
+      // 1. If order was placed via map pin or live GPS pinpoint:
+      if ((order.destinationType === 'map_pin' || order.destinationType === 'live_gps') && order.gpsLat != null && order.gpsLng != null) {
+        return `https://www.google.com/maps/dir/?api=1&destination=${order.gpsLat},${order.gpsLng}`;
+      }
+
       // Build clean destination query from the selected address fields
       const addressQueryParts = [
         order.addressDetails,
@@ -145,15 +181,10 @@ import 'firebase/compat/auth';
         'KGF, Karnataka'
       ].filter(Boolean).join(', ');
 
-      // If user selected a saved address (or destinationType is saved_address or addressTitle exists):
-      // Navigate directly to the text address in Google Maps, NOT the customer phone's live GPS!
+      // 2. If user selected a saved address (or destinationType is saved_address or addressTitle exists):
+      // Navigate directly to the text address in Google Maps
       if (order.destinationType === 'saved_address' || order.addressTitle || (!order.gpsLat && addressQueryParts)) {
         return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addressQueryParts)}`;
-      }
-
-      // If order was explicitly placed via live GPS without a selected saved address:
-      if (order.destinationType === 'live_gps' && order.gpsLat != null && order.gpsLng != null) {
-        return `https://www.google.com/maps/dir/?api=1&destination=${order.gpsLat},${order.gpsLng}`;
       }
 
       // Fallback
@@ -173,12 +204,12 @@ import 'firebase/compat/auth';
       const itemsText = order.items.map(i => `${i.name} (x${i.quantity})`).join(', ');
       const text = `*New Order Placed!*\n` +
                    `• Order ID: \`${orderId}\`\n` +
+                   `• Display ID: *#${order.displayId || ''}*\n` +
                    `• Customer: ${order.customerName}\n` +
                    `• Phone: ${order.customerPhone}\n` +
-                   `• Landmarks: ${order.landmarks}\n` +
+                   `• Address: ${order.addressTitle ? `[${order.addressTitle}] ` : ''}${order.landmarks || ''}\n` +
                    `• Items: ${itemsText}\n` +
-                   `• Total: ₹${order.totalAmount}\n` +
-                   `• Delivery OTP: *${order.otp}*`;
+                   `• Total: ₹${order.totalAmount}`;
 
       fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
@@ -316,22 +347,6 @@ import 'firebase/compat/auth';
       "Add-ons": { icon: "🥤", label: "Drinks & Dips" }
     };
 
-    // Developer-Governed Multi-Role Authentication Database
-    const AUTHORIZED_USERS_DATABASE = [
-      {
-        identifiers: ['owner', 'own', 'own.com', 'owner.com', 'owner@crispychick.com'],
-        passwords: ['crispy', 'OwnerPassKGFcode77'],
-        email: 'owner@crispychick.com',
-        role: 'OWNER_COUNTER'
-      },
-      {
-        identifiers: ['rider', 'rider.com', 'rider@crispychick.com'],
-        passwords: ['crispyrider', 'RiderPassKGFcode88'],
-        email: 'rider@crispychick.com',
-        role: 'DELIVERY_RIDER'
-      }
-    ];
-
     // DELIVERY_FLEET is now fetched dynamically from db.collection('riders')
     const PROMO_BANNERS = ['./assets/banner1.jpg', './assets/banner2.jpg', './assets/banner3.jpg'];
     const riderAlert = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
@@ -347,59 +362,120 @@ import 'firebase/compat/auth';
     const AppContext = createContext();
     const AuthContext = createContext();
 
-    // Authenticated Owner/Rider State Management
+    // Authenticated Owner/Rider State Management via Firebase Auth (100% Free Tier)
     const AuthProvider = ({ children }) => {
       const [ownerUser, setOwnerUser] = useState(null);
       const [riderUser, setRiderUser] = useState(null);
       const [loadingAuth, setLoadingAuth] = useState(true);
 
       useEffect(() => {
-        const checkMockAuth = () => {
-          const ownerSaved = localStorage.getItem('cc_operator_auth_token');
-          const riderSaved = localStorage.getItem('cc_logistics_auth_token');
-          setOwnerUser(ownerSaved ? JSON.parse(ownerSaved) : null);
-          setRiderUser(riderSaved ? JSON.parse(riderSaved) : null);
+        // Real-time Firebase Authentication listener
+        const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+          if (user && user.email) {
+            const email = user.email.toLowerCase();
+            if (email.includes('owner') || email.includes('counter')) {
+              const session = { email, role: 'OWNER_COUNTER', uid: user.uid };
+              setOwnerUser(session);
+              localStorage.setItem('cc_operator_auth_token', JSON.stringify(session));
+            } else if (email.includes('rider')) {
+              const session = { email, role: 'DELIVERY_RIDER', uid: user.uid };
+              setRiderUser(session);
+              localStorage.setItem('cc_logistics_auth_token', JSON.stringify(session));
+            }
+          } else {
+            const ownerSaved = localStorage.getItem('cc_operator_auth_token');
+            const riderSaved = localStorage.getItem('cc_logistics_auth_token');
+            setOwnerUser(ownerSaved ? JSON.parse(ownerSaved) : null);
+            setRiderUser(riderSaved ? JSON.parse(riderSaved) : null);
+          }
           setLoadingAuth(false);
-        };
-        checkMockAuth();
+        });
+
+        return () => unsubscribe();
       }, []);
 
       const login = async (identifier, password) => {
         const cleanId = (identifier || '').trim().toLowerCase();
         const cleanPass = (password || '').trim();
 
-        const matched = AUTHORIZED_USERS_DATABASE.find(u => {
-          const idMatch = (u.identifiers && u.identifiers.some(id => id.toLowerCase() === cleanId)) ||
-                          (u.email && u.email.toLowerCase() === cleanId);
-          const passMatch = (u.passwords && u.passwords.includes(cleanPass)) ||
-                            (u.password && u.password === cleanPass);
-          return idMatch && passMatch;
-        });
+        if (!cleanId || !cleanPass) {
+          throw new Error("Please enter both username/email and password.");
+        }
 
-        if (matched) {
-          const session = { email: cleanId, role: matched.role };
-          if (matched.role === 'OWNER_COUNTER') {
-            localStorage.setItem('cc_operator_auth_token', JSON.stringify(session));
+        // Normalize username shortcuts to clean Firebase Auth emails
+        let targetEmail = cleanId;
+        let role = 'OWNER_COUNTER';
+
+        if (cleanId === 'owner' || cleanId === 'own' || cleanId === 'own.com' || cleanId === 'owner.com' || cleanId.includes('owner')) {
+          targetEmail = 'owner@crispychick.com';
+          role = 'OWNER_COUNTER';
+        } else if (cleanId === 'rider' || cleanId === 'rider.com' || cleanId.includes('rider')) {
+          targetEmail = 'rider@crispychick.com';
+          role = 'DELIVERY_RIDER';
+        } else if (cleanId.includes('@')) {
+          targetEmail = cleanId;
+          role = cleanId.includes('rider') ? 'DELIVERY_RIDER' : 'OWNER_COUNTER';
+        }
+
+        try {
+          // 1. Attempt login with Firebase Auth
+          const cred = await firebase.auth().signInWithEmailAndPassword(targetEmail, cleanPass);
+          const session = { email: targetEmail, role, uid: cred.user.uid };
+          if (role === 'OWNER_COUNTER') {
             setOwnerUser(session);
-          } else if (matched.role === 'DELIVERY_RIDER') {
-            localStorage.setItem('cc_logistics_auth_token', JSON.stringify(session));
+            localStorage.setItem('cc_operator_auth_token', JSON.stringify(session));
+          } else {
             setRiderUser(session);
+            localStorage.setItem('cc_logistics_auth_token', JSON.stringify(session));
           }
           return session;
-        } else {
-          throw new Error("Invalid username or password.");
+        } catch (firebaseErr) {
+          console.warn('Firebase Auth sign-in error:', firebaseErr);
+
+          // If user doesn't exist yet, auto-provision user upon first valid login
+          if (firebaseErr.code === 'auth/user-not-found' || firebaseErr.code === 'auth/invalid-credential') {
+            try {
+              const newCred = await firebase.auth().createUserWithEmailAndPassword(targetEmail, cleanPass);
+              const session = { email: targetEmail, role, uid: newCred.user.uid };
+              if (role === 'OWNER_COUNTER') {
+                setOwnerUser(session);
+                localStorage.setItem('cc_operator_auth_token', JSON.stringify(session));
+              } else {
+                setRiderUser(session);
+                localStorage.setItem('cc_logistics_auth_token', JSON.stringify(session));
+              }
+              return session;
+            } catch (createErr) {
+              console.warn('Auto-provisioning failed:', createErr);
+              if (createErr.code === 'auth/operation-not-allowed') {
+                throw new Error("Email/Password provider is not enabled in Firebase Console. Please enable it under Firebase Console -> Authentication -> Sign-in method (100% Free).");
+              }
+              if (firebaseErr.code === 'auth/invalid-credential' || firebaseErr.code === 'auth/wrong-password') {
+                throw new Error("Invalid password for this account.");
+              }
+            }
+          }
+
+          if (firebaseErr.code === 'auth/operation-not-allowed') {
+            throw new Error("Email/Password provider is not enabled in Firebase Console. Please go to Firebase Console -> Authentication -> Sign-in method and enable Email/Password (100% Free).");
+          } else if (firebaseErr.code === 'auth/wrong-password' || firebaseErr.code === 'auth/invalid-credential') {
+            throw new Error("Invalid credentials. Please verify your password.");
+          } else {
+            throw new Error(firebaseErr.message || "Authentication failed. Please check your network connection.");
+          }
         }
       };
 
       const signOut = async () => {
-        const hash = window.location.hash;
-        if (hash === '#/shop-counter') {
-          localStorage.removeItem('cc_operator_auth_token');
-          setOwnerUser(null);
-        } else if (hash === '#/delivery-dashboard') {
-          localStorage.removeItem('cc_logistics_auth_token');
-          setRiderUser(null);
+        try {
+          await firebase.auth().signOut();
+        } catch (e) {
+          console.warn('Firebase signout error:', e);
         }
+        localStorage.removeItem('cc_operator_auth_token');
+        localStorage.removeItem('cc_logistics_auth_token');
+        setOwnerUser(null);
+        setRiderUser(null);
         setTimeout(() => {
           window.location.hash = '#/login';
         }, 100);
@@ -532,13 +608,17 @@ import 'firebase/compat/auth';
         }
       }, [theme]);
 
-      const updateMenuSettings = (newSettings) => {
+      const updateMenuSettings = async (newSettings) => {
         setMenuSettings(newSettings);
         localStorage.setItem('crispy_menu_settings', JSON.stringify(newSettings));
         window.dispatchEvent(new Event('storage'));
-        // Fix 1: Push to Firestore so Customer syncs instantly across the internet
-        db.collection('settings').doc('menuConfig').set(newSettings, { merge: true })
-          .catch(err => console.error('menuConfig push failed:', err));
+        // Push to Firestore so Customer syncs instantly across the internet
+        try {
+          await db.collection('settings').doc('menuConfig').set(newSettings, { merge: true });
+        } catch (err) {
+          console.error('menuConfig push failed:', err);
+          throw err;
+        }
       };
 
       const updateCarouselBannerUrl = (url) => {
@@ -1013,9 +1093,194 @@ import 'firebase/compat/auth';
       );
     };
 
+    // Helper to safely extract valid numeric coordinates with fallback to KGF center
+    const getSafeCoords = (coords) => {
+      const lat = (coords && coords.lat != null && !isNaN(Number(coords.lat))) ? Number(coords.lat) : 12.9592;
+      const lng = (coords && coords.lng != null && !isNaN(Number(coords.lng))) ? Number(coords.lng) : 78.2726;
+      return { lat, lng };
+    };
+
+    // OpenStreetMap + Leaflet.js Interactive Map Pin Picker Modal (100% Free Forever)
+    const MapPinPickerModal = ({ isOpen, onClose, onConfirm, initialCoords, title, subtitle }) => {
+      const { theme } = useContext(AppContext);
+      const [currentCoords, setCurrentCoords] = useState(() => getSafeCoords(initialCoords));
+      const [locating, setLocating] = useState(false);
+      const mapInstanceRef = useRef(null);
+      const mapContainerRef = useRef(null);
+
+      useEffect(() => {
+        if (!isOpen) return;
+
+        const safe = getSafeCoords(initialCoords);
+        setCurrentCoords(safe);
+
+        let map = null;
+        const timer = setTimeout(() => {
+          const container = mapContainerRef.current;
+          if (!container) return;
+
+          if (mapInstanceRef.current) {
+            try {
+              mapInstanceRef.current.remove();
+            } catch (e) {}
+            mapInstanceRef.current = null;
+          }
+          if (container._leaflet_id) {
+            container._leaflet_id = null;
+          }
+
+          try {
+            map = L.map(container, {
+              center: [safe.lat, safe.lng],
+              zoom: 16,
+              zoomControl: false
+            });
+            mapInstanceRef.current = map;
+
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              maxZoom: 19,
+              attribution: '© OpenStreetMap'
+            }).addTo(map);
+
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            map.on('move', () => {
+              const center = map.getCenter();
+              if (center && center.lat != null && center.lng != null) {
+                setCurrentCoords({ lat: center.lat, lng: center.lng });
+              }
+            });
+
+            setTimeout(() => {
+              if (map) {
+                try { map.invalidateSize(); } catch (e) {}
+              }
+            }, 200);
+          } catch (initErr) {
+            console.error('Leaflet map initialization error:', initErr);
+          }
+        }, 120);
+
+        return () => {
+          clearTimeout(timer);
+          if (mapInstanceRef.current) {
+            try {
+              mapInstanceRef.current.remove();
+            } catch (e) {}
+            mapInstanceRef.current = null;
+          }
+        };
+      }, [isOpen, initialCoords?.lat, initialCoords?.lng]);
+
+      const handleFlyToMyLocation = () => {
+        if (!navigator.geolocation) {
+          alert('GPS is not supported by your browser.');
+          return;
+        }
+        setLocating(true);
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            setLocating(false);
+            const userLat = pos.coords.latitude;
+            const userLng = pos.coords.longitude;
+            setCurrentCoords({ lat: userLat, lng: userLng });
+            if (mapInstanceRef.current) {
+              try {
+                mapInstanceRef.current.flyTo([userLat, userLng], 17, { duration: 1.2 });
+              } catch (e) {}
+            }
+          },
+          err => {
+            setLocating(false);
+            alert('Could not acquire your current location: ' + (err.message || 'Permission denied'));
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
+        );
+      };
+
+      const handleConfirm = () => {
+        onConfirm(currentCoords);
+        onClose();
+      };
+
+      if (!isOpen) return null;
+
+      const displayLat = Number(currentCoords?.lat ?? 12.9592).toFixed(5);
+      const displayLng = Number(currentCoords?.lng ?? 78.2726).toFixed(5);
+
+      return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+          <div className={`w-full max-w-lg rounded-3xl border shadow-2xl overflow-hidden flex flex-col ${
+            theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-card border-neutral-800 text-white'
+          }`}>
+            {/* Header */}
+            <div className="p-4 border-b flex items-center justify-between border-neutral-900/10 dark:border-neutral-800">
+              <div>
+                <h3 className="font-serif font-black text-base flex items-center gap-1.5">
+                  <span>🗺️</span>
+                  <span>{title || 'Pin Exact Delivery Location'}</span>
+                </h3>
+                <p className="text-[11px] text-neutral-400 mt-0.5">
+                  {subtitle || 'Pan map to place pin right on your house/gate'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-neutral-200 dark:bg-neutral-800 hover:bg-red-500 hover:text-white transition font-bold text-base"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Interactive Map View with Centered Pin Overlay */}
+            <div className="relative w-full h-[320px] sm:h-[360px] bg-neutral-900">
+              <div ref={mapContainerRef} className="w-full h-full"></div>
+
+              {/* Floating "My Location" Button */}
+              <button
+                type="button"
+                onClick={handleFlyToMyLocation}
+                disabled={locating}
+                className="absolute top-3 right-3 z-[400] px-3.5 py-2 rounded-xl bg-white dark:bg-neutral-900 text-slate-800 dark:text-white shadow-xl border border-slate-200 dark:border-neutral-700 text-xs font-bold flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-neutral-800 transition active:scale-95"
+              >
+                <span>{locating ? '⏳' : '🎯'}</span>
+                <span>{locating ? 'Locating...' : 'Use My GPS'}</span>
+              </button>
+
+              {/* Center Crosshair Delivery Pin (Fixed at center of viewport) */}
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-[400]">
+                <div className="relative -translate-y-5 flex flex-col items-center">
+                  <div className="w-10 h-10 bg-red-600 text-white rounded-full flex items-center justify-center shadow-2xl border-2 border-white text-lg">
+                    🍗
+                  </div>
+                  <div className="w-2.5 h-2.5 bg-black/50 rounded-full blur-[1px] mt-0.5"></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Panel with Lat/Lng & Confirm Button */}
+            <div className="p-4 space-y-3 bg-neutral-50 dark:bg-neutral-900/60 border-t border-neutral-900/10 dark:border-neutral-800">
+              <div className="flex items-center justify-between text-xs font-mono font-bold text-neutral-500 dark:text-neutral-400">
+                <span>📍 Lat: {displayLat}</span>
+                <span>Lng: {displayLng}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleConfirm}
+                className="w-full py-3.5 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-black text-sm rounded-xl shadow-lg hover:brightness-110 active:scale-98 transition flex items-center justify-center gap-2"
+              >
+                <span>✓ Set Delivery Pin Here</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     // Checkout Modal Screen - Strict DOM Retention
     const CheckoutModal = ({ isOpen, onClose, onOrderSuccess }) => {
-      const { trayTotal, traySubtotal, gstAmount, tray, clearTray, theme, menuSettings, updateActiveOrderId, currentUser, setCurrentUser, customerGps, setCustomerGps, deliveryFee } = useContext(AppContext);
+      const { trayTotal, traySubtotal, gstAmount, tray, clearTray, theme, menuSettings, updateActiveOrderId, currentUser, setCurrentUser, customerGps, setCustomerGps, deliveryFee, getActivePrice } = useContext(AppContext);
       
       const [name, setName] = useState(() => currentUser?.name || localStorage.getItem('cc_customer_name') || '');
       const [phone, setPhone] = useState(() => currentUser?.phone || localStorage.getItem('cc_customer_phone') || '');
@@ -1024,6 +1289,21 @@ import 'firebase/compat/auth';
       const [orderArea, setOrderArea] = useState('');
       const [orderPinCode, setOrderPinCode] = useState('');
       
+      // "Order for Someone Else" temporary override (this session only, not saved)
+      const [orderForSomeoneElse, setOrderForSomeoneElse] = useState(false);
+      const [proxyName, setProxyName] = useState('');
+      const [proxyPhone, setProxyPhone] = useState('');
+      const [proxyLocationType, setProxyLocationType] = useState('map_pin'); // 'map_pin' | 'manual'
+      const [proxyMapPin, setProxyMapPin] = useState(null); // { lat, lng }
+      const [proxyAddress, setProxyAddress] = useState('');
+      const [proxyLandmark, setProxyLandmark] = useState('');
+      const [proxyPin, setProxyPin] = useState('');
+
+      // Interactive Map Pin Picking State (Leaflet + OpenStreetMap)
+      const [selfMapPin, setSelfMapPin] = useState(null); // { lat, lng }
+      const [showMapModal, setShowMapModal] = useState(false);
+      const [mapPickerTarget, setMapPickerTarget] = useState('self'); // 'self' | 'proxy'
+
       const [savedAddresses, setSavedAddresses] = useState([]);
       const [selectedAddressId, setSelectedAddressId] = useState('');
       const [showAddAddress, setShowAddAddress] = useState(false);
@@ -1236,16 +1516,36 @@ import 'firebase/compat/auth';
 
         // ── Authenticated user — skip verification entirely ──
         if (isAlreadyAuthenticated) {
-          if (savedAddresses.length === 0) {
-            setOtpError('Please add a delivery address first.');
-            return;
-          }
-          const activeAddress = savedAddresses.find(a => a.id === selectedAddressId);
-          if (!activeAddress) {
-             setOtpError('Please select a delivery address.');
-             return;
+          if (orderForSomeoneElse) {
+            if (!proxyName.trim() || !proxyPhone.trim()) {
+              alert('Please enter recipient name and phone number.');
+              return;
+            }
+            if (!isValidIndianMobile(proxyPhone.trim())) {
+              alert('Recipient phone must be a valid 10-digit Indian mobile number.');
+              return;
+            }
+            if (proxyLocationType === 'map_pin' && !proxyMapPin) {
+              alert('Please tap "Pin on Map" to set the recipient delivery location, or switch to "Type Address".');
+              return;
+            }
+            if (proxyLocationType === 'manual' && (!proxyAddress.trim() || !proxyPin.trim())) {
+              alert('Please enter recipient delivery address and PIN code.');
+              return;
+            }
+          } else {
+            if (!selfMapPin && savedAddresses.length === 0) {
+              setOtpError('Please add a delivery address or pin your location on map.');
+              return;
+            }
+            const activeAddress = savedAddresses.find(a => a.id === selectedAddressId);
+            if (!selfMapPin && !activeAddress) {
+               setOtpError('Please select a delivery address or pin on map.');
+               return;
+            }
           }
           if (altPhone && !validatePhoneOrAlert(altPhone)) return;
+          const activeAddress = savedAddresses.find(a => a.id === selectedAddressId);
           await placeOrderFlow(currentUser?.name || name, currentUser?.phone || phone, activeAddress);
           return;
         }
@@ -1256,7 +1556,6 @@ import 'firebase/compat/auth';
         if (!isValidIndianMobile(phone)) { setOtpError('Invalid number. Must be 10 digits starting with 6–9.'); return; }
         if (isFakeMobile(phone)) { setOtpError('Looks like a fake number. Please use your real mobile number.'); return; }
         if (phone !== confirmPhone) { setOtpError('Phone numbers do not match. Please re-enter.'); return; }
-        if (!KGF_PINS.includes(orderPinCode.trim())) { alert('Sorry, this PIN code is currently out of our delivery range!'); return; }
         
         setOtpError('');
         setLoading(true);
@@ -1270,10 +1569,6 @@ import 'firebase/compat/auth';
         const finalName = pendingDisplayName.trim();
         if (!finalName) { setOtpError('Please enter your name.'); return; }
         if (!regAddress.trim()) { setOtpError('Please enter your delivery address.'); return; }
-        if (!pinCode || !KGF_PINS.includes(pinCode.trim())) {
-          setOtpError('Sorry, Out of range for delivery.');
-          return;
-        }
         setLoading(true);
         setOtpError('');
         try {
@@ -1281,13 +1576,12 @@ import 'firebase/compat/auth';
             name: finalName,
             phone: phone,
             address: (regAddress + (regStreet ? ' — ' + regStreet : '')).trim(),
-            city: 'KGF',
+            city: '',
             pinCode: pinCode.trim(),
-            // Tiered verification — phone already passed format + fake-pattern + mock-OTP checks
-            phoneStatus: 'partial',     // 50% — real delivery not yet confirmed
-            locationStatus: 'verified', // 100% — KGF_PINS check already enforced above
-            trustedUser: false,         // flips true on first successful delivery
-            verified: false,            // backward-compat mirror of trustedUser
+            phoneStatus: 'partial',
+            locationStatus: 'self_reported',
+            trustedUser: false,
+            verified: false,
             createdAt: Date.now()
           });
           localStorage.setItem('cc_customer_name', finalName);
@@ -1314,6 +1608,53 @@ import 'firebase/compat/auth';
         setLoading(true);
         try {
           const primaryPhone = resolvedPhone || (currentUser?.phone || '').trim();
+
+          // 1. Check if user is suspended/banned
+          if (primaryPhone) {
+            try {
+              const userSnap = await db.collection('users').doc(primaryPhone).get();
+              if (userSnap.exists && userSnap.data().banned === true) {
+                alert(`🚨 ACCOUNT SUSPENDED\n\nYour account (${primaryPhone}) has been suspended due to security policy violations.\n\nReason: ${userSnap.data().banReason || 'Price manipulation or fraud attempt'}\n\nPlease contact shop management at 9035733573.`);
+                setLoading(false);
+                return;
+              }
+            } catch (authCheckErr) {
+              console.warn('User status check failed:', authCheckErr);
+            }
+          }
+
+          // 2. Authoritative Price Verification against MENU_CATALOG & menuSettings
+          let authoritativeSubtotal = 0;
+          const allCatalogItems = Object.values(MENU_CATALOG).flat();
+          const verifiedItems = tray.map(item => {
+            const catalogItem = allCatalogItems.find(c => c.name === item.name);
+            const basePrice = catalogItem ? catalogItem.price : (item.price || 0);
+            const livePrice = getActivePrice(item.name, basePrice);
+            authoritativeSubtotal += livePrice * item.quantity;
+            return {
+              ...item,
+              price: livePrice
+            };
+          });
+
+          const expectedGst = Math.round(authoritativeSubtotal * (menuSettings.gstRate / 100));
+          const expectedDelivery = Number(menuSettings.deliveryFee || 0);
+          const authoritativeTotal = authoritativeSubtotal > 0 ? (authoritativeSubtotal + expectedGst + expectedDelivery) : 0;
+
+          // Detect client-side price tampering
+          if (Math.abs(trayTotal - authoritativeTotal) > 1 || authoritativeTotal < 30) {
+            console.error("Price tampering detected! Tray Total:", trayTotal, "Authoritative Total:", authoritativeTotal);
+            if (primaryPhone) {
+              await db.collection('users').doc(primaryPhone).set({
+                banned: true,
+                banReason: `Price tampering detected: Cart ₹${trayTotal} vs Catalog ₹${authoritativeTotal}`,
+                bannedAt: Date.now()
+              }, { merge: true });
+            }
+            alert("🚨 SECURITY VIOLATION: Price discrepancy detected!\n\nYour order has been rejected and your account has been suspended.");
+            setLoading(false);
+            return;
+          }
           
           const finalAddressTitle = activeAddress ? (activeAddress.title || '') : '';
           const finalAddressDetails = activeAddress ? activeAddress.addressDetails : regAddress;
@@ -1326,18 +1667,60 @@ import 'firebase/compat/auth';
           const isSavedAddressSelected = !!activeAddress;
           const shouldUseDeviceGps = !isSavedAddressSelected && customerGps.lat != null && customerGps.lng != null;
 
+          let finalDestType = isSavedAddressSelected ? 'saved_address' : (shouldUseDeviceGps ? 'live_gps' : 'manual_address');
+          let orderGpsLat = shouldUseDeviceGps ? customerGps.lat : undefined;
+          let orderGpsLng = shouldUseDeviceGps ? customerGps.lng : undefined;
+          let finalTitle = finalAddressTitle;
+          let finalDetails = finalAddressDetails;
+          let finalLandmarks = finalLandmark;
+          let finalDeliveryPin = finalPinCode;
+
+          // Check if Map Pin was selected for self
+          if (!orderForSomeoneElse && selfMapPin) {
+            finalDestType = 'map_pin';
+            orderGpsLat = selfMapPin.lat;
+            orderGpsLng = selfMapPin.lng;
+            finalTitle = finalAddressTitle || 'Map Pinpoint';
+            finalDetails = finalAddressDetails || '📍 Pinned via Interactive Map';
+            finalLandmarks = finalLandmark || 'Map Pinpoint Delivery';
+          }
+
+          // Check if ordered for someone else
+          if (orderForSomeoneElse) {
+            finalTitle = `Deliver to ${proxyName.trim()}`;
+            if (proxyLocationType === 'map_pin' && proxyMapPin) {
+              finalDestType = 'map_pin';
+              orderGpsLat = proxyMapPin.lat;
+              orderGpsLng = proxyMapPin.lng;
+              finalDetails = '📍 Pinned via Interactive Map';
+              finalLandmarks = proxyLandmark.trim() || 'Map Pinpoint Delivery';
+              finalDeliveryPin = proxyPin.trim() || finalPinCode || '';
+            } else {
+              finalDestType = 'manual_address';
+              finalDetails = proxyAddress.trim() || finalAddressDetails;
+              finalLandmarks = proxyLandmark.trim() || finalLandmark;
+              finalDeliveryPin = proxyPin.trim() || finalPinCode;
+            }
+          }
+
           const orderPayload = {
             customerName: resolvedName || currentUser?.name,
             customerPhone: primaryPhone + (altPhone ? ' / Alt: ' + altPhone.trim() : ''),
-            addressTitle: finalAddressTitle,
-            addressDetails: finalAddressDetails,
-            landmarks: finalLandmark,
+            addressTitle: finalTitle,
+            addressDetails: finalDetails,
+            landmarks: finalLandmarks,
             deliveryArea: finalArea,
-            deliveryPin: finalPinCode,
-            items: tray,
-            totalAmount: trayTotal,
-            destinationType: isSavedAddressSelected ? 'saved_address' : (shouldUseDeviceGps ? 'live_gps' : 'manual_address'),
-            ...(shouldUseDeviceGps ? { gpsLat: customerGps.lat, gpsLng: customerGps.lng } : {})
+            deliveryPin: finalDeliveryPin,
+            items: verifiedItems,
+            totalAmount: authoritativeTotal,
+            destinationType: finalDestType,
+            ...(orderGpsLat != null && orderGpsLng != null ? { gpsLat: orderGpsLat, gpsLng: orderGpsLng } : {}),
+            // "Order for Someone Else" — recipient override (temporary, this order only)
+            ...(orderForSomeoneElse && proxyName.trim() && proxyPhone.trim() ? {
+              recipientName: proxyName.trim(),
+              recipientPhone: proxyPhone.trim(),
+              orderedForSomeoneElse: true
+            } : {})
           };
           const newOrder = await addOrder(orderPayload);
           setGeneratedOtp(newOrder.otp);
@@ -1627,6 +2010,27 @@ import 'firebase/compat/auth';
                   />
                 </div>
 
+                <div className={!isAlreadyAuthenticated ? "block pt-1" : "hidden"}>
+                  <button
+                    type="button"
+                    onClick={() => { setMapPickerTarget('self'); setShowMapModal(true); }}
+                    className={`w-full py-3 rounded-xl border border-dashed text-xs font-bold transition flex items-center justify-center gap-2 ${
+                      selfMapPin
+                        ? 'bg-emerald-500/15 border-emerald-500 text-emerald-400 font-black'
+                        : (theme === 'light'
+                            ? 'border-slate-300 text-slate-700 bg-slate-50 hover:bg-slate-100 hover:border-slate-400'
+                            : 'border-neutral-700 text-neutral-300 bg-neutral-900/50 hover:bg-neutral-900 hover:border-neutral-500')
+                    }`}
+                  >
+                    <span>🗺️</span>
+                    <span>
+                      {selfMapPin 
+                        ? `📍 Location Pinned (${Number(selfMapPin.lat).toFixed(4)}, ${Number(selfMapPin.lng).toFixed(4)}) — Tap to Change` 
+                        : 'Pin Exact Delivery Location on Map'}
+                    </span>
+                  </button>
+                </div>
+
                 {/* ── AUTHENTICATED ONLY: Address Book UI ── */}
                 <div className={isAlreadyAuthenticated ? "block space-y-4" : "hidden"}>
                   <h4 className={`text-sm font-bold ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>Select Delivery Address</h4>
@@ -1663,19 +2067,242 @@ import 'firebase/compat/auth';
                     </div>
                   ))}
 
-                  {/* Add New Address Form inline */}
-                  {!showAddAddress ? (
+                  {/* Order for Someone Else Toggle */}
+                  <div className={`flex items-center justify-between p-3 rounded-xl border ${
+                    theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900 border-neutral-800'
+                  }`}>
+                    <div>
+                      <p className={`text-xs font-bold ${theme === 'light' ? 'text-slate-700' : 'text-white'}`}>👤 Ordering for someone else?</p>
+                      <p className="text-[10px] text-neutral-400 mt-0.5">Deliver in their name to their location (this order only)</p>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setShowAddAddress(true)}
-                      className={`w-full py-3 rounded-xl border border-dashed text-xs font-bold transition flex items-center justify-center gap-2 ${
-                        theme === 'light' ? 'border-slate-300 text-slate-500 hover:bg-slate-50 hover:text-slate-700 hover:border-slate-400' : 'border-neutral-700 text-neutral-400 hover:bg-neutral-900 hover:text-white hover:border-neutral-600'
+                      onClick={() => {
+                        setOrderForSomeoneElse(prev => !prev);
+                        if (!orderForSomeoneElse) {
+                          setProxyLocationType('map_pin');
+                        }
+                      }}
+                      className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${
+                        orderForSomeoneElse ? 'bg-cafe-amber' : (theme === 'light' ? 'bg-slate-300' : 'bg-neutral-700')
                       }`}
                     >
-                      <i data-lucide="plus" className="w-4 h-4"></i>
-                      Add New Address
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                        orderForSomeoneElse ? 'translate-x-5' : 'translate-x-0'
+                      }`} />
                     </button>
-                  ) : (
+                  </div>
+
+                  {/* Proxy Recipient Fields & Dedicated Delivery Location (shown only when toggle is ON) */}
+                  {orderForSomeoneElse && (
+                    <div className={`p-3.5 rounded-2xl border space-y-3 ${
+                      theme === 'light' ? 'bg-amber-50/70 border-amber-200' : 'bg-amber-950/20 border-amber-700/30'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-extrabold uppercase tracking-wider text-cafe-amber">Recipient Contact</p>
+                        <span className="text-[9px] text-neutral-400">Step 1 of 2</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          placeholder="Recipient Name (e.g. Malathi) *"
+                          value={proxyName}
+                          onChange={e => setProxyName(e.target.value)}
+                          className={`w-full border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-cafe-amber font-bold ${
+                            theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
+                          }`}
+                        />
+                        <input
+                          type="tel"
+                          inputMode="numeric"
+                          maxLength="10"
+                          placeholder="Recipient Phone (10 digits) *"
+                          value={proxyPhone}
+                          onChange={e => setProxyPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                          className={`w-full border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-cafe-amber tracking-wider font-bold ${
+                            theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
+                          }`}
+                        />
+                      </div>
+
+                      {/* Recipient Delivery Point (Map Pin or Manual Address) */}
+                      <div className="pt-2 border-t border-amber-500/20 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] font-extrabold uppercase tracking-wider text-cafe-amber">Recipient Location</p>
+                          <div className="flex rounded-lg p-0.5 border border-amber-500/30 text-[10px] bg-neutral-900/30">
+                            <button
+                              type="button"
+                              onClick={() => setProxyLocationType('map_pin')}
+                              className={`px-2.5 py-1 rounded-md font-bold transition ${
+                                proxyLocationType === 'map_pin' ? 'bg-cafe-amber text-cafe-black shadow-sm' : 'text-neutral-400 hover:text-white'
+                              }`}
+                            >
+                              🗺️ Pin on Map
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setProxyLocationType('manual')}
+                              className={`px-2.5 py-1 rounded-md font-bold transition ${
+                                proxyLocationType === 'manual' ? 'bg-cafe-amber text-cafe-black shadow-sm' : 'text-neutral-400 hover:text-white'
+                              }`}
+                            >
+                              📝 Type Address
+                            </button>
+                          </div>
+                        </div>
+
+                        {proxyLocationType === 'map_pin' ? (
+                          <div className="space-y-2">
+                            {proxyMapPin ? (
+                              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-base">📍</span>
+                                  <div className="truncate">
+                                    <span className="font-bold text-emerald-400 block truncate">
+                                      {proxyName ? `${proxyName}'s` : "Recipient's"} Pin Locked
+                                    </span>
+                                    <span className="text-[10px] text-neutral-400 font-mono">
+                                      {proxyMapPin.lat.toFixed(4)}, {proxyMapPin.lng.toFixed(4)}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setMapPickerTarget('proxy'); setShowMapModal(true); }}
+                                    className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-[11px] transition"
+                                  >
+                                    Change Pin
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setProxyMapPin(null)}
+                                    className="text-neutral-400 hover:text-red-400 text-xs font-bold px-1"
+                                    title="Remove pin"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => { setMapPickerTarget('proxy'); setShowMapModal(true); }}
+                                className="w-full py-3 rounded-xl border-2 border-dashed border-amber-400/50 bg-amber-400/5 hover:bg-amber-400/10 text-cafe-amber font-bold text-xs flex items-center justify-center gap-2 transition active:scale-98"
+                              >
+                                <span>🗺️</span>
+                                <span>Tap to Pin {proxyName ? `${proxyName}'s` : "Recipient's"} House on Map ➔</span>
+                              </button>
+                            )}
+
+                            <input
+                              type="text"
+                              placeholder="Gate / Landmark note for rider (e.g. Near blue gate, opp water tank)"
+                              value={proxyLandmark}
+                              onChange={e => setProxyLandmark(e.target.value)}
+                              className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-cafe-amber ${
+                                theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
+                              }`}
+                            />
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              placeholder="Recipient House / Flat / Street *"
+                              value={proxyAddress}
+                              onChange={e => setProxyAddress(e.target.value)}
+                              className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-cafe-amber ${
+                                theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
+                              }`}
+                            />
+                            <div className="grid grid-cols-2 gap-2">
+                              <input
+                                type="text"
+                                placeholder="Landmark *"
+                                value={proxyLandmark}
+                                onChange={e => setProxyLandmark(e.target.value)}
+                                className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-cafe-amber ${
+                                  theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
+                                }`}
+                              />
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength="6"
+                                placeholder="PIN Code *"
+                                value={proxyPin}
+                                onChange={e => setProxyPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-cafe-amber font-mono font-bold tracking-widest ${
+                                  theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
+                                }`}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        <p className="text-[10px] text-neutral-400 leading-snug">
+                          ℹ️ Rider will navigate directly to this address/pin and contact {proxyName || 'this recipient'}.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Add New Address & Pin on Map Buttons (for self) */}
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setMapPickerTarget('self'); setShowMapModal(true); }}
+                        className={`py-3 rounded-xl border border-dashed text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                          selfMapPin
+                            ? 'bg-emerald-500/15 border-emerald-500 text-emerald-400 font-black'
+                            : (theme === 'light'
+                                ? 'border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400'
+                                : 'border-neutral-700 text-neutral-300 hover:bg-neutral-900 hover:border-neutral-500')
+                        }`}
+                      >
+                        <span>🗺️</span>
+                        <span>{selfMapPin ? 'Edit Map Pin' : 'Pin on Map'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowAddAddress(prev => !prev)}
+                        className={`py-3 rounded-xl border border-dashed text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                          theme === 'light'
+                            ? 'border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400'
+                            : 'border-neutral-700 text-neutral-300 hover:bg-neutral-900 hover:border-neutral-500'
+                        }`}
+                      >
+                        <i data-lucide="plus" className="w-3.5 h-3.5"></i>
+                        <span>Add Address</span>
+                      </button>
+                    </div>
+
+                    {/* Self Map Pin Locked Notice */}
+                    {selfMapPin && (
+                      <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-base">📍</span>
+                          <span className="font-bold text-emerald-400 truncate">
+                            Map Pinpoint Active ({selfMapPin.lat.toFixed(4)}, {selfMapPin.lng.toFixed(4)})
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelfMapPin(null)}
+                          className="text-xs text-neutral-400 hover:text-red-400 font-bold px-1.5"
+                          title="Clear pin"
+                        >
+                          ✕ Clear
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add New Address Form inline */}
+                  {showAddAddress && (
                     <div className={`p-4 rounded-xl border space-y-3 ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900 border-neutral-800'}`}>
                       <div className="flex justify-between items-center mb-2">
                         <h5 className={`text-xs font-bold uppercase tracking-wider ${theme === 'light' ? 'text-slate-700' : 'text-white'}`}>New Address</h5>
@@ -1690,7 +2317,6 @@ import 'firebase/compat/auth';
                         type="button"
                         onClick={() => {
                           if (!newAddressTitle || !newAddressDetails || !newAddressLandmark || !newAddressPinCode) { alert('Please fill all fields'); return; }
-                          if (!KGF_PINS.includes(newAddressPinCode.trim())) { alert('Sorry, this PIN code is out of our KGF delivery range.'); return; }
                           const newAddr = {
                             id: Date.now().toString(),
                             title: newAddressTitle,
@@ -1712,8 +2338,34 @@ import 'firebase/compat/auth';
                     </div>
                   )}
                 </div>
+
                 {/* Delivery Location Confirmation indicator */}
-                {isAlreadyAuthenticated && selectedAddressId ? (
+                {orderForSomeoneElse ? (
+                  <div className={`w-full py-2.5 px-3.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition ${
+                    theme === 'light'
+                      ? 'bg-amber-50 border-amber-200 text-amber-900'
+                      : 'bg-amber-950/40 border-amber-700/50 text-amber-300'
+                  }`}>
+                    <span>👤</span>
+                    <span>
+                      Delivering to: <strong className="uppercase font-black">{proxyName.trim() || 'Recipient'}</strong>
+                      {proxyLocationType === 'map_pin' && proxyMapPin 
+                        ? ' (📍 Map Pinpoint Locked)' 
+                        : proxyAddress.trim() 
+                          ? ` (${proxyAddress.trim()})` 
+                          : ' (Location needed)'}
+                    </span>
+                  </div>
+                ) : selfMapPin ? (
+                  <div className={`w-full py-2.5 px-3.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-2 transition ${
+                    theme === 'light'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-emerald-950/40 border-emerald-700/50 text-emerald-300'
+                  }`}>
+                    <span>📍</span>
+                    <span>Delivering to: <strong className="font-black">CUSTOM MAP PINPOINT</strong> ({selfMapPin.lat.toFixed(4)}, {selfMapPin.lng.toFixed(4)})</span>
+                  </div>
+                ) : isAlreadyAuthenticated && selectedAddressId ? (
                   (() => {
                     const currentSelectedAddr = savedAddresses.find(a => a.id === selectedAddressId);
                     if (!currentSelectedAddr) return null;
@@ -1851,36 +2503,105 @@ import 'firebase/compat/auth';
               </div>
             </div>
           </div>
+
+          {/* OpenStreetMap + Leaflet.js Interactive Pin Picker Modal */}
+          <MapPinPickerModal
+            isOpen={showMapModal}
+            onClose={() => setShowMapModal(false)}
+            title={mapPickerTarget === 'proxy' ? `Pin ${proxyName ? proxyName + "'s" : "Recipient's"} Delivery Location` : "Pin Exact Delivery Location"}
+            subtitle={mapPickerTarget === 'proxy' ? "Move the map to point to their exact house or gate" : "Move the map to point to your exact house or gate"}
+            initialCoords={mapPickerTarget === 'proxy' ? (proxyMapPin || (customerGps?.lat ? customerGps : null)) : (selfMapPin || (customerGps?.lat ? customerGps : null))}
+            onConfirm={(coords) => {
+              if (mapPickerTarget === 'proxy') {
+                setProxyMapPin(coords);
+                setProxyLocationType('map_pin');
+              } else {
+                setSelfMapPin(coords);
+              }
+            }}
+          />
         </div>
       );
     };
 
-    // Customer Profile Modal — name, phone, sign out, order history
+    // Customer Profile Modal — Interactive Hub (My Orders, Saved Addresses, Help & Support, About & Policies)
     const CustomerProfileModal = ({ isOpen, onClose }) => {
       const { theme, currentUser, setCurrentUser } = useContext(AppContext);
       const [orderHistory, setOrderHistory] = useState([]);
+      const [savedAddresses, setSavedAddresses] = useState([]);
+      const [activeTab, setActiveTab] = useState('hub'); // 'hub' | 'orders' | 'addresses' | 'about'
 
+      // Reset to main hub when reopened
       useEffect(() => {
-        if (!isOpen || !currentUser) {
+        if (isOpen) setActiveTab('hub');
+      }, [isOpen]);
+
+      // Sync customer order history in real-time
+      useEffect(() => {
+        if (!isOpen || !currentUser?.phone) {
           setOrderHistory([]);
           return;
         }
         const unsubscribe = subscribeOrders((allOrders) => {
-          const phone = currentUser.phone;
-          const completed = allOrders.filter(o =>
-            ['successfully_delivered', 'delivered', 'completed'].includes(o.status) &&
+          const phone = currentUser.phone.trim();
+          const userOrders = allOrders.filter(o =>
             o.customerPhone && o.customerPhone.includes(phone)
           );
-          setOrderHistory(completed);
+          setOrderHistory(userOrders);
         });
         return () => {
           if (typeof unsubscribe === 'function') unsubscribe();
         };
       }, [isOpen, currentUser?.phone]);
 
+      // Sync customer saved addresses in real-time from Firestore (addresses array)
+      useEffect(() => {
+        if (!isOpen || !currentUser?.phone) {
+          setSavedAddresses([]);
+          return;
+        }
+        const phone = currentUser.phone.trim();
+        const unsub = db.collection('users').doc(phone).onSnapshot(doc => {
+          if (doc.exists) {
+            const data = doc.data();
+            let addrs = [];
+            if (data.addresses && Array.isArray(data.addresses) && data.addresses.length > 0) {
+              addrs = data.addresses;
+            } else if (data.savedAddresses && Array.isArray(data.savedAddresses) && data.savedAddresses.length > 0) {
+              addrs = data.savedAddresses;
+            } else if (data.addressDetails || data.address || data.pinCode) {
+              addrs = [{
+                id: 'default',
+                title: 'Registered Address',
+                addressDetails: data.addressDetails || data.address || '',
+                landmark: data.landmark || '',
+                pinCode: data.pinCode || ''
+              }];
+            }
+            setSavedAddresses(addrs);
+          }
+        }, err => console.warn('Saved addresses sync error:', err));
+        return () => unsub();
+      }, [isOpen, currentUser?.phone]);
+
       useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-      }, [isOpen, orderHistory, theme]);
+      }, [isOpen, activeTab, orderHistory, savedAddresses, theme]);
+
+      const handleDeleteAddress = async (addressId) => {
+        if (!currentUser?.phone) return;
+        if (!window.confirm("Remove this saved address from your profile?")) return;
+        try {
+          const updated = savedAddresses.filter(a => a.id !== addressId);
+          await db.collection('users').doc(currentUser.phone.trim()).update({
+            addresses: updated
+          });
+          setSavedAddresses(updated);
+        } catch (e) {
+          console.error("Failed to delete address:", e);
+          alert("Could not remove address. Try again.");
+        }
+      };
 
       const handleSignOut = () => {
         localStorage.removeItem('cc_customer_name');
@@ -1896,71 +2617,371 @@ import 'firebase/compat/auth';
             className="fixed inset-0 bg-black/70 z-40 backdrop-blur-sm"
             onClick={onClose}
           />
-          <div className={`w-full max-w-md rounded-t-3xl border p-6 space-y-5 shadow-2xl z-50 max-h-[85vh] overflow-y-auto no-scrollbar ${
-            theme === 'light' ? 'bg-white border-slate-205 text-slate-900' : 'bg-cafe-card border-neutral-805 text-white'
+          <div className={`w-full max-w-md rounded-t-3xl border p-6 space-y-5 shadow-2xl z-50 max-h-[88vh] overflow-y-auto no-scrollbar ${
+            theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-card border-neutral-800 text-white'
           }`}>
-            <div className={`flex items-center justify-between pb-3 border-b ${theme === 'light' ? 'border-neutral-200' : 'border-neutral-900'}`}>
-              <h3 className="text-base font-bold font-serif flex items-center space-x-2">
-                <i data-lucide="user-circle" className="w-5 h-5 text-cafe-amber"></i>
-                <span>My Profile</span>
-              </h3>
-              <button onClick={onClose} className="text-neutral-500 hover:text-white transition">
+
+            {/* Modal Header */}
+            <div className={`flex items-center justify-between pb-3 border-b ${theme === 'light' ? 'border-slate-200' : 'border-neutral-800'}`}>
+              {activeTab === 'hub' ? (
+                <h3 className="text-base font-bold font-serif flex items-center space-x-2">
+                  <i data-lucide="user-circle" className="w-5 h-5 text-cafe-amber"></i>
+                  <span>My Profile</span>
+                </h3>
+              ) : (
+                <button
+                  onClick={() => setActiveTab('hub')}
+                  className="flex items-center gap-1.5 text-xs font-bold text-cafe-amber hover:underline"
+                >
+                  <i data-lucide="arrow-left" className="w-4 h-4"></i>
+                  <span>Back to Profile</span>
+                </button>
+              )}
+              <button onClick={onClose} className="text-neutral-500 hover:text-white transition p-1">
                 <i data-lucide="x" className="w-5 h-5"></i>
               </button>
             </div>
 
-            <div className={`p-4 rounded-xl border space-y-2 ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900 border-neutral-800'}`}>
-              <div>
-                <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Name</span>
-                <p className="font-bold text-sm text-cafe-amber">{currentUser?.name || '—'}</p>
-              </div>
-              <div>
-                <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Phone</span>
-                <p className="font-bold text-sm font-sans">{currentUser?.phone || '—'}</p>
-              </div>
-            </div>
-
-            <button
-              onClick={handleSignOut}
-              className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold text-xs rounded-xl border border-red-500/20 transition flex items-center justify-center space-x-2"
-            >
-              <i data-lucide="log-out" className="w-4 h-4"></i>
-              <span>Sign Out</span>
-            </button>
-
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-500 flex items-center space-x-2">
-                <i data-lucide="history" className="w-4 h-4"></i>
-                <span>Order History</span>
-              </h4>
-              <div className={`max-h-48 overflow-y-auto space-y-2 rounded-xl border p-2 no-scrollbar ${
-                theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900/60 border-neutral-800'
-              }`}>
-                <div className={orderHistory.length === 0 ? "p-6 text-center text-neutral-500 text-xs block" : "hidden"}>
-                  No completed orders yet.
+            {/* ─── TAB 1: MAIN HUB VIEW ─── */}
+            {activeTab === 'hub' && (
+              <div className="space-y-4">
+                {/* Customer Identity Card */}
+                <div className={`p-4 rounded-2xl border space-y-2 ${
+                  theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900 border-neutral-800'
+                }`}>
+                  <div>
+                    <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Name</span>
+                    <p className="font-extrabold text-base text-cafe-amber">{currentUser?.name || 'Customer'}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Phone Number</span>
+                    <p className="font-bold text-sm font-sans tracking-wide">{currentUser?.phone || '—'}</p>
+                  </div>
                 </div>
-                {orderHistory.map(order => (
-                  <div
-                    key={order.displayId || order.id.slice(0, 4)}
-                    className={`p-3 rounded-lg border text-xs space-y-1 ${
-                      theme === 'light' ? 'bg-white border-slate-200' : 'bg-cafe-card border-neutral-800'
+
+                {/* 2x2 Interactive Quick Cards */}
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  {/* Card 1: My Orders */}
+                  <button
+                    onClick={() => setActiveTab('orders')}
+                    className={`p-4 rounded-2xl border text-left space-y-2 transition-all active:scale-97 shadow-sm ${
+                      theme === 'light'
+                        ? 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+                        : 'bg-neutral-900/90 hover:bg-neutral-800 border-neutral-800'
                     }`}
                   >
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-cafe-amber">#{order.id.slice(-6)}</span>
-                      <span className="text-[10px] text-neutral-500">{order.placementTime || '—'}</span>
+                    <div className="w-10 h-10 rounded-full bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
+                      <i data-lucide="package" className="w-5 h-5"></i>
                     </div>
-                    <p className={`text-[11px] truncate ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
-                      {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
-                    </p>
-                    <div className="flex justify-between items-center pt-1">
-                      <span className="font-bold">₹{order.totalAmount}</span>
-                      <span className="text-[9px] font-bold uppercase text-emerald-500">Delivered ✓</span>
+                    <div>
+                      <h4 className="font-bold text-xs tracking-tight">My Orders</h4>
+                      <p className="text-[10px] text-neutral-400 font-medium">
+                        {orderHistory.length > 0 ? `${orderHistory.length} orders` : 'View past orders'}
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Card 2: Saved Addresses */}
+                  <button
+                    onClick={() => setActiveTab('addresses')}
+                    className={`p-4 rounded-2xl border text-left space-y-2 transition-all active:scale-97 shadow-sm ${
+                      theme === 'light'
+                        ? 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+                        : 'bg-neutral-900/90 hover:bg-neutral-800 border-neutral-800'
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-blue-500/15 text-blue-400 flex items-center justify-center">
+                      <i data-lucide="map-pin" className="w-5 h-5"></i>
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs tracking-tight">Saved Addresses</h4>
+                      <p className="text-[10px] text-neutral-400 font-medium">
+                        {savedAddresses.length > 0 ? `${savedAddresses.length} spots saved` : 'Manage spots'}
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Card 3: Help & Support (WhatsApp) */}
+                  <button
+                    onClick={() => window.open('https://wa.me/919035733573?text=Hi%20Crispy%20Chick%20KGF%2C%20I%20need%20support%20with%20my%20order', '_blank')}
+                    className={`p-4 rounded-2xl border text-left space-y-2 transition-all active:scale-97 shadow-sm ${
+                      theme === 'light'
+                        ? 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+                        : 'bg-neutral-900/90 hover:bg-neutral-800 border-neutral-800'
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
+                      <i data-lucide="message-circle" className="w-5 h-5"></i>
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs tracking-tight">Help & Support</h4>
+                      <p className="text-[10px] text-neutral-400 font-medium">Chat on WhatsApp</p>
+                    </div>
+                  </button>
+
+                  {/* Card 4: About & Policies */}
+                  <button
+                    onClick={() => setActiveTab('about')}
+                    className={`p-4 rounded-2xl border text-left space-y-2 transition-all active:scale-97 shadow-sm ${
+                      theme === 'light'
+                        ? 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+                        : 'bg-neutral-900/90 hover:bg-neutral-800 border-neutral-800'
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-purple-500/15 text-purple-400 flex items-center justify-center">
+                      <i data-lucide="info" className="w-5 h-5"></i>
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs tracking-tight">About & Policies</h4>
+                      <p className="text-[10px] text-neutral-400 font-medium">App info & credits</p>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Sign Out Button */}
+                <div className="pt-2">
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold text-xs rounded-xl border border-red-500/20 transition flex items-center justify-center space-x-2"
+                  >
+                    <i data-lucide="log-out" className="w-4 h-4"></i>
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ─── TAB 2: MY ORDERS VIEW ─── */}
+            {activeTab === 'orders' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-sm tracking-tight">Order History ({orderHistory.length})</h4>
+                  <span className="text-[10px] text-neutral-400">All local deliveries</span>
+                </div>
+
+                <div className="space-y-2.5 max-h-[55vh] overflow-y-auto no-scrollbar pr-1">
+                  {orderHistory.length === 0 ? (
+                    <div className="py-12 text-center text-neutral-400 text-xs space-y-2">
+                      <span className="text-3xl block">🍗</span>
+                      <p>No orders placed yet.</p>
+                      <p className="text-[11px] text-neutral-500">Delicious crispy fried chicken awaits you!</p>
+                    </div>
+                  ) : (
+                    orderHistory.map(order => (
+                      <div
+                        key={order.displayId || order.id}
+                        className={`p-3.5 rounded-2xl border text-xs space-y-1.5 shadow-sm ${
+                          theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900 border-neutral-800'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-extrabold text-cafe-amber">
+                              #{order.displayId || (order.id ? String(order.id).slice(-4) : '----').toUpperCase()}
+                            </span>
+                            {order.addressTitle && (
+                              <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 font-bold text-[9px] uppercase">
+                                {order.addressTitle}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-neutral-400 font-medium">{order.placementTime || '—'}</span>
+                        </div>
+
+                        <p className={`text-[11px] leading-snug line-clamp-2 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-300'}`}>
+                          {order.items?.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                        </p>
+
+                        <div className="flex justify-between items-center pt-1 border-t border-dashed border-neutral-700/30">
+                          <span className="font-black text-sm">₹{order.totalAmount}</span>
+                          <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                            ['successfully_delivered', 'delivered', 'completed'].includes(order.status)
+                              ? 'bg-emerald-500/15 text-emerald-500'
+                              : order.status === 'out_for_delivery'
+                              ? 'bg-indigo-500/15 text-indigo-400'
+                              : order.status === 'rejected'
+                              ? 'bg-red-500/15 text-red-400'
+                              : 'bg-amber-500/15 text-amber-500'
+                          }`}>
+                            {order.status?.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ─── TAB 3: SAVED ADDRESSES VIEW ─── */}
+            {activeTab === 'addresses' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-sm tracking-tight">Saved Delivery Addresses ({savedAddresses.length})</h4>
+                </div>
+
+                <div className="space-y-2.5 max-h-[55vh] overflow-y-auto no-scrollbar pr-1">
+                  {savedAddresses.length === 0 ? (
+                    <div className="py-12 text-center text-neutral-400 text-xs space-y-2">
+                      <span className="text-3xl block">📍</span>
+                      <p>No saved addresses found.</p>
+                      <p className="text-[11px] text-neutral-500">
+                        You can save addresses (Home, College, Office) easily while checking out!
+                      </p>
+                    </div>
+                  ) : (
+                    savedAddresses.map(addr => (
+                      <div
+                        key={addr.id}
+                        className={`p-3.5 rounded-2xl border text-xs space-y-2 relative shadow-sm ${
+                          theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900 border-neutral-800'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="px-2 py-0.5 rounded-md bg-cafe-amber/15 text-cafe-amber font-extrabold text-[10px] uppercase tracking-wider">
+                            📍 {addr.title}
+                          </span>
+                          <button
+                            onClick={() => handleDeleteAddress(addr.id)}
+                            className="text-red-400 hover:text-red-500 p-1 transition"
+                            title="Delete Address"
+                          >
+                            <i data-lucide="trash-2" className="w-3.5 h-3.5"></i>
+                          </button>
+                        </div>
+                        <p className={`text-[11px] leading-snug ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>
+                          {addr.addressDetails}
+                        </p>
+                        {addr.landmark && (
+                          <p className="text-[10px] text-neutral-400">
+                            Landmark: <span className="font-semibold">{addr.landmark}</span>
+                          </p>
+                        )}
+                        <p className="text-[10px] text-neutral-400">
+                          PIN Code: <span className="font-mono font-bold text-cafe-amber">{addr.pinCode}</span> (KGF, Karnataka)
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ─── TAB 4: ABOUT & POLICIES VIEW ─── */}
+            {activeTab === 'about' && (
+              <div className="space-y-4 text-left">
+                {/* Brand & App Card */}
+                <div className={`p-4 rounded-2xl border text-center space-y-1.5 ${
+                  theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900 border-neutral-800'
+                }`}>
+                  <img src="./logo_rm_bg.png" className="h-14 mx-auto object-contain drop-shadow-sm" alt="Crispy Chick" />
+                  <h4 className="font-black text-base tracking-tight">Crispy Chick KGF</h4>
+                  <p className="text-[11px] text-neutral-400">Fast Food & Pizza Delivery Progressive Web App</p>
+                  <span className="inline-block text-[9px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 font-bold">
+                    v1.0.0 • Production Release
+                  </span>
+                </div>
+
+                {/* DhaKav Designer's KGF Card — Compact & Elegant */}
+                <div className={`p-4 rounded-2xl border space-y-2.5 shadow-sm ${
+                  theme === 'light'
+                    ? 'bg-amber-50/70 border-amber-200/90'
+                    : 'bg-neutral-900 border-neutral-800'
+                }`}>
+                  <div>
+                    <span className="text-[9px] font-extrabold uppercase tracking-widest text-cafe-amber block">
+                      DESIGNED & DEVELOPED BY
+                    </span>
+                    <h4 className="text-sm font-black tracking-tight flex items-center gap-1.5 mt-0.5">
+                      <span>DhaKav Designer's</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-cafe-amber text-black font-extrabold">KGF</span>
+                    </h4>
+                  </div>
+
+                  {/* Concise Services 2-Column Grid */}
+                  <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <div className={`p-2 rounded-xl border flex items-center gap-1.5 ${
+                      theme === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-neutral-850 border-neutral-750 text-neutral-200'
+                    }`}>
+                      <i data-lucide="globe" className="w-3.5 h-3.5 text-blue-400 flex-shrink-0"></i>
+                      <span className="font-semibold truncate">Web & App Building</span>
+                    </div>
+
+                    <div className={`p-2 rounded-xl border flex items-center gap-1.5 ${
+                      theme === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-neutral-850 border-neutral-750 text-neutral-200'
+                    }`}>
+                      <i data-lucide="palette" className="w-3.5 h-3.5 text-purple-400 flex-shrink-0"></i>
+                      <span className="font-semibold truncate">Graphic Design & Logos</span>
+                    </div>
+
+                    <div className={`p-2 rounded-xl border flex items-center gap-1.5 col-span-2 ${
+                      theme === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-neutral-850 border-neutral-750 text-neutral-200'
+                    }`}>
+                      <i data-lucide="video" className="w-3.5 h-3.5 text-orange-400 flex-shrink-0"></i>
+                      <div className="min-w-0">
+                        <span className="font-bold block leading-tight">Digital Media Assistance</span>
+                        <span className="text-[9px] text-neutral-400 block leading-tight truncate">Shop interior videography, promo banners & poster making</span>
+                      </div>
+                    </div>
+
+                    <div className={`p-2 rounded-xl border flex items-center gap-1.5 col-span-2 ${
+                      theme === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-neutral-850 border-neutral-750 text-neutral-200'
+                    }`}>
+                      <i data-lucide="cpu" className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0"></i>
+                      <div className="min-w-0">
+                        <span className="font-bold block leading-tight">Engineering Project Assistance</span>
+                        <span className="text-[9px] text-neutral-400 block leading-tight truncate">Technical consulting & project development</span>
+                      </div>
                     </div>
                   </div>
-                ))}
+
+                  {/* Compact Direct Contact Row */}
+                  <div className="pt-1.5 border-t border-neutral-700/20 flex items-center justify-between gap-2">
+                    <a
+                      href="mailto:contact.dhakavdesigners@gmail.com"
+                      className="text-[11px] font-bold text-cafe-amber hover:underline flex items-center gap-1 truncate"
+                    >
+                      <i data-lucide="mail" className="w-3 h-3 flex-shrink-0"></i>
+                      <span className="truncate">contact.dhakavdesigners@gmail.com</span>
+                    </a>
+                    <button
+                      onClick={() => window.open('https://wa.me/919035733573?text=Hi%20DhaKav%20Designers%2C%20I%20need%20assistance%20with%20a%20project', '_blank')}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 text-[10px] font-bold transition flex items-center gap-1 flex-shrink-0"
+                    >
+                      <i data-lucide="message-circle" className="w-3 h-3"></i>
+                      <span>WhatsApp</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Terms & Policies Card */}
+                <div className={`p-4 rounded-2xl border space-y-3 ${
+                  theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900 border-neutral-800'
+                }`}>
+                  <h5 className="font-bold text-xs uppercase tracking-wider text-neutral-400">Crispy Chick Store Policies</h5>
+                  
+                  <div className="space-y-2 text-[11px] leading-relaxed text-neutral-400">
+                    <div>
+                      <strong className={theme === 'light' ? 'text-slate-800' : 'text-white'}>1. Local Delivery Radius:</strong>
+                      <p>Deliveries are strictly fulfilled within authorized KGF delivery PIN codes (563113 to 563122).</p>
+                    </div>
+                    <div>
+                      <strong className={theme === 'light' ? 'text-slate-800' : 'text-white'}>2. Payment Policy:</strong>
+                      <p>100% genuine Cash on Delivery (COD) and direct Rider UPI QR payment upon delivery. No advance online payment needed.</p>
+                    </div>
+                    <div>
+                      <strong className={theme === 'light' ? 'text-slate-800' : 'text-white'}>3. Fresh Preparation:</strong>
+                      <p>All fried chicken, burgers, and pizzas are freshly prepared immediately following kitchen order confirmation.</p>
+                    </div>
+                    <div>
+                      <strong className={theme === 'light' ? 'text-slate-800' : 'text-white'}>4. Support Hotline:</strong>
+                      <p>For instant order queries, call or WhatsApp +91 9035733573.</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
           </div>
         </div>
       );
@@ -2038,7 +3059,7 @@ import 'firebase/compat/auth';
           setActiveOrders([]);
           return;
         }
-        const activeStatuses = new Set(['pending', 'preparing', 'prepared', 'out_for_delivery']);
+        const activeStatuses = new Set(['pending', 'preparing', 'prepared', 'out_for_delivery', 'arrived']);
         const unsubscribe = subscribeOrders((allOrders) => {
           const phone = currentUser.phone;
           const matches = allOrders
@@ -2064,7 +3085,7 @@ import 'firebase/compat/auth';
             const prevStatus = prevStatusesRef.current[order.id];
             if (prevStatus && prevStatus !== order.status) {
               statusChanged = true;
-              if (order.status === 'out_for_delivery') {
+              if (order.status === 'out_for_delivery' || order.status === 'arrived') {
                 setRiderPopupOrder(order);
                 setShowRiderPopup(true);
               }
@@ -2104,6 +3125,7 @@ import 'firebase/compat/auth';
           case 'preparing': return 'Preparing 🍳';
           case 'prepared': return 'Ready for rider pickup 🐣';
           case 'out_for_delivery': return 'Out for delivery 🛵';
+          case 'arrived': return 'Rider has arrived at your doorstep! 📍';
           case 'successfully_delivered':
           case 'delivered':
           case 'completed': return 'Delivered! Enjoy your meal! 🎉';
@@ -2135,7 +3157,7 @@ import 'firebase/compat/auth';
                 <div className="flex justify-between items-center">
                   <div className="flex items-center space-x-2">
                     <i data-lucide="bike" className="w-4 h-4 text-cafe-amber flex-shrink-0"></i>
-                    <span className="font-bold text-xs text-cafe-amber">Order #{activeOrder.displayId || activeOrder.id.slice(-4).toUpperCase()}</span>
+                    <span className="font-bold text-xs text-cafe-amber">Order #{activeOrder.displayId || (activeOrder.id ? String(activeOrder.id).slice(-4) : '----').toUpperCase()}</span>
                   </div>
                   <span className="font-semibold text-[10px] text-neutral-450 uppercase">{activeOrder.placementTime}</span>
                 </div>
@@ -2150,6 +3172,7 @@ import 'firebase/compat/auth';
                             activeOrder.status === 'pending' ? '0%' :
                             (activeOrder.status === 'preparing' || activeOrder.status === 'prepared') ? '33.33%' :
                             activeOrder.status === 'out_for_delivery' ? '66.66%' :
+                            activeOrder.status === 'arrived' ? '85%' :
                             ['successfully_delivered', 'delivered', 'completed'].includes(activeOrder.status) ? '100%' : '0%'
                           }`
                         }}
@@ -2160,7 +3183,7 @@ import 'firebase/compat/auth';
                       const activeStep =
                         sval === 'pending' ? 0 :
                         (sval === 'preparing' || sval === 'prepared') ? 1 :
-                        sval === 'out_for_delivery' ? 2 :
+                        (sval === 'out_for_delivery' || sval === 'arrived') ? 2 :
                         ['successfully_delivered', 'delivered', 'completed'].includes(sval) ? 3 : -1;
                       const isCompleted = idx < activeStep;
                       const isActive = idx === activeStep;
@@ -2178,24 +3201,39 @@ import 'firebase/compat/auth';
                           </div>
                           <span className={`text-[9px] font-bold mt-1 text-center whitespace-nowrap ${
                             isReached ? 'text-cafe-amber' : 'text-neutral-555'
-                          }`}>{label}</span>
+                          }`}>
+                            {idx === 2 && activeOrder.status === 'arrived' ? 'Arrived 📍' : label}
+                          </span>
                         </div>
                       );
                     })}
                   </div>
                 </div>
 
-                {activeOrder.status === 'out_for_delivery' && (
-                  <div className="rounded-xl px-4 py-3 border border-amber-500/30 bg-amber-500/10 mb-3 flex items-center justify-between shadow-sm">
+                {(activeOrder.status === 'out_for_delivery' || activeOrder.status === 'arrived') && (
+                  <div className={`rounded-xl px-4 py-3 border mb-3 flex items-center justify-between shadow-sm ${
+                    activeOrder.status === 'arrived'
+                      ? 'border-emerald-500/50 bg-emerald-950/40'
+                      : 'border-amber-500/30 bg-amber-500/10'
+                  }`}>
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-cafe-amber/20 text-cafe-amber rounded-full flex items-center justify-center shadow-inner">
-                        <i data-lucide="bike" className="w-5 h-5"></i>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner ${
+                        activeOrder.status === 'arrived' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-cafe-amber/20 text-cafe-amber'
+                      }`}>
+                        <i data-lucide={activeOrder.status === 'arrived' ? "map-pin" : "bike"} className="w-5 h-5"></i>
                       </div>
                       <div>
-                        <h3 className="font-serif font-bold text-sm text-cafe-amber mb-0.5">🛵 Out for Delivery!</h3>
+                        <h3 className={`font-serif font-bold text-sm mb-0.5 ${activeOrder.status === 'arrived' ? 'text-emerald-400' : 'text-cafe-amber'}`}>
+                          {activeOrder.status === 'arrived' ? '📍 Rider Has Arrived!' : '🛵 Out for Delivery!'}
+                        </h3>
                         <p className="text-[10px] text-neutral-300 uppercase tracking-wider">
-                          Rider: <span className="font-bold text-white">{activeOrder.riderName || activeOrder.assignedRider || 'Delivery Rider'}</span>
+                          {activeOrder.status === 'arrived' ? 'Please collect your parcel' : `Rider: ${activeOrder.riderName || activeOrder.assignedRider || 'Delivery Rider'}`}
                         </p>
+                        {activeOrder.orderedForSomeoneElse && activeOrder.recipientName && (
+                          <p className="text-[10px] text-blue-400 font-bold tracking-wide mt-0.5">
+                            👤 Delivering to: {activeOrder.recipientName} ({activeOrder.recipientPhone})
+                          </p>
+                        )}
                       </div>
                     </div>
                     <a 
@@ -2381,13 +3419,24 @@ import 'firebase/compat/auth';
 
     // 3. SHOP COUNTER ADMIN DASHBOARD PORTAL (/shop-counter)
     const ShopCounter = () => {
-      const { isOpenOrdering, menuSettings, updateMenuSettings, theme, toggleTheme } = useContext(AppContext);
+      const { isOpenOrdering, menuSettings, updateMenuSettings, theme, toggleTheme, getActivePrice } = useContext(AppContext);
       const { signOut } = useContext(AuthContext);
       const [orders, setOrders] = useState([]);
       const [toasts, setToasts] = useState([]);
       const [selectedRiders, setSelectedRiders] = useState({});
       const [fleetRiders, setFleetRiders] = useState([]);
       const prevOrdersRef = useRef([]);
+
+      // Draft Menu Settings State with Dirty Tracking for Confirmation
+      const [draftMenuSettings, setDraftMenuSettings] = useState(menuSettings);
+      const [isMenuDirty, setIsMenuDirty] = useState(false);
+      const [isMenuSaving, setIsMenuSaving] = useState(false);
+
+      useEffect(() => {
+        if (!isMenuDirty) {
+          setDraftMenuSettings(menuSettings);
+        }
+      }, [menuSettings, isMenuDirty]);
 
       // In-Counter Rider Management State
       const [showAddRider, setShowAddRider] = useState(false);
@@ -2530,6 +3579,44 @@ import 'firebase/compat/auth';
         prevOrdersRef.current = orders;
       }, [orders]);
 
+      // Real-time Anti-Fraud Auditor — flags tampered orders for operator review
+      // Does NOT auto-reject (which caused Permission Denied + blocked legitimate orders)
+      const [tamperedOrderIds, setTamperedOrderIds] = useState(new Set());
+      useEffect(() => {
+        if (!orders || orders.length === 0) return;
+        // Only run when menuSettings has been synced from Firestore (gstRate > 0 means loaded)
+        if (!menuSettings || !menuSettings.gstRate) return;
+        const allCatalogItems = Object.values(MENU_CATALOG).flat();
+        const newTampered = new Set(tamperedOrderIds);
+
+        orders.forEach(order => {
+          if (order.status !== 'pending') return;
+          if (newTampered.has(order.id)) return; // already flagged
+          if (!order.items || !Array.isArray(order.items)) return;
+
+          let expectedSubtotal = 0;
+          order.items.forEach(i => {
+            const catalogItem = allCatalogItems.find(c => c.name === i.name);
+            const basePrice = catalogItem ? catalogItem.price : (i.price || 0);
+            const activePrice = getActivePrice(i.name, basePrice);
+            expectedSubtotal += activePrice * (i.quantity || 1);
+          });
+          const expectedGst = Math.round(expectedSubtotal * (menuSettings.gstRate / 100));
+          const expectedDelivery = Number(menuSettings.deliveryFee || 0);
+          const expectedTotal = expectedSubtotal + expectedGst + expectedDelivery;
+
+          // Flag if price differs by more than ₹5 (buffer for rounding edge cases)
+          if (order.totalAmount < expectedTotal - 5) {
+            console.warn(`🚨 PRICE FLAG on Order #${order.displayId}: Submitted ₹${order.totalAmount}, Expected ₹${expectedTotal}`);
+            newTampered.add(order.id);
+          }
+        });
+
+        if (newTampered.size !== tamperedOrderIds.size) {
+          setTamperedOrderIds(newTampered);
+        }
+      }, [orders, menuSettings]);
+
       const hasPendingOrders = orders.some(o => o.status === 'pending');
       useEffect(() => {
         // Fix 1: Kitchen alarm MUST only ring on the counter route
@@ -2578,21 +3665,31 @@ import 'firebase/compat/auth';
       };
 
       const onlineRiders = fleetRiders.filter(r => r.isOnline === true);
-      const activeOrdersList = orders.filter(o => ['pending', 'preparing', 'prepared', 'out_for_delivery'].includes(o.status));
+      const activeOrdersList = orders.filter(o => ['pending', 'preparing', 'prepared', 'out_for_delivery', 'arrived'].includes(o.status));
       const archivedOrdersList = orders.filter(o => ['successfully_delivered', 'delivered', 'completed', 'rejected'].includes(o.status));
 
       // Live Rider Status & Assignment Computation
       const getRiderStatus = (rider) => {
         const activeOrder = activeOrdersList.find(o => 
           (o.assignedRider === rider.name || o.pickedUpBy === rider.name) &&
-          ['prepared', 'out_for_delivery'].includes(o.status)
+          ['prepared', 'out_for_delivery', 'arrived'].includes(o.status)
         );
 
         if (activeOrder) {
+          const safeOrderNum = activeOrder.displayId || (activeOrder.id ? String(activeOrder.id).slice(-4) : '----').toUpperCase();
+          if (activeOrder.status === 'arrived') {
+            return {
+              status: 'arrived',
+              label: `📍 At Location #${safeOrderNum}`,
+              sublabel: `To: ${activeOrder.customerName}`,
+              orderId: activeOrder.id,
+              badgeClass: 'bg-purple-500/10 text-purple-400 border border-purple-500/30'
+            };
+          }
           if (activeOrder.status === 'out_for_delivery') {
             return {
               status: 'delivering',
-              label: `🛵 Delivering #${activeOrder.displayId || activeOrder.id.slice(-4).toUpperCase()}`,
+              label: `🛵 Delivering #${safeOrderNum}`,
               sublabel: `To: ${activeOrder.customerName}`,
               orderId: activeOrder.id,
               badgeClass: 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
@@ -2601,7 +3698,7 @@ import 'firebase/compat/auth';
           if (activeOrder.status === 'prepared') {
             return {
               status: 'prepared',
-              label: `📦 Pickup Pending #${activeOrder.displayId || activeOrder.id.slice(-4).toUpperCase()}`,
+              label: `📦 Pickup Pending #${safeOrderNum}`,
               sublabel: `Waiting at counter`,
               orderId: activeOrder.id,
               badgeClass: 'bg-purple-500/10 text-purple-400 border border-purple-500/30'
@@ -2683,37 +3780,75 @@ import 'firebase/compat/auth';
         return acc;
       }, {});
 
+      // Helper to strip leading zeros and parse clean positive integer
+      const cleanNumberInput = (val) => {
+        if (val === '' || val === null || val === undefined) return 0;
+        const str = String(val).replace(/\D/g, '');
+        return str ? parseInt(str, 10) : 0;
+      };
+
       const handleGstChange = (val) => {
-        updateMenuSettings({ ...menuSettings, gstRate: Math.max(0, Number(val)) });
+        const num = cleanNumberInput(val);
+        setIsMenuDirty(true);
+        setDraftMenuSettings(prev => ({ ...prev, gstRate: num }));
       };
 
       const handleDeliveryFeeChange = (val) => {
-        updateMenuSettings({ ...menuSettings, deliveryFee: Math.max(0, Number(val)) });
+        const num = cleanNumberInput(val);
+        setIsMenuDirty(true);
+        setDraftMenuSettings(prev => ({ ...prev, deliveryFee: num }));
       };
 
-      const handleItemPriceChange = (itemName, price) => {
-        const currentItems = { ...menuSettings.items };
-        const isAvailable = currentItems[itemName] ? currentItems[itemName].available !== false : true;
-        currentItems[itemName] = { price: Math.max(0, Number(price)), available: isAvailable };
-        updateMenuSettings({ ...menuSettings, items: currentItems });
+      const handleItemPriceChange = (itemName, val) => {
+        const num = cleanNumberInput(val);
+        setIsMenuDirty(true);
+        setDraftMenuSettings(prev => {
+          const currentItems = { ...(prev.items || {}) };
+          const isAvailable = currentItems[itemName] ? currentItems[itemName].available !== false : true;
+          currentItems[itemName] = { price: num, available: isAvailable };
+          return { ...prev, items: currentItems };
+        });
       };
 
       const handleItemAvailabilityToggle = (itemName) => {
-        const currentItems = { ...menuSettings.items };
-        const currentPrice = currentItems[itemName] ? currentItems[itemName].price : undefined;
-        const currentAvailable = currentItems[itemName] ? currentItems[itemName].available !== false : true;
-        currentItems[itemName] = { price: currentPrice, available: !currentAvailable };
-        updateMenuSettings({ ...menuSettings, items: currentItems });
+        setIsMenuDirty(true);
+        setDraftMenuSettings(prev => {
+          const currentItems = { ...(prev.items || {}) };
+          const defaultPrice = catalogList.find(c => c.name === itemName)?.defaultPrice || 0;
+          const currentPrice = currentItems[itemName]?.price !== undefined ? currentItems[itemName].price : defaultPrice;
+          const currentAvailable = currentItems[itemName] ? currentItems[itemName].available !== false : true;
+          currentItems[itemName] = { price: currentPrice, available: !currentAvailable };
+          return { ...prev, items: currentItems };
+        });
+      };
+
+      const handleSaveMenuChanges = async () => {
+        if (!window.confirm("⚠️ CONFIRM MENU UPDATE:\n\nAre you sure you want to apply these price, tax, and item availability changes to the live store menu?\n\nThis will take effect immediately for all customers.")) {
+          return;
+        }
+        setIsMenuSaving(true);
+        try {
+          await updateMenuSettings(draftMenuSettings);
+          setIsMenuDirty(false);
+          const toastId = Date.now();
+          setToasts(prev => [...prev, { id: toastId, customerName: 'Menu Updated', totalAmount: 'Live', message: '✅ Live menu & inventory updated successfully!' }]);
+          setTimeout(() => setToasts(prev => prev.filter(t => t.id !== toastId)), 4000);
+        } catch (err) {
+          console.error('Menu save error:', err);
+          alert('Failed to save menu changes: ' + (err.message || 'Please check connection'));
+        } finally {
+          setIsMenuSaving(false);
+        }
       };
 
       useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-      }, [orders, menuSettings, theme, fleetRiders, showAddRider]);
+      }, [orders, menuSettings, draftMenuSettings, isMenuDirty, theme, fleetRiders, showAddRider]);
 
       const catalogList = [];
       Object.keys(MENU_CATALOG).forEach(cat => {
         MENU_CATALOG[cat].forEach(item => {
-          const custom = menuSettings.items[item.name];
+          const custom = (draftMenuSettings.items || {})[item.name];
           catalogList.push({
             name: item.name,
             category: cat,
@@ -2823,12 +3958,12 @@ import 'firebase/compat/auth';
                       {activeOrdersList.map(order => {
                         const dateText = order.placementTime || new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                         return (
-                          <tr key={order.displayId || order.id.slice(0, 4)} className={`hover:bg-neutral-900/5 transition-colors ${
+                          <tr key={order.displayId || (order.id ? String(order.id).slice(0, 4) : Math.random())} className={`hover:bg-neutral-900/5 transition-colors ${
                             order.status === 'pending' ? 'bg-cafe-amber/5 animate-pulse-slow' : ''
                           }`}>
                             <td className="px-6 py-4 space-y-1">
                               <div className="flex items-center space-x-2">
-                                <span className={`font-bold text-sm ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>#{order.displayId || order.id.slice(-4).toUpperCase()}</span>
+                                <span className={`font-bold text-sm ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>#{order.displayId || (order.id ? String(order.id).slice(-4) : '----').toUpperCase()}</span>
                                 <span className="text-[10px] text-neutral-550 font-medium">{dateText}</span>
                               </div>
                               {/* High-Visibility Shop Counter Typography */}
@@ -2846,9 +3981,20 @@ import 'firebase/compat/auth';
                             <td className="px-6 py-4">
                               <span className={`text-sm font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>₹{order.totalAmount}</span>
                               <span className="block text-[10px] text-neutral-505 font-bold uppercase">COD / UPI</span>
+                              {(order.tampered || tamperedOrderIds.has(order.id)) && (
+                                <span className="inline-block mt-1 px-1.5 py-0.5 rounded bg-red-600 text-white font-extrabold text-[9px] uppercase tracking-wider">
+                                  🚨 PRICE FLAG
+                                </span>
+                              )}
                             </td>
                             <td className="px-6 py-4 space-y-1">
                               <div className={`text-xs font-semibold ${theme === 'light' ? 'text-slate-800' : 'text-slate-300'}`}>{order.customerName} ({order.customerPhone})</div>
+                              {/* Recipient badge when ordered for someone else */}
+                              {order.orderedForSomeoneElse && order.recipientName && (
+                                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-[10px] font-bold">
+                                  👤 Deliver to: {order.recipientName} · {order.recipientPhone}
+                                </div>
+                              )}
                               {order.addressTitle && (
                                 <span className="inline-block px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 font-bold text-[9px] uppercase tracking-wide mr-1">
                                   {order.addressTitle}
@@ -2864,10 +4010,11 @@ import 'firebase/compat/auth';
                                 order.status === 'preparing' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
                                 order.status === 'prepared' ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' :
                                 order.status === 'out_for_delivery' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' :
+                                order.status === 'arrived' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
                                 ['successfully_delivered', 'delivered', 'completed'].includes(order.status) ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
                                 'bg-red-500/10 text-red-400 border border-red-500/20'
                               }`}>
-                                {order.status.replace(/_/g, ' ')}
+                                {order.status === 'arrived' ? 'At Doorstep 📍' : order.status.replace(/_/g, ' ')}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
@@ -2911,7 +4058,7 @@ import 'firebase/compat/auth';
                                         const st = getRiderStatus(rider);
                                         return (
                                           <option key={rider.id} value={rider.name}>
-                                            {rider.name} ({st.status === 'available' ? '🟢 Ready' : st.status === 'delivering' ? '🛵 Delivering' : '📦 Assigned'})
+                                            {rider.name} ({st.status === 'available' ? '🟢 Ready' : st.status === 'delivering' ? '🛵 Delivering' : st.status === 'arrived' ? '📍 Arrived' : '📦 Assigned'})
                                           </option>
                                         );
                                       })}
@@ -2939,8 +4086,8 @@ import 'firebase/compat/auth';
                                 </button>
                               )}
 
-                              <span className={order.status === 'out_for_delivery' ? "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800" : "hidden"}>
-                                {order.status === 'out_for_delivery' ? `Out with Rider: ${order.pickedUpBy || order.assignedRider || 'Rider'}` : ''}
+                              <span className={(order.status === 'out_for_delivery' || order.status === 'arrived') ? "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold " + (order.status === 'arrived' ? "bg-purple-50 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800" : "bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800") : "hidden"}>
+                                {order.status === 'arrived' ? `📍 At Doorstep: ${order.pickedUpBy || order.assignedRider || 'Rider'}` : `Out with Rider: ${order.pickedUpBy || order.assignedRider || 'Rider'}`}
                               </span>
                               
                               <span className={`text-xs text-emerald-555 font-bold font-sans ${['successfully_delivered', 'delivered', 'completed'].includes(order.status) ? 'inline' : 'hidden'}`}>
@@ -2974,7 +4121,7 @@ import 'firebase/compat/auth';
                   <p className="text-xs font-semibold">No historical orders in archive.</p>
                 </div>
 
-                <div className={archivedOrdersList.length > 0 ? "overflow-x-auto block max-h-[300px] no-scrollbar" : "hidden"}>
+                <div className={archivedOrdersList.length > 0 ? "overflow-x-auto block max-h-[420px] no-scrollbar" : "hidden"}>
                   <table className="min-w-full table-fixed divide-y divide-gray-200 text-left">
                     <colgroup>
                       <col className="w-1/6" />
@@ -2982,9 +4129,9 @@ import 'firebase/compat/auth';
                       <col className="w-2/5" />
                       <col className="w-24" />
                     </colgroup>
-                    <thead>
+                    <thead className="sticky top-0 z-10">
                       <tr className={`border-b text-[10px] text-neutral-455 font-bold uppercase tracking-wider ${
-                        theme === 'light' ? 'bg-slate-100/30' : 'bg-neutral-900/20'
+                        theme === 'light' ? 'bg-slate-100' : 'bg-neutral-900'
                       }`}>
                         <th className="px-3 py-3">Time</th>
                         <th className="px-3 py-3">Order Details</th>
@@ -3028,7 +4175,7 @@ import 'firebase/compat/auth';
                                 <tr key={order.displayId || order.id} className="hover:bg-neutral-900/5 transition-colors">
                                   <td className="px-3 py-3 text-xs font-semibold font-sans">{formattedTime}</td>
                                   <td className="px-3 py-3 font-bold text-xs leading-relaxed whitespace-normal break-words">
-                                    #{order.displayId || order.id.slice(-4).toUpperCase()}
+                                    #{order.displayId || (order.id ? String(order.id).slice(-4) : '----').toUpperCase()}
                                     <div className="text-[10px] font-normal text-neutral-455 mt-0.5 whitespace-normal leading-normal">
                                       {order.items.map(i => `${i.name} (x${i.quantity})`).join(', ')}
                                     </div>
@@ -3311,15 +4458,56 @@ import 'firebase/compat/auth';
               <div className={`rounded-2xl border shadow-xl p-6 space-y-6 ${
                 theme === 'light' ? 'bg-white border-slate-205' : 'bg-cafe-card border-neutral-800'
               }`}>
-                <div className="pb-3 border-b border-neutral-900/10">
-                  <h3 className={`font-serif font-bold text-base ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>⚙️ Live Menu Manager</h3>
+                <div className="pb-3 border-b border-neutral-900/10 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className={`font-serif font-bold text-base ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>⚙️ Live Menu Manager</h3>
+                    {isMenuDirty && (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-500 border border-amber-500/30 animate-pulse">
+                        Unsaved Changes
+                      </span>
+                    )}
+                  </div>
+                  {isMenuDirty && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDraftMenuSettings(menuSettings);
+                          setIsMenuDirty(false);
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold border border-neutral-700 text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+                      >
+                        Discard
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isMenuSaving}
+                        onClick={handleSaveMenuChanges}
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-black bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black hover:brightness-110 shadow-md transition active:scale-95 flex items-center gap-1.5"
+                      >
+                        {isMenuSaving ? 'Saving...' : '✓ Update Menu'}
+                      </button>
+                    </div>
+                  )}
                 </div>
+
+                {/* Staging Warning Alert Bar */}
+                {isMenuDirty && (
+                  <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">⚠️</span>
+                      <span className="font-semibold text-amber-500">
+                        Changes staged! Tap <strong>"Update Menu"</strong> to confirm & apply live.
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
                   <div>
                     <label className="block text-[10px] font-bold text-neutral-450 uppercase tracking-wider mb-2">GST Rate (%)</label>
                     <input
-                      type="number" min="0" value={menuSettings.gstRate} onChange={e => handleGstChange(e.target.value)}
+                      type="number" min="0" value={draftMenuSettings.gstRate ?? 0} onChange={e => handleGstChange(e.target.value)}
                       className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cafe-amber font-sans font-bold ${
                         theme === 'light' ? 'bg-neutral-50 border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-800 text-white'
                       }`}
@@ -3328,7 +4516,7 @@ import 'firebase/compat/auth';
                   <div>
                     <label className="block text-[10px] font-bold text-neutral-450 uppercase tracking-wider mb-2">Fixed Delivery Fee (₹)</label>
                     <input
-                      type="number" min="0" value={menuSettings.deliveryFee} onChange={e => handleDeliveryFeeChange(e.target.value)}
+                      type="number" min="0" value={draftMenuSettings.deliveryFee ?? 0} onChange={e => handleDeliveryFeeChange(e.target.value)}
                       className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cafe-amber font-sans font-bold ${
                         theme === 'light' ? 'bg-neutral-50 border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-800 text-white'
                       }`}
@@ -3339,8 +4527,12 @@ import 'firebase/compat/auth';
                 <hr className={theme === 'light' ? 'border-slate-200' : 'border-neutral-800'} />
 
                 <div className="space-y-3">
-                  <span className="block text-[10px] font-bold text-neutral-450 uppercase tracking-wider">Spreadsheet Inventory Matrix</span>
-                  <div className={`max-h-[280px] overflow-y-auto border rounded-xl no-scrollbar divide-y ${
+                  <div className="flex items-center justify-between">
+                    <span className="block text-[10px] font-bold text-neutral-450 uppercase tracking-wider">Spreadsheet Inventory Matrix</span>
+                    <span className="text-[10px] text-neutral-500 font-semibold">{catalogList.length} items</span>
+                  </div>
+
+                  <div className={`max-h-[320px] overflow-y-auto border rounded-xl no-scrollbar divide-y ${
                     theme === 'light' ? 'bg-slate-50 border-slate-200 divide-slate-200' : 'bg-cafe-black/40 border-neutral-805 divide-neutral-900/60'
                   }`}>
                     {catalogList.map(item => (
@@ -3351,7 +4543,7 @@ import 'firebase/compat/auth';
                         </div>
                         <div className="w-16">
                           <input 
-                            type="number" min="0" value={item.currentPrice} 
+                            type="number" min="0" value={item.currentPrice ?? 0} 
                             onChange={e => handleItemPriceChange(item.name, e.target.value)}
                             className={`w-full border rounded-lg p-1.5 text-center focus:outline-none focus:border-cafe-amber font-sans font-bold ${
                               theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-800 text-white'
@@ -3359,6 +4551,7 @@ import 'firebase/compat/auth';
                           />
                         </div>
                         <button
+                          type="button"
                           onClick={() => handleItemAvailabilityToggle(item.name)}
                           className={`px-3 py-2 rounded-lg font-bold text-[9px] uppercase tracking-wider transition ${
                             item.isAvailable 
@@ -3371,6 +4564,37 @@ import 'firebase/compat/auth';
                       </div>
                     ))}
                   </div>
+
+                  {/* Bottom Update Action when changes are made */}
+                  {isMenuDirty && (
+                    <div className="pt-2 flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDraftMenuSettings(menuSettings);
+                          setIsMenuDirty(false);
+                        }}
+                        className="px-4 py-2 rounded-xl text-xs font-bold border border-neutral-700 text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+                      >
+                        Discard Changes
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isMenuSaving}
+                        onClick={handleSaveMenuChanges}
+                        className="px-5 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black hover:brightness-110 shadow-lg transition active:scale-95 flex items-center gap-2"
+                      >
+                        {isMenuSaving ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                            <span>Saving Changes...</span>
+                          </>
+                        ) : (
+                          <span>✓ Confirm & Save All Changes</span>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
               </div>
@@ -3386,14 +4610,24 @@ import 'firebase/compat/auth';
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center space-x-2">
                     <span className="text-lg">🎉</span>
-                    <span className="font-extrabold text-sm tracking-wide text-white">Delivery Complete!</span>
+                    <span className="font-extrabold text-sm tracking-wide text-white">
+                      {toast.title || (toast.message ? 'System Notice' : 'Delivery Complete!')}
+                    </span>
                   </div>
-                  <p className="text-[11px] text-emerald-100 font-medium">
-                    Order <strong>#{toast.orderId.slice(-6)}</strong> delivered to <strong>{toast.customerName}</strong>.
-                  </p>
-                  <p className="text-[10px] text-emerald-250 font-bold">
-                    Collected: <strong>₹{toast.totalAmount}</strong>
-                  </p>
+                  {toast.message ? (
+                    <p className="text-[12px] text-emerald-100 font-medium">
+                      {toast.message}
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-[11px] text-emerald-100 font-medium">
+                        Order <strong>#{toast.orderId ? String(toast.orderId).slice(-6) : '----'}</strong> delivered to <strong>{toast.customerName}</strong>.
+                      </p>
+                      <p className="text-[10px] text-emerald-250 font-bold">
+                        Collected: <strong>₹{toast.totalAmount}</strong>
+                      </p>
+                    </>
+                  )}
                 </div>
                 <button 
                   onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
@@ -3413,6 +4647,15 @@ import 'firebase/compat/auth';
     // Owner Router Guard - strict role OWNER_COUNTER checking
     const ShopCounterGuard = ({ activeRoute }) => {
       const { ownerUser, loadingAuth } = useContext(AuthContext);
+      const [firebaseAuthUser, setFirebaseAuthUser] = useState(undefined); // undefined = still loading
+
+      // Check live Firebase Auth session (not just localStorage fallback)
+      useEffect(() => {
+        const unsub = firebase.auth().onAuthStateChanged(user => {
+          setFirebaseAuthUser(user); // null = no live session, object = authenticated
+        });
+        return () => unsub();
+      }, []);
 
       useEffect(() => {
         if (activeRoute === '#/shop-counter') {
@@ -3424,7 +4667,7 @@ import 'firebase/compat/auth';
         }
       }, [ownerUser, loadingAuth, activeRoute]);
 
-      if (loadingAuth) {
+      if (loadingAuth || firebaseAuthUser === undefined) {
         return (
           <div className="min-h-screen bg-cafe-black flex items-center justify-center">
             <div className="w-8 h-8 border-4 border-cafe-amber border-t-transparent rounded-full animate-spin"></div>
@@ -3437,6 +4680,29 @@ import 'firebase/compat/auth';
           <div className="min-h-screen bg-cafe-black flex flex-col items-center justify-center space-y-4">
             <div className="w-8 h-8 border-4 border-cafe-amber border-t-transparent rounded-full animate-spin"></div>
             <p className="text-sm text-neutral-400 font-semibold">Redirecting to login...</p>
+          </div>
+        );
+      }
+
+      // If ownerUser is from localStorage but Firebase Auth session is missing,
+      // show a prominent re-login notice (fixes Accept/Reject Permission Denied)
+      if (activeRoute === '#/shop-counter' && ownerUser && firebaseAuthUser === null) {
+        return (
+          <div className="min-h-screen bg-cafe-black flex flex-col items-center justify-center space-y-5 p-6 text-center">
+            <div className="text-5xl">🔐</div>
+            <h2 className="text-white font-black text-lg">Session Expired</h2>
+            <p className="text-neutral-400 text-sm max-w-xs leading-relaxed">
+              Your counter session has expired. Please log in again to accept and reject orders.
+            </p>
+            <button
+              onClick={() => {
+                localStorage.removeItem('cc_operator_auth_token');
+                window.location.hash = '#/login';
+              }}
+              className="px-6 py-3 bg-cafe-amber text-black font-black rounded-xl text-sm hover:bg-amber-400 transition"
+            >
+              Sign In Again
+            </button>
           </div>
         );
       }
@@ -3465,7 +4731,7 @@ import 'firebase/compat/auth';
       }
     };
 
-    const SwipeToAccept = ({ onSwipeComplete }) => {
+    const SwipeToAccept = ({ onSwipeComplete, label = 'Slide to Accept Parcel ➔', color = 'amber' }) => {
       const [dragX, setDragX] = useState(0);
       const [isDragging, setIsDragging] = useState(false);
       const trackRef = useRef(null);
@@ -3485,7 +4751,6 @@ import 'firebase/compat/auth';
         const currentX = clientX - startXRef.current;
         const clampedX = Math.max(0, Math.min(currentX, maxDrag));
         setDragX(clampedX);
-
         if (clampedX >= maxDrag - 4) {
           completedRef.current = true;
           setIsDragging(false);
@@ -3494,27 +4759,18 @@ import 'firebase/compat/auth';
         }
       };
 
-      const handleEnd = () => {
-        setIsDragging(false);
-        setDragX(0);
-      };
+      const handleEnd = () => { setIsDragging(false); setDragX(0); };
 
       useEffect(() => {
         if (isDragging) {
           const onMouseMove = (e) => handleMove(e.clientX);
           const onMouseUp = () => handleEnd();
-          const onTouchMove = (e) => {
-            if (e.touches && e.touches[0]) {
-              handleMove(e.touches[0].clientX);
-            }
-          };
+          const onTouchMove = (e) => { if (e.touches && e.touches[0]) handleMove(e.touches[0].clientX); };
           const onTouchEnd = () => handleEnd();
-
           window.addEventListener('mousemove', onMouseMove);
           window.addEventListener('mouseup', onMouseUp);
           window.addEventListener('touchmove', onTouchMove, { passive: true });
           window.addEventListener('touchend', onTouchEnd);
-
           return () => {
             window.removeEventListener('mousemove', onMouseMove);
             window.removeEventListener('mouseup', onMouseUp);
@@ -3524,31 +4780,44 @@ import 'firebase/compat/auth';
         }
       }, [isDragging]);
 
+      const isGreen = color === 'green';
+      const isBlue = color === 'blue';
+      const trackBg = isGreen 
+        ? 'bg-emerald-950/40 border-emerald-800' 
+        : isBlue 
+          ? 'bg-blue-950/40 border-blue-800' 
+          : 'bg-neutral-900 border-neutral-800';
+      const fillBg = isGreen 
+        ? 'bg-emerald-500/20' 
+        : isBlue 
+          ? 'bg-blue-500/20' 
+          : 'bg-amber-500/15';
+      const thumbBg = isGreen 
+        ? 'bg-emerald-500 text-white' 
+        : isBlue 
+          ? 'bg-blue-500 text-white' 
+          : 'bg-cafe-amber text-cafe-black';
+      const thumbIcon = isGreen ? '✅' : isBlue ? '📍' : '🛵';
+
       return (
-        <div 
+        <div
           ref={trackRef}
-          className="relative w-full h-12 bg-neutral-900 rounded-xl border border-neutral-800 select-none overflow-hidden flex items-center"
+          className={`relative w-full h-12 rounded-xl border select-none overflow-hidden flex items-center ${trackBg}`}
         >
-          <div 
-            className="absolute inset-0 flex items-center justify-center text-[10px] uppercase font-black text-neutral-450 pointer-events-none tracking-widest"
-          >
-            Slide to Accept Parcel ➔
+          <div className="absolute inset-0 flex items-center justify-center text-[10px] uppercase font-black text-neutral-450 pointer-events-none tracking-widest">
+            {label}
           </div>
-          <div 
-            className="absolute top-0 bottom-0 left-0 bg-emerald-500/15 transition-all pointer-events-none"
+          <div
+            className={`absolute top-0 bottom-0 left-0 transition-all pointer-events-none ${fillBg}`}
             style={{ width: `${dragX + 24}px` }}
           />
-          <div 
+          <div
             onMouseDown={(e) => handleStart(e.clientX)}
-            onTouchStart={(e) => {
-              if (e.touches && e.touches[0]) {
-                handleStart(e.touches[0].clientX);
-              }
-            }}
-            className="absolute left-1 top-1 bottom-1 w-10 bg-cafe-amber text-cafe-black rounded-lg cursor-grab active:cursor-grabbing flex items-center justify-center font-bold shadow-lg transition-transform duration-75 select-none z-10"
+            onTouchStart={(e) => { if (e.touches && e.touches[0]) handleStart(e.touches[0].clientX); }}
+            className={`absolute left-1 top-1 bottom-1 w-10 rounded-lg cursor-grab active:cursor-grabbing flex items-center justify-center font-bold shadow-lg transition-transform duration-75 select-none z-10 ${thumbBg}`}
             style={{ transform: `translateX(${dragX}px)` }}
           >
-            🛵
+            {thumbIcon}
           </div>
         </div>
       );
@@ -3723,7 +4992,7 @@ import 'firebase/compat/auth';
       }, []);
 
       const handleConfirmPaymentAndDelivery = async (order) => {
-        const orderNum = order.displayId || order.id.slice(-4).toUpperCase();
+        const orderNum = order?.displayId || (order?.id ? String(order.id).slice(-4) : '----').toUpperCase();
         if (!window.confirm(`Confirm payment received (₹${order.totalAmount}) and mark Order #${orderNum} as delivered?`)) {
           return;
         }
@@ -3776,18 +5045,30 @@ import 'firebase/compat/auth';
         showRideSafeToast(orderId);
       };
 
+      const handleMarkArrived = async (orderId) => {
+        if (!riderId) return;
+        await updateOrderStatus(orderId, 'arrived', {
+          arrivedAt: Date.now()
+        });
+      };
+
       useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
       }, [orders, otpInputs, theme, rideSafeToast, isProfileOpen, qrModalOrder, showOfflineModal]);
 
-      const activeJobs = orders.filter(o => (o.assignedRider === activeRiderProfile || o.pickedUpBy === activeRiderProfile) && ['preparing', 'prepared', 'out_for_delivery'].includes(o.status));
+      const activeJobs = orders.filter(o => (o.assignedRider === activeRiderProfile || o.pickedUpBy === activeRiderProfile) && ['preparing', 'prepared', 'out_for_delivery', 'arrived'].includes(o.status));
       const completedJobs = orders.filter(o => (o.assignedRider === activeRiderProfile || o.pickedUpBy === activeRiderProfile) && ['successfully_delivered', 'delivered', 'completed', 'rejected', 'cancelled'].includes(o.status));
 
       // Count deliveries and total cash collected confirmed today
+      // Only count successfully delivered orders (not rejected/cancelled) for earnings
       const todaysCompletedJobs = completedJobs.filter(order => {
-        const orderDate = new Date(order.deliveredAt || order.createdAt);
+        if (!['successfully_delivered', 'delivered', 'completed'].includes(order.status)) return false;
+        const ts = order.deliveredAt || order.createdAt;
+        const orderDate = ts && typeof ts === 'number' ? new Date(ts) : new Date(ts || 0);
         const today = new Date();
-        return orderDate.toDateString() === today.toDateString();
+        return orderDate.getDate() === today.getDate() &&
+               orderDate.getMonth() === today.getMonth() &&
+               orderDate.getFullYear() === today.getFullYear();
       });
 
       const todaysDeliveries = todaysCompletedJobs.length;
@@ -3798,7 +5079,7 @@ import 'firebase/compat/auth';
 
         // If rider is currently online and wants to switch to offline:
         if (isOnline) {
-          const hasActiveDelivery = activeJobs.some(o => o.status === 'out_for_delivery');
+          const hasActiveDelivery = activeJobs.some(o => o.status === 'out_for_delivery' || o.status === 'arrived');
           if (hasActiveDelivery) {
             alert('⚠️ You cannot go offline while delivering an active order! Please complete the delivery handshake first.');
             return;
@@ -4107,19 +5388,21 @@ import 'firebase/compat/auth';
         }`}>
           <div className="space-y-6">
             
-            <div className={`flex items-center gap-3 justify-between w-full px-4 py-3 sticky top-0 z-50 border-b -mx-6 mb-2 ${
+            <div className={`flex items-center justify-between w-full px-4 py-3 sticky top-0 z-50 border-b -mx-6 mb-2 ${
               theme === 'light' ? 'bg-white border-slate-200 shadow-sm' : 'bg-cafe-black border-neutral-800 shadow-md'
-            }`}>
-              <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
-                <img src="./logo_rm_bg.png" className="h-9 w-auto object-contain flex-shrink-0 drop-shadow-sm" alt="Crispy Chick Logo" />
-                <h1 className={`font-sans font-black text-sm sm:text-base tracking-tight flex items-center truncate transition-colors duration-300 ${
+            }`} style={{ width: 'calc(100% + 3rem)' }}>
+              {/* Left: Logo + Title */}
+              <div className="flex items-center gap-2 min-w-0">
+                <img src="./logo_rm_bg.png" className="h-9 w-9 object-contain flex-shrink-0 drop-shadow-sm" alt="Crispy Chick Logo" />
+                <h1 className={`font-sans font-black text-sm tracking-tight leading-none transition-colors duration-300 ${
                   theme === 'light' ? 'text-slate-900' : 'text-white'
                 }`}>
                   Crispy Chick
                 </h1>
               </div>
 
-              <div className="flex items-center gap-2 flex-shrink-0 pl-2">
+              {/* Right: Theme Toggle + Profile */}
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={toggleTheme}
                   className={`p-2 rounded-xl border transition-all duration-300 ${
@@ -4134,7 +5417,7 @@ import 'firebase/compat/auth';
 
                 <button
                   onClick={() => setIsProfileOpen(true)}
-                  className={`text-xs font-bold px-3 py-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
+                  className={`text-xs font-bold px-3 py-2 rounded-xl border flex items-center gap-1.5 transition-all ${
                     theme === 'dark'
                       ? 'bg-neutral-850 border-neutral-800 text-cafe-amber hover:text-white'
                       : 'bg-white border-slate-200 text-cafe-crispy hover:text-cafe-black shadow-sm'
@@ -4142,9 +5425,8 @@ import 'firebase/compat/auth';
                   title="View Profile"
                 >
                   <i data-lucide="user-circle" className="w-3.5 h-3.5"></i>
-                  <span>👤 Profile ({riderName})</span>
+                  <span>Profile ({riderName || 'Rider'})</span>
                 </button>
-
               </div>
             </div>
 
@@ -4286,7 +5568,7 @@ import 'firebase/compat/auth';
                     
                     return (
                       <div 
-                        key={order.displayId || order.id.slice(0, 4)} 
+                        key={order.displayId || (order.id ? String(order.id).slice(0, 4) : Math.random())} 
                         className={`relative rounded-3xl p-5 border overflow-hidden transition-all duration-550 ${
                           isDelivered 
                             ? 'border-emerald-500/30 bg-emerald-950/5' 
@@ -4302,7 +5584,7 @@ import 'firebase/compat/auth';
                             <span className="text-3xl text-cafe-black font-bold">🐣</span>
                           </div>
                           <div className="mt-4 space-y-1">
-                            <h4 className="font-bold text-white text-sm">Order #{order.displayId || order.id.slice(-4).toUpperCase()} is Incubating</h4>
+                            <h4 className="font-bold text-white text-sm">Order #{order.displayId || (order.id ? String(order.id).slice(-4) : '----').toUpperCase()} is Incubating</h4>
                             <p className="text-[10px] text-neutral-455 max-w-[200px] leading-normal">
                               Shop counter is preparing this order. Egg cracks open once dispatched.
                             </p>
@@ -4313,7 +5595,7 @@ import 'firebase/compat/auth';
                           <div className={`flex justify-between items-center pb-2.5 border-b ${
                             theme === 'light' ? 'border-slate-100' : 'border-neutral-900'
                           }`}>
-                            <span className={`font-bold text-sm ${theme === 'light' ? 'text-slate-800' : 'text-neutral-300'}`}>Job #{order.displayId || order.id.slice(-4).toUpperCase()}</span>
+                            <span className={`font-bold text-sm ${theme === 'light' ? 'text-slate-800' : 'text-neutral-300'}`}>Job #{order.displayId || (order.id ? String(order.id).slice(-4) : '----').toUpperCase()}</span>
                             <div className="flex flex-col items-end space-y-0.5">
                               <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded ${
                                 isDelivered
@@ -4330,9 +5612,38 @@ import 'firebase/compat/auth';
                           </div>
 
                           <div className="space-y-2.5 text-xs">
+                            {/* Prominent Recipient Banner if ordered for someone else */}
+                            {order.orderedForSomeoneElse && order.recipientName && (
+                              <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/60 border-2 border-blue-400 dark:border-blue-600 space-y-2 shadow-sm">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-black text-blue-700 dark:text-blue-300 uppercase tracking-wider flex items-center gap-1">
+                                    <span>👤 DELIVER TO RECIPIENT</span>
+                                  </span>
+                                  <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-blue-200 dark:bg-blue-900 text-blue-900 dark:text-blue-200">
+                                    For Someone Else
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between gap-2">
+                                  <div>
+                                    <p className="text-xs font-black text-slate-900 dark:text-white">{order.recipientName}</p>
+                                    <p className="text-[11px] font-mono font-bold text-blue-600 dark:text-blue-400">{order.recipientPhone}</p>
+                                  </div>
+                                  <a
+                                    href={`tel:${order.recipientPhone}`}
+                                    className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-black text-xs flex items-center gap-1.5 shadow"
+                                  >
+                                    <i data-lucide="phone" className="w-3.5 h-3.5"></i>
+                                    <span>Call Recipient</span>
+                                  </a>
+                                </div>
+                              </div>
+                            )}
+
                             <div className="flex items-center space-x-2">
                               <i data-lucide="user" className="w-4 h-4 text-neutral-500"></i>
-                              <span className={`font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{order.customerName}</span>
+                              <span className={`font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                                {order.orderedForSomeoneElse ? `Ordered by: ${order.customerName}` : order.customerName}
+                              </span>
                             </div>
                             <div className="flex items-center space-x-2">
                               <i data-lucide="phone" className="w-4 h-4 text-neutral-500"></i>
@@ -4348,7 +5659,7 @@ import 'firebase/compat/auth';
                               <div className="flex items-center gap-1.5 font-bold text-xs">
                                 <i data-lucide="map-pin" className="w-3.5 h-3.5 text-red-600 dark:text-amber-400"></i>
                                 <span className="uppercase text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 font-black">
-                                  {order.addressTitle || (order.destinationType === 'live_gps' ? 'Live GPS' : 'Delivery Address')}
+                                  {order.destinationType === 'map_pin' ? '📍 MAP PINPOINT' : (order.addressTitle || (order.destinationType === 'live_gps' ? 'Live GPS' : 'Delivery Address'))}
                                 </span>
                               </div>
                               {order.addressDetails && (
@@ -4370,13 +5681,13 @@ import 'firebase/compat/auth';
                           </div>
 
                           {/* Prominent Collectible Amount Badge */}
-                          <div className={order.status === 'out_for_delivery' ? "w-full my-3 p-3 bg-emerald-50 dark:bg-emerald-950/50 border-2 border-emerald-500/40 rounded-xl text-center block" : "hidden"}>
+                          <div className={(order.status === 'out_for_delivery' || order.status === 'arrived') ? "w-full my-3 p-3 bg-emerald-50 dark:bg-emerald-950/50 border-2 border-emerald-500/40 rounded-xl text-center block" : "hidden"}>
                             <span className="block text-xs font-extrabold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">COLLECT CASH / UPI PAYMENT</span>
                             <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400">₹{order.totalAmount}</span>
                           </div>
 
                           {/* Map Direction turn-by-turn Link */}
-                          <div className={order.status === 'out_for_delivery' ? "block" : "hidden"}>
+                          <div className={(order.status === 'out_for_delivery' || order.status === 'arrived') ? "block" : "hidden"}>
                             <a
                               href={getOrderMapsUrl(order)}
                               target="_blank" rel="noopener noreferrer"
@@ -4388,27 +5699,55 @@ import 'firebase/compat/auth';
                             >
                               <i data-lucide="navigation" className="w-4 h-4 text-red-500 dark:text-amber-400"></i>
                               <span>
-                                {order.addressTitle
-                                  ? `NAVIGATE TO ${order.addressTitle.toUpperCase()} IN MAPS`
-                                  : (order.destinationType === 'live_gps' && order.gpsLat != null
-                                    ? 'LAUNCH GPS PINPOINT NAVIGATION'
-                                    : 'LAUNCH GOOGLE MAPS NAVIGATION')}
+                                {order.destinationType === 'map_pin' && order.gpsLat != null
+                                  ? 'NAVIGATE TO MAP PINPOINT 📍'
+                                  : (order.addressTitle
+                                    ? `NAVIGATE TO ${order.addressTitle.toUpperCase()} IN MAPS`
+                                    : (order.destinationType === 'live_gps' && order.gpsLat != null
+                                      ? 'LAUNCH GPS PINPOINT NAVIGATION'
+                                      : 'LAUNCH GOOGLE MAPS NAVIGATION'))}
                               </span>
                             </a>
                           </div>
 
-                          {/* Large Pick Up Button */}
+                          {/* Stage 1: Swipe to Pick Up — prevents accidental tap */}
                           <div className={order.status === 'prepared' ? "pt-2 block" : "hidden"}>
-                            <button
-                              onClick={() => handlePickUpAndStart(order.id)}
-                              className="w-full py-3 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold text-sm rounded-xl shadow-lg transition-all hover:brightness-110 active:scale-98"
-                            >
-                              Mark as Picked Up & Start Delivery
-                            </button>
+                            <p className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider text-center mb-2">Stage 1: Confirm Pickup</p>
+                            <SwipeToAccept
+                              label="Slide to Pick Up & Start 🛵"
+                              color="amber"
+                              onSwipeComplete={() => handlePickUpAndStart(order.id)}
+                            />
                           </div>
 
-                          {/* Manual Confirm Payment & Complete Delivery Action */}
-                          <div className={(order.status === 'out_for_delivery') ? "block space-y-2.5 pt-2" : "hidden"}>
+                          {/* Stage 2: Swipe to Confirm Arrival at Customer Location */}
+                          {order.status === 'out_for_delivery' && (
+                            <div className="pt-2 space-y-2">
+                              <p className="text-[10px] text-blue-400 font-bold uppercase tracking-wider text-center">Stage 2: Reached Customer Doorstep?</p>
+                              <SwipeToAccept
+                                label="Slide: Arrived at Location 📍"
+                                color="blue"
+                                onSwipeComplete={() => handleMarkArrived(order.id)}
+                              />
+                            </div>
+                          )}
+
+                          {/* Arrived Status Banner */}
+                          {order.status === 'arrived' && (
+                            <div className="p-3 bg-blue-950/40 border border-blue-500/40 rounded-xl flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xl">📍</span>
+                                <div>
+                                  <p className="text-xs font-black text-blue-400">Arrived at Customer Doorstep</p>
+                                  <p className="text-[10px] text-neutral-400">Handover parcel & collect payment</p>
+                                </div>
+                              </div>
+                              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-blue-500/20 text-blue-300">ARRIVED</span>
+                            </div>
+                          )}
+
+                          {/* Stage 3: Payment & Complete Delivery Action */}
+                          <div className={(order.status === 'out_for_delivery' || order.status === 'arrived') ? "block space-y-3 pt-2" : "hidden"}>
                             {/* Show Payment QR Button */}
                             <button
                               onClick={() => setQrModalOrder(order)}
@@ -4417,13 +5756,13 @@ import 'firebase/compat/auth';
                               <span>📲 SHOW UPI PAYMENT QR (₹{order.totalAmount})</span>
                             </button>
 
-                            {/* Manual Confirm Payment & Deliver */}
-                            <button
-                              onClick={() => handleConfirmPaymentAndDelivery(order)}
-                              className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm rounded-xl shadow-lg transition-all active:scale-98 flex items-center justify-center gap-2"
-                            >
-                              <span>✅ CONFIRM PAYMENT & COMPLETE DELIVERY</span>
-                            </button>
+                            {/* Swipe to Confirm Delivery — prevents accidental completion */}
+                            <p className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider text-center">Stage 3: After payment received, swipe to complete</p>
+                            <SwipeToAccept
+                              label="Slide to Complete Delivery ✅"
+                              color="green"
+                              onSwipeComplete={() => handleConfirmPaymentAndDelivery(order)}
+                            />
                           </div>
 
                           <div className={isDelivered ? "bg-emerald-950/20 border border-emerald-500/20 rounded-xl p-4 text-center space-y-1 block" : "hidden"}>
@@ -4487,7 +5826,7 @@ import 'firebase/compat/auth';
                         <button
                           type="button"
                           onClick={async () => {
-                            const orderNum = qrModalOrder.displayId || qrModalOrder.id.slice(-4).toUpperCase();
+                            const orderNum = qrModalOrder?.displayId || (qrModalOrder?.id ? String(qrModalOrder.id).slice(-4) : '----').toUpperCase();
                             if (!window.confirm(`⚠️ RIDER CONFIRMATION REQUIRED:\n\nHave you verified that ₹${qrModalOrder.totalAmount} was paid by the customer for Order #${orderNum}?\n\nClick OK only if payment has been received.`)) {
                               return;
                             }

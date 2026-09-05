@@ -447,7 +447,7 @@ const CheckoutFlowModal = ({ onClose, onSuccess }) => {
     if (!/^[6-9]\d{9}$/.test(phone)) { setOtpError('Enter a valid 10-digit mobile number starting 6-9.'); return; }
     if (phone !== confirmPhone && !currentUser) { setOtpError('Phone numbers do not match.'); return; }
     if (!address.trim()) { setOtpError('Please enter your delivery address.'); return; }
-    if (!KGF_PINS.includes(pinCode)) { setOtpError('Sorry, delivery is only available in KGF areas.'); return; }
+    if (!pinCode.trim()) { setOtpError('Please enter your delivery PIN code.'); return; }
 
     setOtpError('');
     setLoading(true);

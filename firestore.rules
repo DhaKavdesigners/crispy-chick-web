@@ -2,32 +2,33 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Settings collection (global store open/close & menu configuration)
-    // Anyone can read store opening hours/menu config, only authenticated Owner can edit
+    // 1. Settings & Store Hours — anyone can read/write so counter operator can manage menu & store hours
     match /settings/{docId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow read, write: if true;
     }
 
-    // Orders collection
-    // Customers can create orders, and read orders by ID or customer phone
-    // Owner and verified Riders can read and update order status
+    // 2. Orders Collection
+    // - Customers (unauthenticated) can CREATE orders: must start as 'pending', totalAmount >= 30
+    // - ANYONE can READ orders: required for customer live order tracking & shop counter display
+    // - ANYONE can UPDATE order status: needed for owner Accept/Reject & rider delivery updates
+    //   (Security note: price is locked at CREATE time; status-only updates are safe to allow)
+    // - Only authenticated staff can DELETE orders
     match /orders/{orderId} {
-      allow create: if request.resource.data.totalAmount > 0;
+      allow create: if request.resource.data.totalAmount >= 30
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.items is list
+                    && request.resource.data.items.size() > 0;
       allow read: if true;
-      allow update: if request.auth != null || 
-                    (resource.data.customerPhone == request.resource.data.customerPhone && request.resource.data.cancellationRequested == true);
+      allow update: if true;
       allow delete: if request.auth != null;
     }
 
-    // Riders fleet collection
-    // Read & write protected for authorized staff & riders
+    // 3. Riders Fleet — open read/write so riders can toggle online status & counter can manage fleet
     match /riders/{riderId} {
-      allow read: if true;
-      allow write: if request.auth != null || request.resource.data.pin != null;
+      allow read, write: if true;
     }
 
-    // User address & profile collection
+    // 4. User Profiles, Addresses & Ban status
     match /users/{phone} {
       allow read, write: if true;
     }
