@@ -34,15 +34,50 @@ export const OrderInspectorView = ({ orders = [], initialOrderId = '', onUpdateO
 
   // Filter or search target order
   const selectedOrder = useMemo(() => {
-    if (!selectedOrderId && !searchQuery.trim()) return orders[0] || null;
-    const clean = searchQuery.trim().toLowerCase();
-    return orders.find(o => 
-      o.id === selectedOrderId ||
-      (o.displayId && o.displayId.toLowerCase() === clean) ||
-      (o.id && o.id.toLowerCase().includes(clean)) ||
-      (o.customerPhone && o.customerPhone.includes(clean)) ||
-      (o.customerName && o.customerName.toLowerCase().includes(clean))
-    ) || orders.find(o => o.id === selectedOrderId) || orders[0] || null;
+    const clean = searchQuery.trim().toLowerCase().replace(/^#/, '');
+
+    if (clean) {
+      // 1. Exact match by displayId or order ID
+      const exact = orders.find(o => 
+        (o.displayId && o.displayId.toLowerCase() === clean) ||
+        (o.id && o.id.toLowerCase() === clean)
+      );
+      if (exact) return exact;
+
+      // 2. Partial ID match
+      const partialId = orders.find(o =>
+        (o.displayId && o.displayId.toLowerCase().includes(clean)) ||
+        (o.id && o.id.toLowerCase().includes(clean))
+      );
+      if (partialId) return partialId;
+
+      // 3. Phone digits match
+      const digits = clean.replace(/\D/g, '');
+      if (digits.length >= 3) {
+        const phoneMatch = orders.find(o => 
+          (o.customerPhone && o.customerPhone.replace(/\D/g, '').includes(digits)) ||
+          (o.recipientPhone && o.recipientPhone.replace(/\D/g, '').includes(digits))
+        );
+        if (phoneMatch) return phoneMatch;
+      }
+
+      // 4. Customer / recipient name match
+      const nameMatch = orders.find(o =>
+        (o.customerName && o.customerName.toLowerCase().includes(clean)) ||
+        (o.recipientName && o.recipientName.toLowerCase().includes(clean))
+      );
+      if (nameMatch) return nameMatch;
+
+      // If user typed a search query that has no match, return null
+      return null;
+    }
+
+    // Default fallback when search is empty
+    if (selectedOrderId) {
+      const byId = orders.find(o => o.id === selectedOrderId);
+      if (byId) return byId;
+    }
+    return orders[0] || null;
   }, [orders, selectedOrderId, searchQuery]);
 
   const formatTimestamp = (ts) => {
@@ -147,10 +182,22 @@ export const OrderInspectorView = ({ orders = [], initialOrderId = '', onUpdateO
       {!selectedOrder ? (
         <div className="bg-[#111116] border border-[#1f1f26] rounded-2xl p-16 text-center space-y-3 shadow-lg">
           <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
-          <p className="text-sm font-bold text-white">[NO_TARGET_ORDER_SPECIFIED]</p>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Input ticket ID (e.g. 4012), phone string, or click a recent ticket buffer above.
+          <p className="text-sm font-bold text-white">
+            {searchQuery ? `[NO_TICKET_FOUND: "${searchQuery}"]` : '[NO_TARGET_ORDER_SPECIFIED]'}
           </p>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            {searchQuery 
+              ? `No active or past ticket matching "${searchQuery}". Please check the 4-digit order number or customer phone.`
+              : 'Input ticket ID (e.g. 4012), phone string, or click a recent ticket buffer above.'}
+          </p>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="px-4 py-2 bg-red-950/40 hover:bg-red-600 text-red-400 hover:text-white rounded-xl text-xs font-bold border border-red-800/50 transition inline-block mt-2"
+            >
+              [RESET_SEARCH]
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -310,12 +357,12 @@ export const OrderInspectorView = ({ orders = [], initialOrderId = '', onUpdateO
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-400 mt-0.5">
-                        Driver on site ready for delivery handshake verification.
+                        Driver arrived at doorstep for customer handover.
                       </p>
                     </div>
                   </div>
 
-                  {/* Step 6: Delivered & Handshake Verified */}
+                  {/* Step 6: Delivered & Completed */}
                   <div className="flex items-start gap-3 relative">
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black z-10 flex-shrink-0 border ${
                       ['successfully_delivered', 'delivered', 'completed'].includes(selectedOrder.status)
@@ -331,18 +378,18 @@ export const OrderInspectorView = ({ orders = [], initialOrderId = '', onUpdateO
                         <span className="font-bold text-white text-xs">
                           {selectedOrder.status === 'rejected' || selectedOrder.status === 'cancelled'
                             ? 'Order Voided / Cancelled'
-                            : 'Handshake Verified & Delivered'}
+                            : 'Order Delivered & Completed'}
                         </span>
                         <span className="text-[10px] text-emerald-400 font-mono font-bold">
-                          {formatTimestamp(selectedOrder.deliveredAt) || (['successfully_delivered', 'delivered'].includes(selectedOrder.status) ? 'COMPLETED' : 'AWAITING_CODE')}
+                          {formatTimestamp(selectedOrder.deliveredAt) || (['successfully_delivered', 'delivered', 'completed'].includes(selectedOrder.status) ? 'COMPLETED' : 'IN_TRANSIT')}
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-400 mt-0.5">
                         {selectedOrder.rejectionReason 
                           ? `Void Reason: "${selectedOrder.rejectionReason}"` 
-                          : ['successfully_delivered', 'delivered'].includes(selectedOrder.status)
-                          ? `Payment verified & received. Handshake OTP validated.`
-                          : 'Awaiting completion OTP token.'}
+                          : ['successfully_delivered', 'delivered', 'completed'].includes(selectedOrder.status)
+                          ? 'Order successfully delivered and settled with customer.'
+                          : 'Awaiting delivery completion by rider.'}
                       </p>
                     </div>
                   </div>
@@ -456,17 +503,24 @@ export const OrderInspectorView = ({ orders = [], initialOrderId = '', onUpdateO
               </a>
             </div>
 
-            {/* Handshake OTP Verification Badge */}
-            <div className="bg-[#111116] border border-[#1f1f26] rounded-2xl p-5 text-center space-y-2 shadow-lg">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 block">
-                // HANDSHAKE_VERIFICATION_TOKEN
-              </span>
-              <span className="text-3xl font-mono font-black text-red-500 tracking-widest block">
-                {selectedOrder.displayId || selectedOrder.otp || '----'}
-              </span>
-              <span className="text-[9px] text-slate-500 block">
-                Customer verifies this 4-digit code with rider upon doorstep arrival
-              </span>
+            {/* Payment & Settlement Summary */}
+            <div className="bg-[#111116] border border-[#1f1f26] rounded-2xl p-5 space-y-3 shadow-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                  // SETTLEMENT_MODE
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-950/40 text-red-400 border border-red-800/40">
+                  {selectedOrder.paymentMethod || 'CASH_ON_DELIVERY'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-[#1f1f26]">
+                <span className="text-slate-400">Total Payable:</span>
+                <span className="font-mono font-black text-white text-base">₹{selectedOrder.totalAmount || 0}</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-[#1f1f26]">
+                <span>Fulfillment:</span>
+                <span className="text-slate-300 font-bold">Direct Doorstep Delivery</span>
+              </div>
             </div>
           </div>
         </div>

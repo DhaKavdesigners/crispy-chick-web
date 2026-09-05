@@ -29,9 +29,7 @@ export const CustomersView = ({
 }) => {
   // Filter States
   const [searchNamePhone, setSearchNamePhone] = useState('');
-  const [searchLocation, setSearchLocation] = useState('');
-  const [selectedPinCode, setSelectedPinCode] = useState('all');
-  const [customPinInput, setCustomPinInput] = useState('');
+  const [searchAddressOrPin, setSearchAddressOrPin] = useState('');
   
   // Price / Spend Filter States
   const [spendOperator, setSpendOperator] = useState('all'); // 'all' | 'more_than' | 'less_than' | 'between'
@@ -83,24 +81,6 @@ export const CustomersView = ({
     return stats;
   }, [orders]);
 
-  // Extract unique PIN codes across all customer profiles and orders
-  const availablePinCodes = useMemo(() => {
-    const pins = new Set();
-    customers.forEach(c => {
-      if (c.deliveryPin) pins.add(String(c.deliveryPin).trim());
-      if (c.pin) pins.add(String(c.pin).trim());
-      if (c.pincode) pins.add(String(c.pincode).trim());
-      (c.addresses || []).forEach(a => {
-        if (a.pin) pins.add(String(a.pin).trim());
-        if (a.pincode) pins.add(String(a.pincode).trim());
-      });
-    });
-    orders.forEach(o => {
-      if (o.deliveryPin) pins.add(String(o.deliveryPin).trim());
-    });
-    return Array.from(pins).filter(Boolean).sort();
-  }, [customers, orders]);
-
   // Multi-Criteria Customer Filter
   const filteredCustomers = useMemo(() => {
     return customers.filter(c => {
@@ -124,41 +104,36 @@ export const CustomersView = ({
         if (!name.includes(q) && !cleanPhone.includes(q)) return false;
       }
 
-      // 4. Location / Street / Landmark Search
-      if (searchLocation.trim()) {
-        const lq = searchLocation.toLowerCase().trim();
+      // 4. Unified Address & PIN Code Search (Smart location / PIN matching)
+      if (searchAddressOrPin.trim()) {
+        const q = searchAddressOrPin.toLowerCase().trim();
+        const digits = q.replace(/\D/g, '');
+
+        // Check if query matches PIN
+        const cPins = [
+          c.deliveryPin ? String(c.deliveryPin).trim() : null,
+          c.pin ? String(c.pin).trim() : null,
+          c.pincode ? String(c.pincode).trim() : null,
+          ...Array.from(stats.pinCodes)
+        ];
+        (c.addresses || []).forEach(a => {
+          if (a.pin) cPins.push(String(a.pin).trim());
+          if (a.pincode) cPins.push(String(a.pincode).trim());
+        });
+        const matchesPin = digits.length >= 3 && cPins.some(p => p && p.includes(digits));
+
+        // Check if query matches Address, Area, Landmark
         const addr = (c.address || '').toLowerCase();
         const landmark = (c.landmarks || '').toLowerCase();
         const savedAddrs = (c.addresses || []).map(a => `${a.address || ''} ${a.landmark || ''}`).join(' ').toLowerCase();
         const orderAddrs = stats.locations.join(' ').toLowerCase();
-        
         const combined = `${addr} ${landmark} ${savedAddrs} ${orderAddrs}`;
-        if (!combined.includes(lq)) return false;
+        const matchesText = combined.includes(q);
+
+        if (!matchesPin && !matchesText) return false;
       }
 
-      // 5. PIN Code Filter (Dropdown or custom input)
-      const targetPin = customPinInput.trim() || (selectedPinCode !== 'all' ? selectedPinCode : '');
-      if (targetPin) {
-        const cPins = new Set([
-          ...(c.deliveryPin ? [String(c.deliveryPin).trim()] : []),
-          ...(c.pin ? [String(c.pin).trim()] : []),
-          ...(c.pincode ? [String(c.pincode).trim()] : []),
-          ...Array.from(stats.pinCodes)
-        ]);
-        (c.addresses || []).forEach(a => {
-          if (a.pin) cPins.add(String(a.pin).trim());
-          if (a.pincode) cPins.add(String(a.pincode).trim());
-        });
-
-        // Also check if PIN is inside the address string
-        const addrText = `${c.address || ''} ${c.landmarks || ''} ${stats.locations.join(' ')}`;
-        const pinInText = addrText.includes(targetPin);
-
-        const hasMatchingPin = Array.from(cPins).some(p => p.includes(targetPin)) || pinInText;
-        if (!hasMatchingPin) return false;
-      }
-
-      // 6. Ordered Price / Total Spend Filter (More than / Less than / Between)
+      // 5. Ordered Price / Total Spend Filter (More than / Less than / Between)
       const spent = stats.spent;
       if (spendOperator === 'more_than' && spendMin) {
         if (spent < Number(spendMin)) return false;
@@ -175,9 +150,7 @@ export const CustomersView = ({
     customers, 
     customerStats, 
     searchNamePhone, 
-    searchLocation, 
-    selectedPinCode, 
-    customPinInput, 
+    searchAddressOrPin, 
     spendOperator, 
     spendMin, 
     spendMax, 
@@ -188,9 +161,7 @@ export const CustomersView = ({
   // Reset All Filters
   const handleResetFilters = () => {
     setSearchNamePhone('');
-    setSearchLocation('');
-    setSelectedPinCode('all');
-    setCustomPinInput('');
+    setSearchAddressOrPin('');
     setSpendOperator('all');
     setSpendMin('');
     setSpendMax('');
@@ -200,9 +171,7 @@ export const CustomersView = ({
 
   const hasActiveFilters = 
     searchNamePhone || 
-    searchLocation || 
-    selectedPinCode !== 'all' || 
-    customPinInput || 
+    searchAddressOrPin || 
     spendOperator !== 'all' || 
     filterBanned !== 'all' || 
     filterOrderCount !== 'all';
@@ -302,8 +271,8 @@ export const CustomersView = ({
 
       {/* Multi-Criteria Search & Filter Panel */}
       <div className="bg-[#111116] border border-[#1f1f26] rounded-2xl p-4 space-y-3.5 shadow-lg">
-        {/* Primary Row: Name/Phone + Location Search */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Primary Row: Name/Phone + Unified Address/PIN + Spend Search */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* 1. Name & Phone */}
           <div className="relative">
             <label className="block text-[10px] text-slate-400 uppercase font-bold mb-1">
@@ -321,57 +290,24 @@ export const CustomersView = ({
             </div>
           </div>
 
-          {/* 2. Location / Street */}
+          {/* 2. Unified Address / Area / PIN Code */}
           <div>
             <label className="block text-[10px] text-slate-400 uppercase font-bold mb-1">
-              // LOCATION / STREET
+              // ADDRESS / AREA / PIN_CODE
             </label>
             <div className="relative">
               <MapPin className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-red-500" />
               <input
                 type="text"
-                placeholder="e.g. Robertsonpet, Oorgaum..."
-                value={searchLocation}
-                onChange={(e) => setSearchLocation(e.target.value)}
+                placeholder="Search area, street, or 6-digit PIN..."
+                value={searchAddressOrPin}
+                onChange={(e) => setSearchAddressOrPin(e.target.value)}
                 className="w-full bg-[#09090b] border border-[#1f1f26] focus:border-red-500 rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none transition font-mono"
               />
             </div>
           </div>
 
-          {/* 3. Postal PIN Code */}
-          <div>
-            <label className="block text-[10px] text-slate-400 uppercase font-bold mb-1">
-              // POSTAL_PIN_CODE
-            </label>
-            <div className="flex gap-1.5">
-              <select
-                value={selectedPinCode}
-                onChange={(e) => {
-                  setSelectedPinCode(e.target.value);
-                  if (e.target.value !== 'all') setCustomPinInput('');
-                }}
-                className="flex-1 bg-[#09090b] border border-[#1f1f26] focus:border-red-500 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none font-mono"
-              >
-                <option value="all">ALL_PINS ({availablePinCodes.length})</option>
-                {availablePinCodes.map(pin => (
-                  <option key={pin} value={pin}>PIN: {pin}</option>
-                ))}
-              </select>
-              <input
-                type="text"
-                maxLength={6}
-                placeholder="Custom"
-                value={customPinInput}
-                onChange={(e) => {
-                  setCustomPinInput(e.target.value.replace(/\D/g, ''));
-                  if (e.target.value) setSelectedPinCode('all');
-                }}
-                className="w-20 bg-[#09090b] border border-[#1f1f26] focus:border-red-500 rounded-xl px-2 py-2 text-xs text-red-400 placeholder:text-slate-600 font-mono text-center focus:outline-none"
-              />
-            </div>
-          </div>
-
-          {/* 4. Spend Threshold Operator */}
+          {/* 3. Spend Threshold Operator */}
           <div>
             <label className="block text-[10px] text-slate-400 uppercase font-bold mb-1">
               // ORDER_SPEND_CRITERIA
