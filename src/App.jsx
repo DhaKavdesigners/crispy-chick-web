@@ -1856,11 +1856,11 @@ import 'leaflet/dist/leaflet.css';
                         }
                       }).catch(() => { alert('Network error.'); setLoading(false); });
                     }}
-                    className="flex-1 py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60 text-sm"
+                    className="flex-1 py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-extrabold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60 text-xs sm:text-sm uppercase tracking-wide"
                   >
                     {loading
                       ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      : 'CONFIRM CODE →'
+                      : (tray.length > 0 ? `PLACE ORDER (₹${trayTotal} COD) ➔` : 'CONFIRM CODE ➔')
                     }
                   </button>
                   <button
@@ -2421,6 +2421,32 @@ import 'leaflet/dist/leaflet.css';
                       <span className="text-cafe-amber">₹{trayTotal}</span>
                     </div>
                   </div>
+
+                  {/* Clear Payment Method Indicator Badge */}
+                  <div className={`mt-3 p-3.5 rounded-2xl border flex items-center justify-between shadow-sm ${
+                    theme === 'light'
+                      ? 'bg-emerald-50/90 border-emerald-300 text-slate-800'
+                      : 'bg-emerald-950/40 border-emerald-600/50 text-emerald-200'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl flex-shrink-0">
+                        💵
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-black uppercase tracking-wide ${theme === 'light' ? 'text-emerald-950' : 'text-emerald-300'}`}>
+                            Cash on Delivery (COD) / UPI
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-600 text-white uppercase tracking-wider">
+                            Pay on Delivery
+                          </span>
+                        </div>
+                        <p className={`text-[11px] mt-0.5 ${theme === 'light' ? 'text-emerald-800' : 'text-neutral-300'}`}>
+                          Pay ₹{trayTotal} in cash or scan rider's UPI QR code upon arrival.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className={tray.length === 0 ? "block" : "hidden"}>
@@ -2437,21 +2463,34 @@ import 'leaflet/dist/leaflet.css';
                   </div>
                 )}
 
-                {/* ── Send-OTP primary button (hidden once OTP section is revealed) ── */}
-                <div className={!isAlreadyAuthenticated && mockOtpSecret ? 'hidden' : 'block'}>
+                {/* ── Place Order / Send-OTP primary button ── */}
+                <div className={!isAlreadyAuthenticated && mockOtpSecret ? 'hidden' : 'block space-y-2'}>
                   <button
                     type="submit" disabled={loading}
-                    className="w-full py-3.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-bold text-sm tracking-wide rounded-xl shadow-md shadow-red-500/20 transition-all flex items-center justify-center space-x-2 disabled:opacity-60 active:scale-98"
+                    className="w-full py-4 bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:brightness-110 text-white font-black text-sm tracking-wide rounded-xl shadow-lg shadow-red-500/25 transition-all flex items-center justify-center space-x-2 disabled:opacity-60 active:scale-98"
                   >
                     <div className={`w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin ${loading ? 'block' : 'hidden'}`}></div>
-                    <span className={!loading ? 'inline-block' : 'hidden'}>
+                    <span className={!loading ? 'inline-flex items-center justify-center gap-2 font-black text-xs sm:text-sm tracking-wide uppercase' : 'hidden'}>
                       {tray.length === 0
                         ? (isAlreadyAuthenticated ? 'UPDATE PROFILE DETAILS' : 'GET VERIFICATION CODE')
-                        : (isAlreadyAuthenticated ? 'CONFIRM ORDER DETAILS' : 'CONFIRM & SEND CODE ›')
+                        : (isAlreadyAuthenticated
+                            ? <>
+                                <span>🛵 PLACE ORDER (PAY ₹{trayTotal} ON DELIVERY)</span>
+                                <span>➔</span>
+                              </>
+                            : <>
+                                <span>🛵 VERIFY & PLACE ORDER (₹{trayTotal} COD)</span>
+                                <span>➔</span>
+                              </>
+                          )
                       }
                     </span>
-                    <i data-lucide="arrow-right" className={`w-4 h-4 stroke-[3] text-white ${!loading ? 'inline-block' : 'hidden'}`}></i>
                   </button>
+                  {tray.length > 0 && (
+                    <p className="text-[10.5px] text-center text-neutral-400 font-medium">
+                      🛡️ Zero advance payment. Pay ₹{trayTotal} cash or UPI when your food arrives.
+                    </p>
+                  )}
                 </div>
               </form>
             </div>
@@ -5806,11 +5845,15 @@ import 'leaflet/dist/leaflet.css';
                         <p className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">Scan & Pay ₹{qrModalOrder.totalAmount}</p>
                       </div>
 
-                      {/* QR Code Image */}
+                      {/* QR Code Image: loads /owner_qr.png if present in public folder, else dynamic UPI QR */}
                       <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=upi://pay?pa=9035733573@upi%26pn=Crispy%20Chick%20KGF%26am=${qrModalOrder.totalAmount}`}
+                        src="/owner_qr.png"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=upi://pay?pa=9035733573@upi%26pn=Crispy%20Chick%20KGF%26am=${qrModalOrder.totalAmount}`;
+                        }}
                         alt="UPI Payment QR"
-                        className="mx-auto rounded-xl border p-2 bg-white shadow-inner my-3"
+                        className="mx-auto rounded-xl border p-2 bg-white shadow-inner my-3 object-contain"
                         style={{ width: '240px', height: '240px' }}
                       />
 
