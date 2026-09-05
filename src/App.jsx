@@ -5082,6 +5082,23 @@ import 'leaflet/dist/leaflet.css';
           dispatchedAt: Date.now()
         });
         showRideSafeToast(orderId);
+
+        // Update rider live GPS location
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              db.collection('riders').doc(riderId).update({
+                location: {
+                  lat: pos.coords.latitude,
+                  lng: pos.coords.longitude,
+                  updatedAt: Date.now()
+                }
+              }).catch(() => {});
+            },
+            () => {},
+            { enableHighAccuracy: true, timeout: 8000 }
+          );
+        }
       };
 
       const handleMarkArrived = async (orderId) => {
@@ -5089,6 +5106,22 @@ import 'leaflet/dist/leaflet.css';
         await updateOrderStatus(orderId, 'arrived', {
           arrivedAt: Date.now()
         });
+
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              db.collection('riders').doc(riderId).update({
+                location: {
+                  lat: pos.coords.latitude,
+                  lng: pos.coords.longitude,
+                  updatedAt: Date.now()
+                }
+              }).catch(() => {});
+            },
+            () => {},
+            { enableHighAccuracy: true, timeout: 8000 }
+          );
+        }
       };
 
       useEffect(() => {
@@ -5118,15 +5151,15 @@ import 'leaflet/dist/leaflet.css';
 
         // If rider is currently online and wants to switch to offline:
         if (isOnline) {
-          const hasActiveDelivery = activeJobs.some(o => o.status === 'out_for_delivery' || o.status === 'arrived');
-          if (hasActiveDelivery) {
-            alert('⚠️ You cannot go offline while delivering an active order! Please complete the delivery handshake first.');
+          // Strict Guard: Rider cannot go offline while holding ANY active delivery order
+          if (activeJobs.length > 0) {
+            alert(`⚠️ Cannot Go Offline: You currently have ${activeJobs.length} active order(s) assigned! Please complete and deliver all assigned orders before switching offline.`);
             return;
           }
           // Open confirmation modal to prevent accidental miss-touches
           setShowOfflineModal(true);
         } else {
-          // Going online -> activate duty immediately
+          // Going online -> activate duty immediately & capture on-demand GPS
           try {
             const now = Date.now();
             await db.collection('riders').doc(riderId).update({
@@ -5135,6 +5168,23 @@ import 'leaflet/dist/leaflet.css';
             });
             setIsOnline(true);
             setDutyStartTime(now);
+
+            // On-demand GPS location extraction (Zero API Cost)
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  db.collection('riders').doc(riderId).update({
+                    location: {
+                      lat: pos.coords.latitude,
+                      lng: pos.coords.longitude,
+                      updatedAt: Date.now()
+                    }
+                  }).catch(() => {});
+                },
+                (err) => console.warn('Rider GPS notice:', err),
+                { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+              );
+            }
           } catch (err) {
             console.error('Failed to go online:', err);
             alert('Could not update duty status. Please check your internet connection.');
@@ -5144,6 +5194,11 @@ import 'leaflet/dist/leaflet.css';
 
       const confirmGoOffline = async () => {
         if (!riderId) return;
+        if (activeJobs.length > 0) {
+          alert(`⚠️ Cannot Go Offline: You currently have ${activeJobs.length} active order(s) assigned! Please deliver them first.`);
+          setShowOfflineModal(false);
+          return;
+        }
         try {
           await db.collection('riders').doc(riderId).update({
             isOnline: false,
