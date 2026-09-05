@@ -18,10 +18,11 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <!-- PWA & Mobile Meta Tags -->
-  <meta name="theme-color" content="#DC2626" />
+  <meta name="theme-color" content="#080808" />
   <meta name="description" content="Order fresh, hot, and crispy chicken, burgers, pizzas, and side orders online from Crispy Chick with fast delivery." />
-  <link rel="icon" type="image/png" href="/logo_rm_bg.png" />
-  <link rel="apple-touch-icon" href="/logo_rm_bg.png" />
+  <link rel="icon" type="image/png" href="/logo.png" />
+  <link rel="apple-touch-icon" href="/logo-192.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
 
   <!-- Custom Core Styles -->
   <style type="text/css">
@@ -102,5 +103,18 @@
   <div id="recaptcha-anchor" class="hidden"></div>
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then(function(reg) {
+            console.log('Crispy Chick PWA ServiceWorker active:', reg.scope);
+          })
+          .catch(function(err) {
+            console.warn('Crispy Chick SW registration notice:', err);
+          });
+      });
+    }
+  </script>
 </body>
 </html>
