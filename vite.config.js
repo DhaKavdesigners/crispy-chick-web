@@ -7,6 +7,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true
+      },
       includeAssets: ['favicon.ico', 'logo.png', 'burger.png', 'fries.png', 'fried_chicken.png', 'drink.png', 'assets/*.jpg'],
       manifest: {
         name: 'Crispy Chick KGF - Food Delivery',
