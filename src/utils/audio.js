@@ -69,11 +69,115 @@ export const triggerKitchenBell = (isActive) => {
   soundInterval = setInterval(playBellSequence, 3200);
 };
 
-export const playBlissSound = () => {
+export const playSoulfulChime = () => {
   try {
-    const blissSnd = new Audio('https://assets.mixkit.co/active_storage/sfx/911/911-preview.mp3');
-    blissSnd.play().catch(e => console.warn("Audio playback notice:", e));
-  } catch (err) {}
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+
+    const now = ctx.currentTime;
+    // Celestial, warm harmonic chime (C5, E5, G5, B5, C6) with soft attack and decay
+    const notes = [
+      { freq: 523.25, time: 0.00, dur: 1.2, vol: 0.22 }, // C5
+      { freq: 659.25, time: 0.08, dur: 1.3, vol: 0.20 }, // E5
+      { freq: 783.99, time: 0.16, dur: 1.4, vol: 0.18 }, // G5
+      { freq: 987.77, time: 0.24, dur: 1.5, vol: 0.16 }, // B5
+      { freq: 1046.50, time: 0.32, dur: 1.6, vol: 0.15 } // C6
+    ];
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(2200, now);
+    filter.Q.setValueAtTime(1, now);
+
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0.7, now);
+
+    filter.connect(masterGain);
+    masterGain.connect(ctx.destination);
+
+    notes.forEach(({ freq, time, dur, vol }) => {
+      const start = now + time;
+      const osc = ctx.createOscillator();
+      const overtone = ctx.createOscillator();
+      const noteGain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+
+      overtone.type = 'sine';
+      overtone.frequency.setValueAtTime(freq * 2, start);
+
+      noteGain.gain.setValueAtTime(0.0001, start);
+      noteGain.gain.linearRampToValueAtTime(vol, start + 0.03);
+      noteGain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+
+      const overtoneGain = ctx.createGain();
+      overtoneGain.gain.setValueAtTime(0.0001, start);
+      overtoneGain.gain.linearRampToValueAtTime(vol * 0.22, start + 0.025);
+      overtoneGain.gain.exponentialRampToValueAtTime(0.0001, start + (dur * 0.65));
+
+      osc.connect(noteGain);
+      overtone.connect(overtoneGain);
+      overtoneGain.connect(noteGain);
+      noteGain.connect(filter);
+
+      osc.start(start);
+      osc.stop(start + dur);
+      overtone.start(start);
+      overtone.stop(start + dur);
+    });
+
+    setTimeout(() => {
+      try { ctx.close().catch(() => {}); } catch (e) {}
+    }, 2200);
+  } catch (err) {
+    console.warn("Soulful chime error:", err);
+  }
+};
+
+export const playOfflineAlertBeep = () => {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const now = ctx.currentTime;
+    
+    // Two distinct attention pings (520Hz then 680Hz)
+    const beeps = [
+      { freq: 520, start: now, dur: 0.16 },
+      { freq: 680, start: now + 0.20, dur: 0.24 }
+    ];
+
+    beeps.forEach(({ freq, start, dur }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.linearRampToValueAtTime(0.35, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + dur);
+    });
+
+    setTimeout(() => {
+      try { ctx.close().catch(() => {}); } catch(e){}
+    }, 800);
+  } catch(e) {
+    console.warn("Offline alert sound error:", e);
+  }
+};
+
+export const playBlissSound = () => {
+  // Delegate to soulful chime for pleasant, smooth tone without irritating jarring sound
+  playSoulfulChime();
 };
 
 export const playOtpTone = () => {

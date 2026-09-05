@@ -351,11 +351,114 @@ import 'leaflet/dist/leaflet.css';
     const PROMO_BANNERS = ['./assets/banner1.jpg', './assets/banner2.jpg', './assets/banner3.jpg'];
     const riderAlert = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
     riderAlert.loop = true;
-    const playBlissSound = () => {
+    const playSoulfulChime = () => {
       try {
-        const blissSnd = new Audio('https://assets.mixkit.co/active_storage/sfx/911/911-preview.mp3');
-        blissSnd.play().catch(e => console.warn("Audio playback blocked or failed:", e));
-      } catch (err) {}
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+        }
+
+        const now = ctx.currentTime;
+        // Celestial, warm harmonic chime (C5, E5, G5, B5, C6) with soft attack and decay
+        const notes = [
+          { freq: 523.25, time: 0.00, dur: 1.2, vol: 0.22 }, // C5
+          { freq: 659.25, time: 0.08, dur: 1.3, vol: 0.20 }, // E5
+          { freq: 783.99, time: 0.16, dur: 1.4, vol: 0.18 }, // G5
+          { freq: 987.77, time: 0.24, dur: 1.5, vol: 0.16 }, // B5
+          { freq: 1046.50, time: 0.32, dur: 1.6, vol: 0.15 } // C6
+        ];
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(2200, now);
+        filter.Q.setValueAtTime(1, now);
+
+        const masterGain = ctx.createGain();
+        masterGain.gain.setValueAtTime(0.7, now);
+
+        filter.connect(masterGain);
+        masterGain.connect(ctx.destination);
+
+        notes.forEach(({ freq, time, dur, vol }) => {
+          const start = now + time;
+          const osc = ctx.createOscillator();
+          const overtone = ctx.createOscillator();
+          const noteGain = ctx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, start);
+
+          overtone.type = 'sine';
+          overtone.frequency.setValueAtTime(freq * 2, start);
+
+          noteGain.gain.setValueAtTime(0.0001, start);
+          noteGain.gain.linearRampToValueAtTime(vol, start + 0.03);
+          noteGain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+
+          const overtoneGain = ctx.createGain();
+          overtoneGain.gain.setValueAtTime(0.0001, start);
+          overtoneGain.gain.linearRampToValueAtTime(vol * 0.22, start + 0.025);
+          overtoneGain.gain.exponentialRampToValueAtTime(0.0001, start + (dur * 0.65));
+
+          osc.connect(noteGain);
+          overtone.connect(overtoneGain);
+          overtoneGain.connect(noteGain);
+          noteGain.connect(filter);
+
+          osc.start(start);
+          osc.stop(start + dur);
+          overtone.start(start);
+          overtone.stop(start + dur);
+        });
+
+        setTimeout(() => {
+          try { ctx.close().catch(() => {}); } catch (e) {}
+        }, 2200);
+      } catch (err) {
+        console.warn("Soulful chime error:", err);
+      }
+    };
+
+    const playOfflineAlertBeep = () => {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+        const now = ctx.currentTime;
+        
+        // Two distinct attention pings (520Hz then 680Hz)
+        const beeps = [
+          { freq: 520, start: now, dur: 0.16 },
+          { freq: 680, start: now + 0.20, dur: 0.24 }
+        ];
+
+        beeps.forEach(({ freq, start, dur }) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, start);
+          gain.gain.setValueAtTime(0.0001, start);
+          gain.gain.linearRampToValueAtTime(0.35, start + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(start);
+          osc.stop(start + dur);
+        });
+
+        setTimeout(() => {
+          try { ctx.close().catch(() => {}); } catch(e){}
+        }, 800);
+      } catch(e) {
+        console.warn("Offline alert sound error:", e);
+      }
+    };
+
+    const playBlissSound = () => {
+      playSoulfulChime();
     };
 
     // Context Providers
@@ -1496,7 +1599,7 @@ import 'leaflet/dist/leaflet.css';
 
       // ─── Shared: play notification tone & generate OTP ─────────────────────
       const playOtpTone = () => {
-        try { new Audio('https://assets.mixkit.co/active_storage/sfx/2866/2866-preview.mp3').play().catch(() => {}); } catch(e) {}
+        playSoulfulChime();
       };
 
       const revealMockOtp = () => {
@@ -1536,6 +1639,7 @@ import 'leaflet/dist/leaflet.css';
               localStorage.setItem('cc_customer_name', resolvedName);
               localStorage.setItem('cc_customer_phone', phone);
               if (setCurrentUser) setCurrentUser({ name: resolvedName, phone: phone });
+              playSoulfulChime();
               
               let activeAddress = null;
               if (userData.addresses && Array.isArray(userData.addresses) && userData.addresses.length > 0) {
@@ -1629,6 +1733,7 @@ import 'leaflet/dist/leaflet.css';
           localStorage.setItem('cc_customer_name', finalName);
           localStorage.setItem('cc_customer_phone', phone);
           if (setCurrentUser) setCurrentUser({ name: finalName, phone: phone });
+          playSoulfulChime();
           await placeOrderFlow(finalName, phone);
         } catch (err) {
           console.error('Profile save error:', err);
@@ -1868,6 +1973,7 @@ import 'leaflet/dist/leaflet.css';
                           localStorage.setItem('cc_customer_name', resolvedName);
                           localStorage.setItem('cc_customer_phone', phone);
                           if (setCurrentUser) setCurrentUser({ name: resolvedName, phone: phone });
+                          playSoulfulChime();
                           
                           let activeAddress = null;
                           if (userData.addresses && Array.isArray(userData.addresses) && userData.addresses.length > 0) {
@@ -1890,6 +1996,7 @@ import 'leaflet/dist/leaflet.css';
                             localStorage.setItem('cc_customer_name', name);
                             localStorage.setItem('cc_customer_phone', phone);
                             if (setCurrentUser) setCurrentUser({ name: name, phone: phone });
+                            playSoulfulChime();
                             placeOrderFlow(name, phone);
                           }).catch(() => {
                             alert('Failed to register profile. Please try again.');
@@ -3140,7 +3247,7 @@ import 'leaflet/dist/leaflet.css';
           setActiveOrders([]);
           return;
         }
-        const activeStatuses = new Set(['pending', 'preparing', 'prepared', 'out_for_delivery', 'arrived']);
+        const activeStatuses = new Set(['pending', 'preparing', 'prepared', 'out_for_delivery', 'arrived', 'delivered', 'successfully_delivered']);
         const unsubscribe = subscribeOrders((allOrders) => {
           const phone = currentUser.phone;
           const matches = allOrders
@@ -3174,7 +3281,7 @@ import 'leaflet/dist/leaflet.css';
             prevStatusesRef.current[order.id] = order.status;
           });
           if (statusChanged) {
-            playBlissSound();
+            playSoulfulChime();
           }
         }
       }, [activeOrders]);
@@ -3542,6 +3649,28 @@ import 'leaflet/dist/leaflet.css';
           setDraftMenuSettings(menuSettings);
         }
       }, [menuSettings, isMenuDirty]);
+
+      // Offline Alert on Login & Misstouch Prevention Pop-up States
+      const [showOfflineAlertModal, setShowOfflineAlertModal] = useState(false);
+      const [showHaltConfirmModal, setShowHaltConfirmModal] = useState(false);
+      const hasCheckedOfflineOnLoginRef = useRef(false);
+
+      // On initial login / mount of Shop Counter, check if shop is offline and alert owner
+      useEffect(() => {
+        if (hasCheckedOfflineOnLoginRef.current) return;
+
+        const timer = setTimeout(() => {
+          if (!hasCheckedOfflineOnLoginRef.current) {
+            hasCheckedOfflineOnLoginRef.current = true;
+            if (isOpenOrdering === false) {
+              playOfflineAlertBeep();
+              setShowOfflineAlertModal(true);
+            }
+          }
+        }, 700);
+
+        return () => clearTimeout(timer);
+      }, [isOpenOrdering]);
 
       // In-Counter Rider Management State
       const [showAddRider, setShowAddRider] = useState(false);
@@ -3948,7 +4077,7 @@ import 'leaflet/dist/leaflet.css';
 
       useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-      }, [orders, menuSettings, draftMenuSettings, isMenuDirty, theme, fleetRiders, showAddRider]);
+      }, [orders, menuSettings, draftMenuSettings, isMenuDirty, theme, fleetRiders, showAddRider, showOfflineAlertModal, showHaltConfirmModal]);
 
       const catalogList = [];
       Object.keys(MENU_CATALOG).forEach(cat => {
@@ -4009,10 +4138,20 @@ import 'leaflet/dist/leaflet.css';
               }`}>
                 <span className="text-xs text-neutral-450 font-semibold tracking-wide">Ordering Window</span>
                 <button
-                  onClick={() => updateSettings({ onlineOrderingWindow: !isOpenOrdering })}
+                  onClick={() => {
+                    if (isOpenOrdering) {
+                      // Misstouch prevention: prompt with confirmation tab before going offline
+                      setShowHaltConfirmModal(true);
+                    } else {
+                      // Turning online is safe & immediate
+                      updateSettings({ onlineOrderingWindow: true });
+                      playSoulfulChime();
+                    }
+                  }}
                   className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                     isOpenOrdering ? 'bg-emerald-600' : 'bg-red-800'
                   }`}
+                  title={isOpenOrdering ? "Click to Halt Online Orders (Confirmation Required)" : "Click to Turn Store Online"}
                 >
                   <span
                     className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
@@ -4743,6 +4882,129 @@ import 'leaflet/dist/leaflet.css';
               </div>
             ))}
           </div>
+
+          {/* ─── MISSTOUCH PREVENTION MODAL (ONLINE -> OFFLINE CONFIRMATION) ─── */}
+          {showHaltConfirmModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+              <div className={`w-full max-w-md rounded-2xl border p-6 space-y-4 shadow-2xl relative ${
+                theme === 'light' ? 'bg-white border-red-300 text-slate-900' : 'bg-cafe-card border-red-900/80 text-white'
+              }`}>
+                <div className="flex items-start gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-red-500/20 text-red-500 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="shield-alert" className="w-6 h-6"></i>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-red-400 bg-red-950/60 px-2 py-0.5 rounded border border-red-800/50">
+                      Misstouch Prevention
+                    </span>
+                    <h3 className="text-lg font-bold font-serif mt-1">Halt Online Ordering?</h3>
+                    <p className={`text-xs mt-1.5 leading-relaxed ${theme === 'light' ? 'text-slate-600' : 'text-neutral-300'}`}>
+                      Are you sure you want to stop receiving orders? Customers will see Crispy Chick as <strong>CLOSED</strong> and will be unable to place new orders.
+                    </p>
+                  </div>
+                </div>
+
+                <div className={`p-3 rounded-xl border text-xs space-y-1 ${
+                  theme === 'light' ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-amber-950/30 border-amber-800/40 text-amber-200'
+                }`}>
+                  <div className="font-bold flex items-center gap-1.5">
+                    <i data-lucide="alert-triangle" className="w-4 h-4 text-amber-400"></i>
+                    Prevent Accidental Store Shutdown
+                  </div>
+                  <p className="text-[11px] opacity-90">
+                    Active orders currently in progress will not be affected. You can turn online ordering back on at any time.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowHaltConfirmModal(false)}
+                    className="flex-1 py-3 px-4 rounded-xl border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 text-white font-bold text-xs transition"
+                  >
+                    Keep Store Online
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await updateSettings({ onlineOrderingWindow: false });
+                        setShowHaltConfirmModal(false);
+                      } catch (err) {
+                        console.error("Failed to halt ordering:", err);
+                      }
+                    }}
+                    className="flex-1 py-3 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs shadow-lg shadow-red-900/40 transition flex items-center justify-center gap-1.5"
+                  >
+                    <i data-lucide="power" className="w-4 h-4"></i>
+                    Yes, Go Offline
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ─── OFFLINE NOTIFICATION POP-UP (FIRST TIME OWNER LOGIN IF STORE IS OFFLINE) ─── */}
+          {showOfflineAlertModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+              <div className={`w-full max-w-md rounded-2xl border p-6 space-y-5 shadow-2xl relative ${
+                theme === 'light' ? 'bg-white border-amber-300 text-slate-900' : 'bg-cafe-card border-amber-600/60 text-white'
+              }`}>
+                <div className="flex items-start gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 animate-pulse">
+                    <i data-lucide="bell-ring" className="w-6 h-6"></i>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-700/50">
+                      Store Status Alert
+                    </span>
+                    <h3 className="text-lg font-bold font-serif mt-1 text-amber-400">Store is Currently OFFLINE</h3>
+                    <p className={`text-xs mt-1.5 leading-relaxed ${theme === 'light' ? 'text-slate-600' : 'text-neutral-300'}`}>
+                      Notice: Your store is currently set to <strong>OFFLINE</strong>. Customers browsing Crispy Chick cannot place any orders until you open the store.
+                    </p>
+                  </div>
+                </div>
+
+                <div className={`p-3.5 rounded-xl border text-xs space-y-1.5 ${
+                  theme === 'light' ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-emerald-950/30 border-emerald-800/40 text-emerald-200'
+                }`}>
+                  <div className="font-bold flex items-center gap-1.5 text-emerald-400">
+                    <i data-lucide="check-circle" className="w-4 h-4"></i>
+                    Start Accepting Customer Orders
+                  </div>
+                  <p className="text-[11px] opacity-90">
+                    Tap below to go online immediately and start receiving hungry customers' orders across KGF!
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await updateSettings({ onlineOrderingWindow: true });
+                        setShowOfflineAlertModal(false);
+                        playSoulfulChime();
+                      } catch (err) {
+                        console.error("Failed to turn online:", err);
+                      }
+                    }}
+                    className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-900/40 transition flex items-center justify-center gap-2"
+                  >
+                    <i data-lucide="power" className="w-4 h-4"></i>
+                    Turn Store ONLINE Now
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowOfflineAlertModal(false)}
+                    className="w-full sm:w-auto py-3 px-4 rounded-xl border border-neutral-700 bg-neutral-800/80 hover:bg-neutral-800 text-neutral-300 font-bold text-xs transition"
+                  >
+                    Keep Offline for Now
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           </div>
         </div>
