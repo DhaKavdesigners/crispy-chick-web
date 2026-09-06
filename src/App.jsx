@@ -5745,88 +5745,27 @@ import 'leaflet/dist/leaflet.css';
       const handlePinSubmit = async (e) => {
         e.preventDefault();
         const pin = e.target.riderIdInput.value.trim();
-        if (!pin || pin.length !== 6) { setLoginError('Enter a valid 6-digit ID.'); return; }
+        if (!pin || !/^\d{6}$/.test(pin)) {
+          setLoginError('Enter a valid 6-digit MPIN.');
+          return;
+        }
         setLoginLoading(true);
         setLoginError('');
         try {
           const doc = await db.collection('riders').doc(pin).get();
-          if (doc.exists && doc.data().verified === true) {
-            // Returning verified rider — log in directly
-            const data = doc.data();
-            completeLogin(pin, data.name, data.phone);
-          } else {
-            // First-time setup — collect phone
-            setPendingPin(pin);
-            setLoginStep('phone');
+          if (!doc.exists) {
+            setLoginError('Invalid MPIN. Unregistered ID. Please contact the Shop Counter or Admin to register your rider account.');
+            return;
           }
+          const data = doc.data();
+          if (data.isActive === false) {
+            setLoginError('This rider account is deactivated/suspended. Please contact Admin.');
+            return;
+          }
+          // Authorized registered rider — log in directly
+          completeLogin(pin, data.name || 'Rider', data.phone || '');
         } catch(err) {
-          setLoginError('Connection error. Try again.');
-          console.error(err);
-        } finally {
-          setLoginLoading(false);
-        }
-      };
-
-      // Step 2: Phone (double-entry) → 2.5 s simulated trust check, then mock OTP
-      const handlePhoneSubmit = (e) => {
-        e.preventDefault();
-        const phone = e.target.riderPhoneInput.value.trim();
-        const confirmPhone = e.target.confirmRiderPhone.value.trim();
-        const isValidIndianRider = (n) => /^[6-9]\d{9}$/.test(n);
-        if (!isValidIndianRider(phone)) {
-          setLoginError('Invalid number. Must be 10 digits starting with 6–9.');
-          return;
-        }
-        if (phone !== confirmPhone) {
-          setLoginError('Phone numbers do not match. Please re-enter both fields.');
-          return;
-        }
-        setLoginLoading(true);
-        setLoginError('');
-        setTimeout(() => {
-          const mockOtp = Math.floor(100000 + Math.random() * 900000).toString();
-          window._riderMockOtp = mockOtp;
-          setLoginLoading(false);
-          setPendingPhone(phone);
-          try { new Audio('https://assets.mixkit.co/active_storage/sfx/2866/2866-preview.mp3').play().catch(() => {}); } catch(e) {}
-          // No alert() — code is shown inline in the OTP step panel below
-          setLoginStep('otp');
-        }, 2500);
-      };
-
-      // Step 3: Mock OTP verified — advance to name step
-      const handleOtpVerify = async (e) => {
-        e.preventDefault();
-        if (!otpCode || otpCode.trim() !== window._riderMockOtp) {
-          setLoginError('Incorrect code. Please try again.');
-          return;
-        }
-        setLoginLoading(true);
-        setLoginError('');
-        // Small pause for UX polish
-        setTimeout(() => {
-          setLoginLoading(false);
-          setLoginStep('name');
-        }, 600);
-      };
-
-      // Step 4: Name entered → save to Firebase and log in
-      const handleNameSubmit = async (e) => {
-        e.preventDefault();
-        const name = e.target.riderNameInput.value.trim();
-        if (!name) { setLoginError('Enter your name.'); return; }
-        setLoginLoading(true);
-        setLoginError('');
-        try {
-          await db.collection('riders').doc(pendingPin).set({
-            name: name,
-            phone: pendingPhone,
-            verified: true,
-            registeredAt: Date.now()
-          });
-          completeLogin(pendingPin, name, pendingPhone);
-        } catch(err) {
-          setLoginError('Failed to save profile: ' + (err.message || 'Try again.'));
+          setLoginError('Connection error. Please check your internet and try again.');
           console.error(err);
         } finally {
           setLoginLoading(false);
@@ -5841,141 +5780,37 @@ import 'leaflet/dist/leaflet.css';
             <div className="w-full max-w-sm bg-cafe-card rounded-3xl border border-neutral-800 p-8 space-y-6 shadow-2xl relative z-10 text-center">
               <img src="./logo_rm_bg.png" className="h-16 mx-auto object-contain mb-2 drop-shadow-sm" alt="Crispy Chick Logo" />
 
-              {/* Step indicator */}
-              <div className="flex justify-center gap-2">
-                {['pin','phone','otp','name'].map((s, i) => (
-                  <div key={s} className={`h-1.5 rounded-full transition-all duration-300 ${
-                    ['pin','phone','otp','name'].indexOf(loginStep) >= i
-                      ? 'bg-cafe-amber w-6' : 'bg-neutral-700 w-3'
-                  }`}></div>
-                ))}
+              <div className="space-y-1 text-center">
+                <h2 className="text-xl font-bold font-serif text-white">Crispy Chick Rider</h2>
+                <p className="text-xs text-neutral-400 font-medium">Delivery Fleet Partner Gate</p>
               </div>
 
               {loginError && (
-                <p className="text-[11px] text-red-400 font-bold bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{loginError}</p>
+                <div className="p-3 bg-red-950/70 border border-red-800/80 rounded-xl text-red-200 text-xs text-left leading-relaxed">
+                  ⚠️ {loginError}
+                </div>
               )}
 
-              {/* Step 1: PIN */}
-              {loginStep === 'pin' && (
-                <form onSubmit={handlePinSubmit} className="space-y-4 text-left">
-                  <div className="space-y-1 text-center">
-                    <h2 className="text-xl font-bold font-serif">Rider Gate</h2>
-                    <p className="text-xs text-neutral-400 font-medium">Enter your 6-Digit Rider ID</p>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">6-Digit Rider ID</label>
-                    <input
-                      name="riderIdInput" required type="text" pattern="\d{6}" maxLength="6" placeholder="E.g., 123456"
-                      className="w-full bg-cafe-black border border-neutral-805 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cafe-amber text-center tracking-widest font-black"
-                    />
-                  </div>
-                  <button type="submit" disabled={loginLoading}
-                    className="w-full py-3.5 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition flex items-center justify-center space-x-2 text-sm disabled:opacity-60"
-                  >
-                    {loginLoading ? <div className="w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin"></div> : <span>VERIFY ID</span>}
-                  </button>
-                </form>
-              )}
+              <form onSubmit={handlePinSubmit} className="space-y-4 text-left">
+                <div>
+                  <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">6-Digit Authorized MPIN</label>
+                  <input
+                    name="riderIdInput" required type="password" inputMode="numeric" pattern="\d{6}" maxLength="6" placeholder="••••••"
+                    className="w-full bg-cafe-black border border-neutral-805 rounded-xl px-4 py-3 text-base text-white focus:outline-none focus:border-cafe-amber text-center tracking-[0.4em] font-black"
+                  />
+                </div>
+                <button type="submit" disabled={loginLoading}
+                  className="w-full py-3.5 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition flex items-center justify-center space-x-2 text-sm disabled:opacity-60"
+                >
+                  {loginLoading ? <div className="w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin"></div> : <span>VERIFY &amp; LOGIN 🛵</span>}
+                </button>
+              </form>
 
-              {/* Step 2: Phone number — DOUBLE ENTRY required */}
-              {loginStep === 'phone' && (
-                <form onSubmit={handlePhoneSubmit} className="space-y-4 text-left">
-                  <div className="space-y-1 text-center">
-                    <h2 className="text-xl font-bold font-serif">First-Time Setup</h2>
-                    <p className="text-xs text-neutral-400 font-medium">Enter your mobile number twice to confirm.</p>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">Phone Number <span className="text-red-500">*</span></label>
-                    <input
-                      name="riderPhoneInput" required type="tel" placeholder="E.g., 9876543210" maxLength="10" pattern="[6-9][0-9]{9}" inputMode="numeric"
-                      className="w-full bg-cafe-black border border-neutral-805 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cafe-amber text-center font-bold tracking-widest"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">Confirm Phone Number <span className="text-red-500">*</span></label>
-                    <input
-                      name="confirmRiderPhone" required type="tel" placeholder="Re-enter number" maxLength="10" pattern="[6-9][0-9]{9}" inputMode="numeric"
-                      className="w-full bg-cafe-black border border-neutral-805 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cafe-amber text-center font-bold tracking-widest"
-                    />
-                  </div>
-                  <button type="submit" disabled={loginLoading}
-                    className="w-full py-3.5 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition flex items-center justify-center text-sm disabled:opacity-60"
-                  >
-                    {loginLoading ? <div className="w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin"></div> : <span>SEND SECURE CODE ›</span>}
-                  </button>
-                  <button type="button" onClick={() => { setLoginStep('pin'); setLoginError(''); }}
-                    className="w-full text-[11px] text-neutral-500 hover:text-neutral-300 transition"
-                  >← Back</button>
-                </form>
-              )}
-
-              {/* Step 3: OTP — shows code inline, no alert */}
-              {loginStep === 'otp' && (
-                <form onSubmit={handleOtpVerify} className="space-y-4 text-left">
-                  <div className="space-y-1 text-center">
-                    <h2 className="text-xl font-bold font-serif">Enter Security Code</h2>
-                    <p className="text-xs text-neutral-400 font-medium">Use the code generated below to continue.</p>
-                  </div>
-                  {/* Live code display + copy */}
-                  <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border bg-neutral-900 border-neutral-700">
-                    <span className="text-2xl font-black tracking-[0.35em] text-cafe-amber select-all font-mono flex-1 text-center" id="rider-otp-display">
-                      {window._riderMockOtp || '——————'}
-                    </span>
-                    <button
-                      type="button"
-                      id="rider-otp-copy-btn"
-                      onClick={() => {
-                        const code = window._riderMockOtp || '';
-                        try {
-                          navigator.clipboard.writeText(code).then(() => {
-                            const btn = document.getElementById('rider-otp-copy-btn');
-                            if (btn) { btn.textContent = 'Copied ✓'; setTimeout(() => { btn.textContent = 'Copy'; }, 1500); }
-                          }).catch(() => {});
-                        } catch(e) {}
-                      }}
-                      className="shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider bg-neutral-800 border border-neutral-700 text-neutral-300 hover:bg-neutral-700 transition-all"
-                    >Copy</button>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">Enter Code to Verify</label>
-                    <input
-                      required type="text" pattern="\d{6}" maxLength="6" placeholder="••••••"
-                      value={otpCode} onChange={e => setOtpCode(e.target.value)}
-                      className="w-full bg-cafe-black border border-neutral-805 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cafe-amber text-center tracking-[0.5em] font-black"
-                    />
-                  </div>
-                  <button type="submit" disabled={loginLoading}
-                    className="w-full py-3.5 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition flex items-center justify-center text-sm disabled:opacity-60"
-                  >
-                    {loginLoading ? <div className="w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin"></div> : <span>VERIFY CODE →</span>}
-                  </button>
-                  <button type="button" onClick={() => { setLoginStep('phone'); setLoginError(''); setOtpCode(''); }}
-                    className="w-full text-[11px] text-neutral-500 hover:text-neutral-300 transition"
-                  >← Back</button>
-                </form>
-              )}
-
-              {/* Step 4: Name */}
-              {loginStep === 'name' && (
-                <form onSubmit={handleNameSubmit} className="space-y-4 text-left">
-                  <div className="space-y-1 text-center">
-                    <h2 className="text-xl font-bold font-serif">Almost There!</h2>
-                    <p className="text-xs text-neutral-400 font-medium">Phone verified ✅ — Enter your display name.</p>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">Your Name</label>
-                    <input
-                      name="riderNameInput" required type="text" placeholder="E.g., Salman"
-                      className="w-full bg-cafe-black border border-neutral-805 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cafe-amber text-center font-bold"
-                    />
-                  </div>
-                  <button type="submit" disabled={loginLoading}
-                    className="w-full py-3.5 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-extrabold rounded-xl shadow-lg transition flex items-center justify-center text-sm disabled:opacity-60"
-                  >
-                    {loginLoading ? <div className="w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin"></div> : <span>START DELIVERING 🛵</span>}
-                  </button>
-                </form>
-              )}
+              <div className="pt-2 border-t border-neutral-800/60">
+                <p className="text-[11px] text-neutral-500">
+                  🔒 Authorized personnel only. MPIN is provisioned directly by the Shop Counter or Admin.
+                </p>
+              </div>
             </div>
           </div>
         );
@@ -5996,7 +5831,7 @@ import 'leaflet/dist/leaflet.css';
                 <h1 className={`font-sans font-black text-sm tracking-tight leading-none transition-colors duration-300 ${
                   theme === 'light' ? 'text-slate-900' : 'text-white'
                 }`}>
-                  Crispy Chick
+                  Crispy Chick Rider
                 </h1>
               </div>
 

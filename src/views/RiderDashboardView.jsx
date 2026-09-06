@@ -43,18 +43,22 @@ export const RiderDashboardView = () => {
 
     try {
       const existingRider = await getRiderByPin(pinInput);
-      if (existingRider && existingRider.name) {
-        setRiderPin(pinInput);
-        setRiderName(existingRider.name);
-        setRiderPhone(existingRider.phone || '');
-        localStorage.setItem('cc_rider_pin', pinInput);
-        localStorage.setItem('cc_rider_name', existingRider.name);
-        localStorage.setItem('cc_rider_phone', existingRider.phone || '');
-        loginRiderByPin(existingRider);
-        setIsLoggedIn(true);
-      } else {
-        setLoginStep('register');
+      if (!existingRider || !existingRider.name) {
+        setLoginError('Invalid MPIN. Unregistered ID. Please contact the Shop Counter or Admin.');
+        return;
       }
+      if (existingRider.isActive === false) {
+        setLoginError('This rider account is deactivated. Please contact Admin.');
+        return;
+      }
+      setRiderPin(pinInput);
+      setRiderName(existingRider.name);
+      setRiderPhone(existingRider.phone || '');
+      localStorage.setItem('cc_rider_pin', pinInput);
+      localStorage.setItem('cc_rider_name', existingRider.name);
+      localStorage.setItem('cc_rider_phone', existingRider.phone || '');
+      loginRiderByPin(existingRider);
+      setIsLoggedIn(true);
     } catch (err) {
       setLoginError('Connection error. Please try again.');
     } finally {
