@@ -8,18 +8,19 @@ service cloud.firestore {
     }
 
     // 2. Orders Collection
-    // - Customers (unauthenticated) can CREATE orders: must start as 'pending', totalAmount >= 30
-    // - ANYONE can READ orders: required for customer live order tracking & shop counter display
-    // - ANYONE can UPDATE order status: needed for owner Accept/Reject & rider delivery updates
-    //   (Security note: price is locked at CREATE time; status-only updates are safe to allow)
-    // - Only authenticated staff can DELETE orders
+    // - Customers create orders: must start as 'pending', minimum bill ₹30, valid items list & valid phone
+    // - Price Lock: totalAmount CANNOT be modified once an order has been created
+    // - Valid Status: status can only transition to recognized food delivery lifecycle states
     match /orders/{orderId} {
       allow create: if request.resource.data.totalAmount >= 30
                     && request.resource.data.status == 'pending'
                     && request.resource.data.items is list
-                    && request.resource.data.items.size() > 0;
+                    && request.resource.data.items.size() > 0
+                    && request.resource.data.customerPhone is string
+                    && request.resource.data.customerPhone.size() >= 10;
       allow read: if true;
-      allow update: if true;
+      allow update: if request.resource.data.totalAmount == resource.data.totalAmount
+                    && request.resource.data.status in ['pending', 'preparing', 'prepared', 'out_for_delivery', 'arrived', 'delivered', 'successfully_delivered', 'rejected', 'cancelled'];
       allow delete: if true;
     }
 

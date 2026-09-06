@@ -871,7 +871,7 @@ import 'leaflet/dist/leaflet.css';
 
       // Helper function to resolve active price
       const getActivePrice = (itemName, basePrice) => {
-        const custom = menuSettings.items[itemName];
+        const custom = menuSettings?.items?.[itemName];
         if (custom && custom.price !== undefined) {
           return Number(custom.price);
         }
@@ -880,7 +880,7 @@ import 'leaflet/dist/leaflet.css';
 
       // Helper function to resolve active availability
       const getActiveAvailability = (itemName) => {
-        const custom = menuSettings.items[itemName];
+        const custom = menuSettings?.items?.[itemName];
         if (custom && custom.available !== undefined) {
           return custom.available;
         }
@@ -3852,9 +3852,10 @@ import 'leaflet/dist/leaflet.css';
       // On initial login / mount of Shop Counter, check if shop is offline and alert owner
       useEffect(() => {
         if (hasCheckedOfflineOnLoginRef.current) return;
+        if (window.location.hash !== '#/shop-counter') return;
 
         const timer = setTimeout(() => {
-          if (!hasCheckedOfflineOnLoginRef.current) {
+          if (!hasCheckedOfflineOnLoginRef.current && window.location.hash === '#/shop-counter') {
             hasCheckedOfflineOnLoginRef.current = true;
             if (isOpenOrdering === false) {
               playOfflineAlertBeep();
@@ -4396,7 +4397,7 @@ import 'leaflet/dist/leaflet.css';
                       {activeOrdersList.map(order => {
                         const dateText = order.placementTime || new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                         return (
-                          <tr key={order.displayId || (order.id ? String(order.id).slice(0, 4) : Math.random())} className={`hover:bg-neutral-900/5 transition-colors ${
+                          <tr key={order.id || order.displayId} className={`hover:bg-neutral-900/5 transition-colors ${
                             order.status === 'pending' ? 'bg-cafe-amber/5 animate-pulse-slow' : ''
                           }`}>
                             <td className="px-6 py-4 space-y-1">
@@ -5219,6 +5220,11 @@ import 'leaflet/dist/leaflet.css';
         }
       }, [ownerUser, loadingAuth, activeRoute]);
 
+      // Strictly return null if route is not shop-counter (prevents ghost background listeners on customer page)
+      if (activeRoute !== '#/shop-counter') {
+        return null;
+      }
+
       if (loadingAuth) {
         return (
           <div className="min-h-screen bg-cafe-black flex items-center justify-center">
@@ -5227,7 +5233,7 @@ import 'leaflet/dist/leaflet.css';
         );
       }
 
-      if (activeRoute === '#/shop-counter' && !ownerUser) {
+      if (!ownerUser) {
         return (
           <div className="min-h-screen bg-cafe-black flex flex-col items-center justify-center space-y-4">
             <div className="w-8 h-8 border-4 border-cafe-amber border-t-transparent rounded-full animate-spin"></div>
@@ -5498,8 +5504,12 @@ import 'leaflet/dist/leaflet.css';
       }, [activeRiderProfile]);
 
       useEffect(() => {
-        // Fix 2: Route gate — prevent any audio leaking into Customer or Kitchen views
-        if (window.location.hash !== '#/delivery-dashboard') return;
+        // Route gate — prevent any audio leaking into Customer or Kitchen views
+        if (window.location.hash !== '#/delivery-dashboard') {
+          riderAlert.pause();
+          riderAlert.currentTime = 0;
+          return;
+        }
         if (!audioUnlocked) return;
 
         const myActiveJobs = orders.filter(o => o.assignedRider === activeRiderProfile && o.status === 'prepared');
@@ -5512,6 +5522,11 @@ import 'leaflet/dist/leaflet.css';
           riderAlert.pause();
           riderAlert.currentTime = 0;
         }
+
+        return () => {
+          riderAlert.pause();
+          riderAlert.currentTime = 0;
+        };
       }, [orders, audioUnlocked, activeRiderProfile]);
 
       useEffect(() => {
@@ -6810,8 +6825,9 @@ import 'leaflet/dist/leaflet.css';
       );
     };
 
-    // Delivery Dashboard is publicly accessible — the component handles its own PIN-based session
-    const DeliveryDashboardGuard = () => {
+    // Delivery Dashboard route guard — handles its own PIN-based session, strictly inactive on other routes
+    const DeliveryDashboardGuard = ({ activeRoute }) => {
+      if (activeRoute !== '#/delivery-dashboard') return null;
       return <DeliveryDashboard />;
     };
 
@@ -6821,6 +6837,13 @@ import 'leaflet/dist/leaflet.css';
       const [lastPlacedOrder, setLastPlacedOrder] = useState(null);
 
       useEffect(() => {
+        const path = (window.location.pathname || '').replace(/\/$/, '');
+        if (path === '/rider' || path === '/delivery' || path === '/rider-dashboard') {
+          window.location.hash = '#/delivery-dashboard';
+        } else if (path === '/counter' || path === '/shop') {
+          window.location.hash = '#/shop-counter';
+        }
+
         const handleHashChange = () => {
           setRoute(window.location.hash || '#/');
         };
@@ -6832,7 +6855,7 @@ import 'leaflet/dist/leaflet.css';
         setLastPlacedOrder({ id: orderId, otp });
       };
 
-      // Decoupled View Router - permanently mounts all modules and toggles display properties dynamically
+      // Decoupled View Router - mounts active modules and toggles display properties dynamically
       return (
         <div className="min-h-screen flex flex-col bg-cafe-black font-sans">
           <div className="flex-1 flex flex-col">
@@ -6840,13 +6863,13 @@ import 'leaflet/dist/leaflet.css';
               <CustomerApp onCheckoutSuccess={handleOrderSuccess} />
             </div>
             <div className={route === '#/login' ? 'block' : 'hidden'}>
-              <UnifiedLogin />
+              {route === '#/login' && <UnifiedLogin />}
             </div>
             <div className={route === '#/shop-counter' ? 'block' : 'hidden'}>
               <ShopCounterGuard activeRoute={route} />
             </div>
             <div className={route === '#/delivery-dashboard' ? 'block' : 'hidden'}>
-              <DeliveryDashboardGuard />
+              <DeliveryDashboardGuard activeRoute={route} />
             </div>
           </div>
         </div>
