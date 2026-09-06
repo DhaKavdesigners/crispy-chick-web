@@ -3238,11 +3238,19 @@ import 'leaflet/dist/leaflet.css';
         setIsCheckoutOpen(true);
       };
 
+      const [dismissedOrderIds, setDismissedOrderIds] = useState(() => {
+        try {
+          const saved = localStorage.getItem('cc_dismissed_order_ids');
+          return new Set(saved ? JSON.parse(saved) : []);
+        } catch {
+          return new Set();
+        }
+      });
+
       const getOrderPrimaryPhone = (orderPhone) => (orderPhone || '').split(' / Alt:')[0].trim();
 
       useEffect(() => {
-        // Fix 4: Sync by phone number + active statuses — no dependency on activeOrderIds
-        // so the timeline never gets stuck when Kitchen accepts/dispatches.
+        // Sync by phone number + active statuses, excluding dismissed orders
         if (!currentUser || !currentUser.phone) {
           setActiveOrders([]);
           return;
@@ -3250,10 +3258,18 @@ import 'leaflet/dist/leaflet.css';
         const activeStatuses = new Set(['pending', 'preparing', 'prepared', 'out_for_delivery', 'arrived', 'delivered', 'successfully_delivered']);
         const unsubscribe = subscribeOrders((allOrders) => {
           const phone = currentUser.phone;
+          const now = Date.now();
           const matches = allOrders
             .filter(o => {
               const s = (o.status || '').toLowerCase();
-              return activeStatuses.has(s) && getOrderPrimaryPhone(o.customerPhone) === phone;
+              if (getOrderPrimaryPhone(o.customerPhone) !== phone) return false;
+              if (dismissedOrderIds.has(o.id)) return false;
+              // If delivered or completed, auto-archive after 2 hours if not dismissed
+              if (['delivered', 'successfully_delivered', 'completed', 'rejected', 'cancelled'].includes(s)) {
+                const orderTime = o.deliveredAt || (o.createdAt?.toDate ? o.createdAt.toDate().getTime() : o.createdAt) || 0;
+                if (orderTime > 0 && (now - orderTime > 7200000)) return false;
+              }
+              return activeStatuses.has(s);
             })
             // Sort newest first — track most recent to prevent stale-state overlaps
             .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -3262,7 +3278,7 @@ import 'leaflet/dist/leaflet.css';
         return () => {
           if (typeof unsubscribe === 'function') unsubscribe();
         };
-      }, [currentUser?.phone]);
+      }, [currentUser?.phone, dismissedOrderIds]);
 
       const prevStatusesRef = useRef({});
 
@@ -3297,6 +3313,15 @@ import 'leaflet/dist/leaflet.css';
       };
 
       const dismissOrder = (orderId) => {
+        setDismissedOrderIds(prev => {
+          const next = new Set(prev);
+          next.add(orderId);
+          try {
+            localStorage.setItem('cc_dismissed_order_ids', JSON.stringify(Array.from(next)));
+          } catch (e) {}
+          return next;
+        });
+        setActiveOrders(prev => prev.filter(o => o.id !== orderId));
         const next = (activeOrderIds || []).filter(id => id !== orderId);
         updateActiveOrderIds(next);
       };
@@ -3461,12 +3486,17 @@ import 'leaflet/dist/leaflet.css';
                   </div>
                 )}
 
-                <div className={['successfully_delivered', 'delivered', 'completed', 'rejected', 'cancelled'].includes(activeOrder.status) ? "flex justify-end pt-1 block" : "hidden"}>
+                <div className={['successfully_delivered', 'delivered', 'completed', 'rejected', 'cancelled'].includes(activeOrder.status) ? "flex justify-end pt-2 block" : "hidden"}>
                   <button
-                    onClick={() => dismissOrder(activeOrder.id)}
-                    className="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-[10px] font-bold rounded-lg border border-neutral-700 transition"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      dismissOrder(activeOrder.id);
+                    }}
+                    className="px-3.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-[11px] font-extrabold text-amber-400 rounded-lg border border-amber-500/30 transition-all flex items-center gap-1.5 shadow-sm"
                   >
-                    Dismiss
+                    <span>Dismiss</span>
+                    <span>✕</span>
                   </button>
                 </div>
               </div>

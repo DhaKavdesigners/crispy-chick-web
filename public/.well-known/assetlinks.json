@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.vercel.crispy_chick_web.twa",
+        "sha256_cert_fingerprints": ["87:AD:4D:76:46:AA:20:FC:C8:0C:63:1B:BD:44:0B:30:C4:FD:F4:95:19:C8:0E:36:8A:85:AD:2A:5D:B7:1B:CC"]
+      }
+    }]
