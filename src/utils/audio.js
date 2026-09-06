@@ -175,6 +175,62 @@ export const playOfflineAlertBeep = () => {
   }
 };
 
+export const playSadTone = () => {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+
+    const now = ctx.currentTime;
+    // Gentle, melancholic descending minor melody (G4 -> F4 -> Eb4 -> C4)
+    const notes = [
+      { freq: 392.00, time: 0.00, dur: 0.36, vol: 0.22 }, // G4
+      { freq: 349.23, time: 0.30, dur: 0.38, vol: 0.20 }, // F4
+      { freq: 311.13, time: 0.62, dur: 0.45, vol: 0.22 }, // Eb4
+      { freq: 261.63, time: 1.00, dur: 1.10, vol: 0.24 }  // C4 (lingering tender tone)
+    ];
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1200, now);
+    filter.Q.setValueAtTime(1.2, now);
+
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0.75, now);
+
+    filter.connect(masterGain);
+    masterGain.connect(ctx.destination);
+
+    notes.forEach(({ freq, time, dur, vol }) => {
+      const start = now + time;
+      const osc = ctx.createOscillator();
+      const noteGain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, start);
+
+      noteGain.gain.setValueAtTime(0.0001, start);
+      noteGain.gain.linearRampToValueAtTime(vol, start + 0.04);
+      noteGain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+
+      osc.connect(noteGain);
+      noteGain.connect(filter);
+
+      osc.start(start);
+      osc.stop(start + dur);
+    });
+
+    setTimeout(() => {
+      try { ctx.close().catch(() => {}); } catch (e) {}
+    }, 2400);
+  } catch (err) {
+    console.warn("Sad tone error:", err);
+  }
+};
+
 export const playBlissSound = () => {
   // Delegate to soulful chime for pleasant, smooth tone without irritating jarring sound
   playSoulfulChime();

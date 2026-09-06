@@ -457,6 +457,62 @@ import 'leaflet/dist/leaflet.css';
       }
     };
 
+    const playSadTone = () => {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+        }
+
+        const now = ctx.currentTime;
+        // Gentle, melancholic descending minor melody (G4 -> F4 -> Eb4 -> C4)
+        const notes = [
+          { freq: 392.00, time: 0.00, dur: 0.36, vol: 0.22 }, // G4
+          { freq: 349.23, time: 0.30, dur: 0.38, vol: 0.20 }, // F4
+          { freq: 311.13, time: 0.62, dur: 0.45, vol: 0.22 }, // Eb4
+          { freq: 261.63, time: 1.00, dur: 1.10, vol: 0.24 }  // C4 (lingering tender tone)
+        ];
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(1200, now);
+        filter.Q.setValueAtTime(1.2, now);
+
+        const masterGain = ctx.createGain();
+        masterGain.gain.setValueAtTime(0.75, now);
+
+        filter.connect(masterGain);
+        masterGain.connect(ctx.destination);
+
+        notes.forEach(({ freq, time, dur, vol }) => {
+          const start = now + time;
+          const osc = ctx.createOscillator();
+          const noteGain = ctx.createGain();
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, start);
+
+          noteGain.gain.setValueAtTime(0.0001, start);
+          noteGain.gain.linearRampToValueAtTime(vol, start + 0.04);
+          noteGain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+
+          osc.connect(noteGain);
+          noteGain.connect(filter);
+
+          osc.start(start);
+          osc.stop(start + dur);
+        });
+
+        setTimeout(() => {
+          try { ctx.close().catch(() => {}); } catch (e) {}
+        }, 2400);
+      } catch (err) {
+        console.warn("Sad tone error:", err);
+      }
+    };
+
     const playBlissSound = () => {
       playSoulfulChime();
     };
@@ -1404,18 +1460,21 @@ import 'leaflet/dist/leaflet.css';
               </div>
             </div>
 
-            {/* Bottom Panel with Lat/Lng & Confirm Button */}
+            {/* Bottom Panel with Friendly Location Lock Indicator & Confirm Button */}
             <div className="p-4 space-y-3 bg-neutral-50 dark:bg-neutral-900/60 border-t border-neutral-900/10 dark:border-neutral-800">
-              <div className="flex items-center justify-between text-xs font-mono font-bold text-neutral-500 dark:text-neutral-400">
-                <span>📍 Lat: {displayLat}</span>
-                <span>Lng: {displayLng}</span>
+              <div className="flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400">
+                <span className="flex items-center gap-1.5 font-extrabold text-emerald-500 dark:text-emerald-400">
+                  <span>📍</span>
+                  <span>Direct Doorstep Pinpoint</span>
+                </span>
+                <span className="text-[11px] text-neutral-400 font-medium">Pan map to adjust location</span>
               </div>
               <button
                 type="button"
                 onClick={handleConfirm}
                 className="w-full py-3.5 bg-gradient-to-r from-cafe-amber to-cafe-crispy text-cafe-black font-black text-sm rounded-xl shadow-lg hover:brightness-110 active:scale-98 transition flex items-center justify-center gap-2"
               >
-                <span>✓ Set Delivery Pin Here</span>
+                <span>✓ Lock Doorstep Location Here</span>
               </button>
             </div>
           </div>
@@ -1827,9 +1886,9 @@ import 'leaflet/dist/leaflet.css';
             finalDestType = 'map_pin';
             orderGpsLat = selfMapPin.lat;
             orderGpsLng = selfMapPin.lng;
-            finalTitle = finalAddressTitle || 'Map Pinpoint';
-            finalDetails = finalAddressDetails || '📍 Pinned via Interactive Map';
-            finalLandmarks = finalLandmark || 'Map Pinpoint Delivery';
+            finalTitle = finalAddressTitle || 'Doorstep Map Location';
+            finalDetails = finalAddressDetails || '📍 Pinned Doorstep Location';
+            finalLandmarks = finalLandmark || 'Doorstep Pin Delivery';
           }
 
           // Check if ordered for someone else
@@ -1839,8 +1898,8 @@ import 'leaflet/dist/leaflet.css';
               finalDestType = 'map_pin';
               orderGpsLat = proxyMapPin.lat;
               orderGpsLng = proxyMapPin.lng;
-              finalDetails = '📍 Pinned via Interactive Map';
-              finalLandmarks = proxyLandmark.trim() || 'Map Pinpoint Delivery';
+              finalDetails = '📍 Pinned Doorstep Location';
+              finalLandmarks = proxyLandmark.trim() || 'Doorstep Pin Delivery';
               finalDeliveryPin = proxyPin.trim() || finalPinCode || '';
             } else {
               finalDestType = 'manual_address';
@@ -2174,7 +2233,7 @@ import 'leaflet/dist/leaflet.css';
                     <span>🗺️</span>
                     <span>
                       {selfMapPin 
-                        ? `📍 Location Pinned (${Number(selfMapPin.lat).toFixed(4)}, ${Number(selfMapPin.lng).toFixed(4)}) — Tap to Change` 
+                        ? '📍 Doorstep Location Locked — Tap to Change' 
                         : 'Pin Exact Delivery Location on Map'}
                     </span>
                   </button>
@@ -2308,10 +2367,10 @@ import 'leaflet/dist/leaflet.css';
                                   <span className="text-base">📍</span>
                                   <div className="truncate">
                                     <span className="font-bold text-emerald-400 block truncate">
-                                      {proxyName ? `${proxyName}'s` : "Recipient's"} Pin Locked
+                                      {proxyName ? `${proxyName}'s` : "Recipient's"} Doorstep Pin Locked
                                     </span>
-                                    <span className="text-[10px] text-neutral-400 font-mono">
-                                      {proxyMapPin.lat.toFixed(4)}, {proxyMapPin.lng.toFixed(4)}
+                                    <span className="text-[10px] text-neutral-400 font-medium">
+                                      Delivery rider will navigate directly to this pin
                                     </span>
                                   </div>
                                 </div>
@@ -2432,17 +2491,18 @@ import 'leaflet/dist/leaflet.css';
                     {/* Self Map Pin Locked Notice */}
                     {selfMapPin && (
                       <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
                           <span className="text-base">📍</span>
-                          <span className="font-bold text-emerald-400 truncate">
-                            Map Pinpoint Active ({selfMapPin.lat.toFixed(4)}, {selfMapPin.lng.toFixed(4)})
-                          </span>
+                          <div>
+                            <p className="font-extrabold text-emerald-400 leading-tight">Doorstep Location Locked</p>
+                            <p className="text-[10px] text-neutral-400 font-medium">Delivery rider will navigate directly to this pin</p>
+                          </div>
                         </div>
                         <button
                           type="button"
                           onClick={() => setSelfMapPin(null)}
-                          className="text-xs text-neutral-400 hover:text-red-400 font-bold px-1.5"
-                          title="Clear pin"
+                          className="text-[11px] text-neutral-400 hover:text-red-400 font-bold px-2 py-1 rounded-lg hover:bg-neutral-800 transition"
+                          title="Clear pinned location"
                         >
                           ✕ Clear
                         </button>
@@ -2499,7 +2559,7 @@ import 'leaflet/dist/leaflet.css';
                     <span>
                       Delivering to: <strong className="uppercase font-black">{proxyName.trim() || 'Recipient'}</strong>
                       {proxyLocationType === 'map_pin' && proxyMapPin 
-                        ? ' (📍 Map Pinpoint Locked)' 
+                        ? ' (📍 Pinned Doorstep Location)' 
                         : proxyAddress.trim() 
                           ? ` (${proxyAddress.trim()})` 
                           : ' (Location needed)'}
@@ -2512,7 +2572,7 @@ import 'leaflet/dist/leaflet.css';
                       : 'bg-emerald-950/40 border-emerald-700/50 text-emerald-300'
                   }`}>
                     <span>📍</span>
-                    <span>Delivering to: <strong className="font-black">CUSTOM MAP PINPOINT</strong> ({selfMapPin.lat.toFixed(4)}, {selfMapPin.lng.toFixed(4)})</span>
+                    <span>Delivering to: <strong className="font-extrabold">Your Pinned Doorstep Location</strong></span>
                   </div>
                 ) : isAlreadyAuthenticated && selectedAddressId ? (
                   (() => {
@@ -3216,6 +3276,8 @@ import 'leaflet/dist/leaflet.css';
       const [isRiderPopupOpen, setIsRiderPopupOpen] = useState(false);
       const [riderPopupOrder, setRiderPopupOrder] = useState(null);
       const [showRiderPopup, setShowRiderPopup] = useState(false);
+      const [rejectedOrderPopup, setRejectedOrderPopup] = useState(null);
+      const seenRejectionsRef = useRef(new Set());
 
       const handleAdd = (e, item) => {
         const x = e.clientX;
@@ -3255,7 +3317,7 @@ import 'leaflet/dist/leaflet.css';
           setActiveOrders([]);
           return;
         }
-        const activeStatuses = new Set(['pending', 'preparing', 'prepared', 'out_for_delivery', 'arrived', 'delivered', 'successfully_delivered']);
+        const activeStatuses = new Set(['pending', 'preparing', 'prepared', 'out_for_delivery', 'arrived', 'delivered', 'successfully_delivered', 'rejected', 'cancelled']);
         const unsubscribe = subscribeOrders((allOrders) => {
           const phone = currentUser.phone;
           const now = Date.now();
@@ -3285,18 +3347,34 @@ import 'leaflet/dist/leaflet.css';
       useEffect(() => {
         if (activeOrders.length > 0) {
           let statusChanged = false;
+          let hasRejectionChange = false;
           activeOrders.forEach(order => {
             const prevStatus = prevStatusesRef.current[order.id];
             if (prevStatus && prevStatus !== order.status) {
               statusChanged = true;
-              if (order.status === 'out_for_delivery' || order.status === 'arrived') {
+              if (order.status === 'rejected') {
+                hasRejectionChange = true;
+                if (!seenRejectionsRef.current.has(order.id)) {
+                  seenRejectionsRef.current.add(order.id);
+                  setRejectedOrderPopup(order);
+                }
+              } else if (order.status === 'out_for_delivery' || order.status === 'arrived') {
                 setRiderPopupOrder(order);
                 setShowRiderPopup(true);
+              }
+            } else if (!prevStatus && order.status === 'rejected') {
+              // Newly detected rejected order on mount/refresh
+              if (!seenRejectionsRef.current.has(order.id)) {
+                seenRejectionsRef.current.add(order.id);
+                setRejectedOrderPopup(order);
+                hasRejectionChange = true;
               }
             }
             prevStatusesRef.current[order.id] = order.status;
           });
-          if (statusChanged) {
+          if (hasRejectionChange) {
+            playSadTone();
+          } else if (statusChanged) {
             playSoulfulChime();
           }
         }
@@ -3552,6 +3630,92 @@ import 'leaflet/dist/leaflet.css';
           </div>
 
           <CustomerProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
+
+          {/* Empathetic Order Rejection Modal */}
+          {rejectedOrderPopup && (
+            <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+              <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-6 shadow-2xl relative text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    dismissOrder(rejectedOrderPopup.id);
+                    setRejectedOrderPopup(null);
+                  }}
+                  className="absolute top-4 right-4 w-8 h-8 rounded-full bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white flex items-center justify-center text-sm font-bold transition"
+                  title="Dismiss notice"
+                >
+                  ✕
+                </button>
+
+                <div className="w-16 h-16 mx-auto mb-3.5 rounded-full bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-3xl shadow-inner">
+                  💔
+                </div>
+
+                <div className="inline-block px-2.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-wider mb-2">
+                  Order #{rejectedOrderPopup.displayId || (rejectedOrderPopup.id ? String(rejectedOrderPopup.id).slice(-4) : '').toUpperCase()} Cancelled
+                </div>
+
+                <h3 className="text-lg font-serif font-black text-white mb-2 leading-snug">
+                  Kitchen Currently Busy
+                </h3>
+
+                <p className="text-xs text-neutral-300 leading-relaxed mb-3">
+                  {rejectedOrderPopup.rejectionReason || "We're truly sorry! Our Robertsonpet kitchen is currently experiencing high in-store walk-in volume and heavy order rush. To maintain high food freshness and avoid long delivery delays, we are unable to accept your order right now."}
+                </p>
+
+                {rejectedOrderPopup.items && rejectedOrderPopup.items.length > 0 && (
+                  <div className="bg-neutral-950/70 border border-neutral-800/80 rounded-xl p-2.5 mb-3 text-left">
+                    <p className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider mb-1">Ordered Items:</p>
+                    <p className="text-xs text-neutral-300 font-medium line-clamp-2">
+                      {rejectedOrderPopup.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                    </p>
+                  </div>
+                )}
+
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 mb-5 text-left flex items-start gap-2">
+                  <span className="text-sm">💳</span>
+                  <div className="text-[11px] text-amber-200/90 leading-tight">
+                    <strong className="text-amber-400 font-bold block mb-0.5">Payment Status Safe</strong>
+                    {rejectedOrderPopup.paymentMethod === 'cod'
+                      ? 'Cash on Delivery was selected, so no payment was deducted.'
+                      : 'Any online transaction is safe and will automatically reverse to your account.'}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dismissOrder(rejectedOrderPopup.id);
+                      setRejectedOrderPopup(null);
+                    }}
+                    className="w-full py-3 px-4 bg-gradient-to-r from-cafe-amber to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-98 text-cafe-black font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg"
+                  >
+                    Understood • Browse Menu
+                  </button>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <a
+                      href="tel:9035733573"
+                      className="py-2 px-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-bold text-[11px] rounded-xl transition flex items-center justify-center gap-1.5 border border-neutral-700/60"
+                    >
+                      <span>📞</span> Call Store
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const orderNum = rejectedOrderPopup.displayId || String(rejectedOrderPopup.id || '').slice(-4).toUpperCase();
+                        window.open(`https://wa.me/919035733573?text=${encodeURIComponent(`Hi Crispy Chick team, my order #${orderNum} was cancelled due to rush. When will the kitchen reopen for orders?`)}`, '_blank');
+                      }}
+                      className="py-2 px-3 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 font-bold text-[11px] rounded-xl transition flex items-center justify-center gap-1.5 border border-emerald-500/30"
+                    >
+                      <span>💬</span> WhatsApp
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     };
