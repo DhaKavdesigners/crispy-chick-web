@@ -2996,6 +2996,19 @@ import 'leaflet/dist/leaflet.css';
                     <span>Sign Out</span>
                   </button>
                 </div>
+
+                {/* Switch to Rider Portal Button */}
+                <div className="pt-1">
+                  <button
+                    onClick={() => {
+                      onClose();
+                      window.location.hash = '#/delivery-dashboard';
+                    }}
+                    className="w-full py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-bold text-xs rounded-xl border border-amber-500/30 transition flex items-center justify-center space-x-2"
+                  >
+                    <span>🛵 Delivery Fleet / Rider Portal</span>
+                  </button>
+                </div>
               </div>
             )}
 
@@ -6666,17 +6679,58 @@ import 'leaflet/dist/leaflet.css';
       return <DeliveryDashboard />;
     };
 
+    const getInitialRoute = () => {
+      // 1. Explicit hash (if user navigated to #/delivery-dashboard or #/shop-counter)
+      const hash = window.location.hash;
+      if (hash && hash !== '#/' && hash !== '') {
+        return hash;
+      }
+
+      // 2. Query param ?app=rider or ?source=rider or ?role=rider
+      if (typeof window !== 'undefined' && window.location.search) {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('app') === 'rider' || params.get('source') === 'rider' || params.get('role') === 'rider') {
+          window.location.hash = '#/delivery-dashboard';
+          return '#/delivery-dashboard';
+        }
+        if (params.get('app') === 'counter' || params.get('source') === 'counter') {
+          window.location.hash = '#/shop-counter';
+          return '#/shop-counter';
+        }
+      }
+
+      // 3. Android TWA package referrer detection (detects com.crispychick.rider from the installed APK!)
+      if (typeof document !== 'undefined' && document.referrer) {
+        const ref = document.referrer.toLowerCase();
+        if (ref.includes('rider')) {
+          window.location.hash = '#/delivery-dashboard';
+          return '#/delivery-dashboard';
+        }
+      }
+
+      // 4. Clean pathname (/rider or /delivery)
+      const path = (window.location.pathname || '').replace(/\/$/, '');
+      if (path === '/rider' || path === '/delivery' || path === '/rider-dashboard') {
+        window.location.hash = '#/delivery-dashboard';
+        return '#/delivery-dashboard';
+      }
+      if (path === '/counter' || path === '/shop') {
+        window.location.hash = '#/shop-counter';
+        return '#/shop-counter';
+      }
+
+      return '#/';
+    };
+
     // --- MAIN ROUTER CONTROLLER & NAVIGATION WRAPPER ---
     const MainApp = () => {
-      const [route, setRoute] = useState(window.location.hash || '#/');
+      const [route, setRoute] = useState(getInitialRoute);
       const [lastPlacedOrder, setLastPlacedOrder] = useState(null);
 
       useEffect(() => {
-        const path = (window.location.pathname || '').replace(/\/$/, '');
-        if (path === '/rider' || path === '/delivery' || path === '/rider-dashboard') {
-          window.location.hash = '#/delivery-dashboard';
-        } else if (path === '/counter' || path === '/shop') {
-          window.location.hash = '#/shop-counter';
+        const detected = getInitialRoute();
+        if (detected !== route) {
+          setRoute(detected);
         }
 
         const handleHashChange = () => {

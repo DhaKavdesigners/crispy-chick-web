@@ -19,7 +19,7 @@
     "productivity"
   ],
   "scope": "/",
-  "start_url": "/#/delivery-dashboard",
+  "start_url": "/?app=rider",
   "icons": [
     {
       "src": "/logo-192.png",
@@ -54,7 +54,7 @@
       "name": "Rider Dashboard",
       "short_name": "Dashboard",
       "description": "Open live delivery dispatch queue",
-      "url": "/#/delivery-dashboard",
+      "url": "/?app=rider",
       "icons": [
         {
           "src": "/logo-192.png",
