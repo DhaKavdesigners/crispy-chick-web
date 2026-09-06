@@ -19,6 +19,10 @@ export default defineConfig({
         'logo-192.png',
         'logo-512.png',
         'logo_rm_bg.png',
+        'rider-logo-192.png',
+        'rider-logo-512.png',
+        'rider.html',
+        'rider.webmanifest',
         'burger.png',
         'fries.png',
         'fried_chicken.png',
@@ -54,7 +58,7 @@ export default defineConfig({
             purpose: 'any maskable'
           },
           {
-            src: '/logo.png',
+            src: '/logo-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any'
@@ -63,16 +67,16 @@ export default defineConfig({
         screenshots: [
           {
             src: '/assets/banner1.jpg',
-            sizes: '1280x720',
+            sizes: '1890x591',
             type: 'image/jpeg',
             form_factor: 'wide',
             label: 'Crispy Chick Food Menu'
           },
           {
             src: '/assets/banner2.jpg',
-            sizes: '1280x720',
+            sizes: '1890x591',
             type: 'image/jpeg',
-            form_factor: 'narrow',
+            form_factor: 'wide',
             label: 'Crispy Chick Offers'
           }
         ],

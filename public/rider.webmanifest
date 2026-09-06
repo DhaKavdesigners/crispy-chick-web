@@ -1,0 +1,66 @@
+{
+  "id": "/rider-app",
+  "name": "Crispy Chick Rider",
+  "short_name": "CC Rider",
+  "description": "Crispy Chick KGF - Delivery Fleet Partner App with real-time order dispatch and GPS navigation.",
+  "theme_color": "#080808",
+  "background_color": "#080808",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "window-controls-overlay"
+  ],
+  "orientation": "portrait",
+  "dir": "ltr",
+  "lang": "en-US",
+  "categories": [
+    "business",
+    "navigation",
+    "productivity"
+  ],
+  "scope": "/",
+  "start_url": "/#/delivery-dashboard",
+  "icons": [
+    {
+      "src": "/rider-logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/rider-logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/rider-logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/assets/banner1.jpg",
+      "sizes": "1890x591",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Crispy Chick Delivery Service"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Rider Dashboard",
+      "short_name": "Dashboard",
+      "description": "Open live delivery dispatch queue",
+      "url": "/#/delivery-dashboard",
+      "icons": [
+        {
+          "src": "/rider-logo-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
