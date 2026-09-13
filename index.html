@@ -2,7 +2,7 @@
 <html lang="en" style="background-color: #080808;">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>Crispy Chick - Delicious Fried Chicken, Burgers & Fresh Pizzas</title>
   
   <!-- Fonts -->
@@ -26,6 +26,25 @@
 
   <!-- Custom Core Styles -->
   <style type="text/css">
+    /* Anti-auto-zoom & mobile viewport lock: ensures inputs >= 16px to prevent mobile browser auto-zooming */
+    html, body {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      touch-action: pan-x pan-y;
+    }
+
+    @media screen and (max-width: 1024px) {
+      input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+      textarea,
+      select {
+        font-size: 16px !important;
+      }
+    }
+
+    input, textarea, select, button, a {
+      touch-action: manipulation;
+    }
+
     /* Hide scrollbars but keep functionality */
     .no-scrollbar::-webkit-scrollbar {
       display: none;
@@ -124,6 +143,14 @@
   </div>
   <script type="module" src="/src/main.jsx"></script>
   <script>
+    // Safeguard: Prevent multi-touch pinch gesture zoom and ensure viewport resets smoothly on input blur
+    document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
+    window.addEventListener('focusout', function(e) {
+      if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+        window.scrollTo(window.scrollX, window.scrollY);
+      }
+    });
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
         navigator.serviceWorker.register('/sw.js', { scope: '/' })
