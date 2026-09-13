@@ -105,6 +105,58 @@ export const updateRiderProfile = async (pin, riderData) => {
   return db.collection('riders').doc(pin).update(riderData);
 };
 
+export const submitRiderRating = async (orderId, riderIdentifier, ratingStars, feedback = '') => {
+  const stars = Math.min(5, Math.max(1, Math.round(Number(ratingStars))));
+  if (!orderId || isNaN(stars)) {
+    throw new Error('Invalid order ID or rating score.');
+  }
+
+  // 1. Mark order document with rating
+  await db.collection('orders').doc(orderId).update({
+    riderRating: stars,
+    riderRatingFeedback: feedback || '',
+    riderRatedAt: Date.now()
+  });
+
+  // 2. Find rider doc in 'riders' collection
+  let riderRef = null;
+  let riderDoc = null;
+
+  if (riderIdentifier) {
+    const directDoc = await db.collection('riders').doc(String(riderIdentifier)).get();
+    if (directDoc.exists) {
+      riderRef = directDoc.ref;
+      riderDoc = directDoc;
+    } else {
+      const snap = await db.collection('riders').where('name', '==', riderIdentifier).limit(1).get();
+      if (!snap.empty) {
+        riderRef = snap.docs[0].ref;
+        riderDoc = snap.docs[0];
+      }
+    }
+  }
+
+  if (riderRef && riderDoc) {
+    const data = riderDoc.data() || {};
+    const prevSum = Number(data.ratingSum || 0);
+    const prevCount = Number(data.ratingCount || data.totalRatings || 0);
+    const newSum = prevSum + stars;
+    const newCount = prevCount + 1;
+    const newRating = Number((newSum / newCount).toFixed(1));
+
+    await riderRef.update({
+      ratingSum: newSum,
+      ratingCount: newCount,
+      rating: newRating,
+      lastRatedAt: Date.now()
+    });
+
+    return { success: true, newRating, newCount };
+  }
+
+  return { success: true, orderOnly: true };
+};
+
 // --- Customer Profiles & Saved Addresses ---
 export const getUserProfile = async (phone) => {
   const doc = await db.collection('users').doc(phone).get();

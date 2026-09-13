@@ -127,6 +127,56 @@ import 'leaflet/dist/leaflet.css';
       await db.collection('orders').doc(orderId).update({ status: newStatus, ...extraFields });
     };
 
+    const submitRiderRating = async (orderId, riderIdentifier, ratingStars, feedback = '') => {
+      const stars = Math.min(5, Math.max(1, Math.round(Number(ratingStars))));
+      if (!orderId || isNaN(stars)) return { success: false };
+
+      try {
+        await db.collection('orders').doc(orderId).update({
+          riderRating: stars,
+          riderRatingFeedback: feedback || '',
+          riderRatedAt: Date.now()
+        });
+
+        if (riderIdentifier) {
+          let riderRef = null;
+          let riderDoc = null;
+          const directDoc = await db.collection('riders').doc(String(riderIdentifier)).get();
+          if (directDoc.exists) {
+            riderRef = directDoc.ref;
+            riderDoc = directDoc;
+          } else {
+            const snap = await db.collection('riders').where('name', '==', riderIdentifier).limit(1).get();
+            if (!snap.empty) {
+              riderRef = snap.docs[0].ref;
+              riderDoc = snap.docs[0];
+            }
+          }
+
+          if (riderRef && riderDoc) {
+            const data = riderDoc.data() || {};
+            const prevSum = Number(data.ratingSum || 0);
+            const prevCount = Number(data.ratingCount || data.totalRatings || 0);
+            const newSum = prevSum + stars;
+            const newCount = prevCount + 1;
+            const newRating = Number((newSum / newCount).toFixed(1));
+
+            await riderRef.update({
+              ratingSum: newSum,
+              ratingCount: newCount,
+              rating: newRating,
+              lastRatedAt: Date.now()
+            });
+            return { success: true, newRating, newCount };
+          }
+        }
+        return { success: true, orderOnly: true };
+      } catch (err) {
+        console.error('Error submitting rider rating:', err);
+        return { success: false, error: err.message };
+      }
+    };
+
     const subscribeSettings = (callback) => {
       return db.collection('settings').doc('global').onSnapshot((docSnapshot) => {
         if (docSnapshot.exists) {
@@ -2996,19 +3046,6 @@ import 'leaflet/dist/leaflet.css';
                     <span>Sign Out</span>
                   </button>
                 </div>
-
-                {/* Switch to Rider Portal Button */}
-                <div className="pt-1">
-                  <button
-                    onClick={() => {
-                      onClose();
-                      window.location.hash = '#/delivery-dashboard';
-                    }}
-                    className="w-full py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-bold text-xs rounded-xl border border-amber-500/30 transition flex items-center justify-center space-x-2"
-                  >
-                    <span>🛵 Delivery Fleet / Rider Portal</span>
-                  </button>
-                </div>
               </div>
             )}
 
@@ -3067,6 +3104,43 @@ import 'leaflet/dist/leaflet.css';
                             {order.status?.replace(/_/g, ' ')}
                           </span>
                         </div>
+
+                        {['successfully_delivered', 'delivered', 'completed'].includes(order.status) && (
+                          <div className="flex items-center justify-between pt-1.5 border-t border-dashed border-neutral-700/30 text-[10px]">
+                            <span className="text-neutral-400 font-medium">
+                              {order.riderName ? `Rider: ${order.riderName}` : 'Delivery Rider'}
+                            </span>
+                            {order.riderRating ? (
+                              <span className="font-extrabold text-amber-400 flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                                <span>⭐</span>
+                                <span>{order.riderRating}/5 rated</span>
+                              </span>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <span className="text-neutral-400 text-[9px] mr-0.5">Rate:</span>
+                                {[1, 2, 3, 4, 5].map(star => (
+                                  <button
+                                    key={star}
+                                    type="button"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      try { playSoulfulChime(); } catch (_) {}
+                                      await submitRiderRating(
+                                        order.id,
+                                        order.riderPin || order.riderId || order.riderName,
+                                        star
+                                      );
+                                    }}
+                                    className="hover:scale-125 active:scale-95 transition-transform text-xs p-0.5 focus:outline-none"
+                                    title={`Rate ${star} star`}
+                                  >
+                                    ⭐
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))
                   )}
@@ -3143,78 +3217,6 @@ import 'leaflet/dist/leaflet.css';
                   </span>
                 </div>
 
-                {/* DhaKav Designer's KGF Card — Compact & Elegant */}
-                <div className={`p-4 rounded-2xl border space-y-2.5 shadow-sm ${
-                  theme === 'light'
-                    ? 'bg-amber-50/70 border-amber-200/90'
-                    : 'bg-neutral-900 border-neutral-800'
-                }`}>
-                  <div>
-                    <span className="text-[9px] font-extrabold uppercase tracking-widest text-cafe-amber block">
-                      DESIGNED & DEVELOPED BY
-                    </span>
-                    <h4 className="text-sm font-black tracking-tight flex items-center gap-1.5 mt-0.5">
-                      <span>DhaKav Designer's</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-cafe-amber text-black font-extrabold">KGF</span>
-                    </h4>
-                  </div>
-
-                  {/* Concise Services 2-Column Grid */}
-                  <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-                    <div className={`p-2 rounded-xl border flex items-center gap-1.5 ${
-                      theme === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-neutral-850 border-neutral-750 text-neutral-200'
-                    }`}>
-                      <i data-lucide="globe" className="w-3.5 h-3.5 text-blue-400 flex-shrink-0"></i>
-                      <span className="font-semibold truncate">Web & App Building</span>
-                    </div>
-
-                    <div className={`p-2 rounded-xl border flex items-center gap-1.5 ${
-                      theme === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-neutral-850 border-neutral-750 text-neutral-200'
-                    }`}>
-                      <i data-lucide="palette" className="w-3.5 h-3.5 text-purple-400 flex-shrink-0"></i>
-                      <span className="font-semibold truncate">Graphic Design & Logos</span>
-                    </div>
-
-                    <div className={`p-2 rounded-xl border flex items-center gap-1.5 col-span-2 ${
-                      theme === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-neutral-850 border-neutral-750 text-neutral-200'
-                    }`}>
-                      <i data-lucide="video" className="w-3.5 h-3.5 text-orange-400 flex-shrink-0"></i>
-                      <div className="min-w-0">
-                        <span className="font-bold block leading-tight">Digital Media Assistance</span>
-                        <span className="text-[9px] text-neutral-400 block leading-tight truncate">Shop interior videography, promo banners & poster making</span>
-                      </div>
-                    </div>
-
-                    <div className={`p-2 rounded-xl border flex items-center gap-1.5 col-span-2 ${
-                      theme === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-neutral-850 border-neutral-750 text-neutral-200'
-                    }`}>
-                      <i data-lucide="cpu" className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0"></i>
-                      <div className="min-w-0">
-                        <span className="font-bold block leading-tight">Engineering Project Assistance</span>
-                        <span className="text-[9px] text-neutral-400 block leading-tight truncate">Technical consulting & project development</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Compact Direct Contact Row */}
-                  <div className="pt-1.5 border-t border-neutral-700/20 flex items-center justify-between gap-2">
-                    <a
-                      href="mailto:contact.dhakavdesigners@gmail.com"
-                      className="text-[11px] font-bold text-cafe-amber hover:underline flex items-center gap-1 truncate"
-                    >
-                      <i data-lucide="mail" className="w-3 h-3 flex-shrink-0"></i>
-                      <span className="truncate">contact.dhakavdesigners@gmail.com</span>
-                    </a>
-                    <button
-                      onClick={() => window.open('https://wa.me/919035733573?text=Hi%20DhaKav%20Designers%2C%20I%20need%20assistance%20with%20a%20project', '_blank')}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 text-[10px] font-bold transition flex items-center gap-1 flex-shrink-0"
-                    >
-                      <i data-lucide="message-circle" className="w-3 h-3"></i>
-                      <span>WhatsApp</span>
-                    </button>
-                  </div>
-                </div>
-
                 {/* Terms & Policies Card */}
                 <div className={`p-4 rounded-2xl border space-y-3 ${
                   theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900 border-neutral-800'
@@ -3238,6 +3240,43 @@ import 'leaflet/dist/leaflet.css';
                       <strong className={theme === 'light' ? 'text-slate-800' : 'text-white'}>4. Support Hotline:</strong>
                       <p>For instant order queries, call or WhatsApp +91 9035733573.</p>
                     </div>
+                  </div>
+                </div>
+
+                {/* DhaKav Designer's Credit — Simple, Compact & Professional */}
+                <div className={`p-3 rounded-xl border flex items-center justify-between gap-2 ${
+                  theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900 border-neutral-800'
+                }`}>
+                  <div className="min-w-0">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 block">
+                      Designed & Developed by
+                    </span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className={`text-xs font-black tracking-tight ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
+                        DhaKav Designer's
+                      </span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-cafe-amber/20 text-cafe-amber font-extrabold">
+                        KGF
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <a
+                      href="mailto:contact.dhakavdesigners@gmail.com"
+                      className={`p-1.5 rounded-lg border text-neutral-400 hover:text-cafe-amber transition ${
+                        theme === 'light' ? 'bg-white border-slate-200' : 'bg-neutral-800 border-neutral-700'
+                      }`}
+                      title="contact.dhakavdesigners@gmail.com"
+                    >
+                      <i data-lucide="mail" className="w-3.5 h-3.5"></i>
+                    </a>
+                    <button
+                      onClick={() => window.open('https://wa.me/919035733573?text=Hi%20DhaKav%20Designers%2C%20I%20have%20an%20inquiry', '_blank')}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25 text-[10px] font-bold transition flex items-center gap-1"
+                    >
+                      <i data-lucide="message-circle" className="w-3 h-3"></i>
+                      <span>WhatsApp</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -3577,19 +3616,89 @@ import 'leaflet/dist/leaflet.css';
                   </div>
                 )}
 
-                <div className={['successfully_delivered', 'delivered', 'completed', 'rejected', 'cancelled'].includes(activeOrder.status) ? "flex justify-end pt-2 block" : "hidden"}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      dismissOrder(activeOrder.id);
-                    }}
-                    className="px-3.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-[11px] font-extrabold text-amber-400 rounded-lg border border-amber-500/30 transition-all flex items-center gap-1.5 shadow-sm"
-                  >
-                    <span>Dismiss</span>
-                    <span>✕</span>
-                  </button>
-                </div>
+                {['successfully_delivered', 'delivered', 'completed'].includes(activeOrder.status) && (
+                  <div className="pt-2">
+                    {activeOrder.riderRating ? (
+                      <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
+                        <div className="flex items-center gap-1.5 text-xs text-amber-400 font-extrabold">
+                          <span>⭐</span>
+                          <span>You rated {activeOrder.riderName ? `${activeOrder.riderName} ` : ''}{activeOrder.riderRating}/5 stars</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            dismissOrder(activeOrder.id);
+                          }}
+                          className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-[10px] font-bold text-neutral-300 rounded-lg border border-neutral-700 transition-all"
+                        >
+                          Dismiss ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="bg-neutral-900/90 border border-amber-500/30 rounded-xl p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-[11px] font-black text-white flex items-center gap-1">
+                              <span>⭐</span>
+                              <span>Rate Your Delivery Rider</span>
+                            </p>
+                            <p className="text-[10px] text-neutral-400">
+                              {activeOrder.riderName ? `How was ${activeOrder.riderName}'s delivery?` : 'How was the delivery service?'}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              dismissOrder(activeOrder.id);
+                            }}
+                            className="text-[10px] text-neutral-400 hover:text-neutral-200 underline font-medium px-1 py-0.5"
+                          >
+                            Skip & Dismiss ✕
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-center gap-3 pt-1">
+                          {[1, 2, 3, 4, 5].map(star => (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try { playSoulfulChime(); } catch (_) {}
+                                await submitRiderRating(
+                                  activeOrder.id,
+                                  activeOrder.riderPin || activeOrder.riderId || activeOrder.riderName,
+                                  star
+                                );
+                              }}
+                              className="text-2xl hover:scale-125 active:scale-90 transition-transform p-1 focus:outline-none"
+                              title={`Give ${star} Star${star > 1 ? 's' : ''}`}
+                            >
+                              ⭐
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {['rejected', 'cancelled'].includes(activeOrder.status) && (
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        dismissOrder(activeOrder.id);
+                      }}
+                      className="px-3.5 py-1.5 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-[11px] font-extrabold text-amber-400 rounded-lg border border-amber-500/30 transition-all flex items-center gap-1.5 shadow-sm"
+                    >
+                      <span>Dismiss</span>
+                      <span>✕</span>
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
             </div>
@@ -3888,6 +3997,17 @@ import 'leaflet/dist/leaflet.css';
       const [riderFormError, setRiderFormError] = useState('');
       const [riderFormLoading, setRiderFormLoading] = useState(false);
 
+      // Responsive Tablet & Mobile Mode State (Minnit-style bottom nav)
+      const [mobileTab, setMobileTab] = useState('orders'); // 'orders' | 'menu' | 'settlement' | 'fleet'
+      const [liveTimeStr, setLiveTimeStr] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
+
+      useEffect(() => {
+        const timer = setInterval(() => {
+          setLiveTimeStr(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
+        }, 1000);
+        return () => clearInterval(timer);
+      }, []);
+
       // Live-fetch fleet riders from Firebase
       useEffect(() => {
         const unsubRiders = db.collection('riders').onSnapshot(snap => {
@@ -3904,7 +4024,10 @@ import 'leaflet/dist/leaflet.css';
                 isOnline: d.isOnline === true,
                 dutyStartTime: d.dutyStartTime || null,
                 verified: d.verified !== false,
-                createdAt: d.createdAt || 0
+                createdAt: d.createdAt || 0,
+                rating: d.rating != null ? Number(d.rating) : null,
+                ratingCount: Number(d.ratingCount || d.totalRatings || 0),
+                ratingSum: Number(d.ratingSum || 0)
               });
             }
           });
@@ -4307,27 +4430,56 @@ import 'leaflet/dist/leaflet.css';
         }`}>
           
           {/* Header */}
-          <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b ${
+          <div className={`flex flex-wrap items-center justify-between gap-3 pb-4 border-b ${
             theme === 'light' ? 'border-slate-200' : 'border-neutral-800'
           }`}>
-            {/* Logo & Shop Name Typography side-by-side */}
-            <div className="flex items-center space-x-2 md:space-x-3 min-w-0">
-              <img src="./logo_rm_bg.png" className="h-10 w-auto object-contain flex-shrink-0 drop-shadow-sm" alt="Crispy Chick Logo" />
-              <h1 className={`font-sans font-black text-base sm:text-lg md:text-xl tracking-tight flex items-center whitespace-nowrap transition-colors duration-300 ${
-                theme === 'light' ? 'text-slate-900' : 'text-white'
-              }`}>
-                Crispy Chick
-              </h1>
+            {/* Logo, Shop Name & Live Digital Clock */}
+            <div className="flex items-center space-x-2.5 min-w-0">
+              <img src="./logo_rm_bg.png" className="h-9 sm:h-10 w-auto object-contain flex-shrink-0 drop-shadow-sm" alt="Crispy Chick Logo" />
+              <div>
+                <h1 className={`font-sans font-black text-base sm:text-lg md:text-xl tracking-tight flex items-center whitespace-nowrap leading-none ${
+                  theme === 'light' ? 'text-slate-900' : 'text-white'
+                }`}>
+                  Crispy Chick
+                </h1>
+                <p className="text-[10px] text-neutral-400 font-mono font-medium mt-0.5 flex items-center gap-1">
+                  <span>🕒</span>
+                  <span>{liveTimeStr}</span>
+                </p>
+              </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Online / Offline Status Pill (Minnit Style) */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (isOpenOrdering) {
+                    setShowHaltConfirmModal(true);
+                  } else {
+                    updateSettings({ onlineOrderingWindow: true });
+                    playSoulfulChime();
+                  }
+                }}
+                className={`px-3.5 py-2 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md transition active:scale-95 ${
+                  isOpenOrdering
+                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
+                    : 'bg-red-600 hover:bg-red-700 text-white shadow-red-600/20 animate-pulse'
+                }`}
+                title={isOpenOrdering ? "Store is ONLINE. Tap to Halt Orders" : "Store is OFFLINE. Tap to turn store Online"}
+              >
+                <span className={`w-2 h-2 rounded-full bg-white ${isOpenOrdering ? 'animate-pulse' : ''}`} />
+                <span>{isOpenOrdering ? '⏻ ONLINE' : '⏻ OFFLINE'}</span>
+              </button>
+
               <button
                 onClick={toggleTheme}
-                className={`p-2.5 rounded-xl border transition-all duration-300 ${
+                className={`p-2 rounded-xl border transition-all duration-300 ${
                   theme === 'dark'
                     ? 'bg-neutral-850 border-neutral-800 text-cafe-amber hover:text-white'
                     : 'bg-white border-slate-200 text-cafe-crispy hover:text-cafe-black shadow-sm'
                 }`}
+                title="Toggle Theme"
               >
                 <i data-lucide="sun" className={theme === 'dark' ? "w-4 h-4 block" : "hidden"}></i>
                 <i data-lucide="moon" className={theme === 'light' ? "w-4 h-4 block" : "hidden"}></i>
@@ -4335,56 +4487,35 @@ import 'leaflet/dist/leaflet.css';
 
               <button
                 onClick={signOut}
-                className="bg-neutral-805 hover:bg-neutral-700 text-xs font-bold px-4 py-2.5 rounded-lg border border-neutral-700 transition flex items-center gap-2 text-neutral-300"
+                className="bg-neutral-805 hover:bg-neutral-700 text-xs font-bold px-3 py-2 rounded-xl border border-neutral-700 transition flex items-center gap-1.5 text-neutral-300"
+                title="Sign Out"
               >
-                <i data-lucide="log-out" className="w-4 h-4 text-red-400"></i>
-                <span>Sign Out</span>
+                <i data-lucide="log-out" className="w-3.5 h-3.5 text-red-400"></i>
+                <span className="hidden sm:inline">Sign Out</span>
               </button>
-
-              <div className={`p-3 rounded-xl border flex items-center space-x-3 shadow-inner ${
-                theme === 'light' ? 'bg-white border-slate-200' : 'bg-cafe-card border-neutral-800'
-              }`}>
-                <span className="text-xs text-neutral-450 font-semibold tracking-wide">Ordering Window</span>
-                <button
-                  onClick={() => {
-                    if (isOpenOrdering) {
-                      // Misstouch prevention: prompt with confirmation tab before going offline
-                      setShowHaltConfirmModal(true);
-                    } else {
-                      // Turning online is safe & immediate
-                      updateSettings({ onlineOrderingWindow: true });
-                      playSoulfulChime();
-                    }
-                  }}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    isOpenOrdering ? 'bg-emerald-600' : 'bg-red-800'
-                  }`}
-                  title={isOpenOrdering ? "Click to Halt Online Orders (Confirmation Required)" : "Click to Turn Store Online"}
-                >
-                  <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                      isOpenOrdering ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-                <span className={`text-xs font-bold ${isOpenOrdering ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {isOpenOrdering ? 'ONLINE' : 'OFFLINE'}
-                </span>
-              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20 lg:pb-8">
             
             {/* Left Queue */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className={`lg:col-span-2 space-y-6 ${['orders', 'settlement'].includes(mobileTab) ? 'block' : 'hidden lg:block'}`}>
               <div className={`rounded-2xl border shadow-xl overflow-hidden ${
+                mobileTab === 'orders' ? 'block' : 'hidden lg:block'
+              } ${
                 theme === 'light' ? 'bg-white border-slate-200' : 'bg-cafe-card border-neutral-800'
               }`}>
-                <div className={`px-6 py-4 border-b flex justify-between items-center ${
+                <div className={`px-4 sm:px-6 py-4 border-b flex justify-between items-center ${
                   theme === 'light' ? 'bg-slate-100/50 border-slate-200' : 'bg-neutral-900/40 border-neutral-800'
                 }`}>
-                  <h3 className="font-serif font-bold text-lg">Live Orders Processing Queue</h3>
+                  <div className="flex items-center gap-2.5">
+                    <h3 className="font-serif font-bold text-base sm:text-lg">Live Orders Processing Queue</h3>
+                    {activeOrdersList.length > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                        {activeOrdersList.length} Active
+                      </span>
+                    )}
+                  </div>
                   <span className="text-[10px] text-neutral-450 font-bold uppercase tracking-wider">Reactive Feed</span>
                 </div>
 
@@ -4560,6 +4691,8 @@ import 'leaflet/dist/leaflet.css';
 
               {/* Archived Transaction History Log Table */}
               <div className={`rounded-2xl border shadow-xl overflow-hidden ${
+                mobileTab === 'settlement' ? 'block' : 'hidden lg:block'
+              } ${
                 theme === 'light' ? 'bg-white border-slate-200' : 'bg-cafe-card border-neutral-800'
               }`}>
                 <div className={`px-6 py-4 border-b flex justify-between items-center ${
@@ -4665,10 +4798,12 @@ import 'leaflet/dist/leaflet.css';
             </div>
 
             {/* Right Panel */}
-            <div className="space-y-6">
+            <div className={`space-y-6 ${['fleet', 'menu'].includes(mobileTab) ? 'block' : 'hidden lg:block'}`}>
               
               {/* Delivery Fleet & Live Rider Status Hub (Top Priority) */}
               <div className={`rounded-2xl border shadow-xl p-6 space-y-5 ${
+                mobileTab === 'fleet' ? 'block' : 'hidden lg:block'
+              } ${
                 theme === 'light' ? 'bg-white border-slate-205' : 'bg-cafe-card border-neutral-800'
               }`}>
                 <div className="flex items-center justify-between pb-3 border-b border-neutral-900/10">
@@ -4742,13 +4877,25 @@ import 'leaflet/dist/leaflet.css';
                           <div key={rider.id} className="p-3.5 space-y-2.5">
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-center flex-wrap gap-1.5">
                                   <h4 className={`font-bold text-xs ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
                                     {rider.name}
                                   </h4>
                                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-800 text-amber-400 font-bold border border-neutral-700">
                                     PIN: {rider.pin || rider.id}
                                   </span>
+                                  {rider.ratingCount > 0 ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                      <span>⭐</span>
+                                      <span>{Number(rider.rating).toFixed(1)}</span>
+                                      <span className="text-[9px] text-amber-300/70 font-semibold">({rider.ratingCount})</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-neutral-800/80 text-neutral-400 border border-neutral-700">
+                                      <span>⭐</span>
+                                      <span>New</span>
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-neutral-450 mt-1">
                                   <a href={`tel:${rider.phone}`} className="hover:text-amber-500 font-medium">
@@ -4908,6 +5055,8 @@ import 'leaflet/dist/leaflet.css';
 
               {/* Permanent Store Configuration Panel (Below Fleet) */}
               <div className={`rounded-2xl border shadow-xl p-6 space-y-6 ${
+                mobileTab === 'menu' ? 'block' : 'hidden lg:block'
+              } ${
                 theme === 'light' ? 'bg-white border-slate-205' : 'bg-cafe-card border-neutral-800'
               }`}>
                 <div className="pb-3 border-b border-neutral-900/10 flex flex-wrap items-center justify-between gap-2">
@@ -5051,6 +5200,93 @@ import 'leaflet/dist/leaflet.css';
 
               </div>
             </div>
+          </div>
+
+          {/* Minnit-Style Bottom Navigation Bar (Fixed for Tablets & Mobile) */}
+          <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md border-t border-slate-200 dark:border-neutral-800 px-3 py-2 lg:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.15)]">
+            <div className="max-w-md sm:max-w-xl mx-auto grid grid-cols-4 items-center">
+              {/* Tab 1: Orders */}
+              <button
+                type="button"
+                onClick={() => setMobileTab('orders')}
+                className={`flex flex-col items-center justify-center py-1 transition-all ${
+                  mobileTab === 'orders' ? 'text-emerald-500 font-extrabold scale-105' : 'text-neutral-400 hover:text-neutral-200 font-medium'
+                }`}
+              >
+                <div className="relative">
+                  <span className="text-xl">🔔</span>
+                  {activeOrdersList.length > 0 && (
+                    <span className="absolute -top-1 -right-2.5 bg-emerald-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+                      {activeOrdersList.length}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[11px] mt-0.5 tracking-tight">Orders</span>
+                {mobileTab === 'orders' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5" />
+                )}
+              </button>
+
+              {/* Tab 2: Menu */}
+              <button
+                type="button"
+                onClick={() => setMobileTab('menu')}
+                className={`flex flex-col items-center justify-center py-1 transition-all ${
+                  mobileTab === 'menu' ? 'text-emerald-500 font-extrabold scale-105' : 'text-neutral-400 hover:text-neutral-200 font-medium'
+                }`}
+              >
+                <div className="relative">
+                  <span className="text-xl">🍽️</span>
+                  {isMenuDirty && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+                  )}
+                </div>
+                <span className="text-[11px] mt-0.5 tracking-tight">Menu ({catalogList.length})</span>
+                {mobileTab === 'menu' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5" />
+                )}
+              </button>
+
+              {/* Tab 3: Settlement */}
+              <button
+                type="button"
+                onClick={() => setMobileTab('settlement')}
+                className={`flex flex-col items-center justify-center py-1 transition-all ${
+                  mobileTab === 'settlement' ? 'text-emerald-500 font-extrabold scale-105' : 'text-neutral-400 hover:text-neutral-200 font-medium'
+                }`}
+              >
+                <div className="relative">
+                  <span className="text-xl">💵</span>
+                </div>
+                <span className="text-[11px] mt-0.5 tracking-tight">Settlement</span>
+                {mobileTab === 'settlement' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5" />
+                )}
+              </button>
+
+              {/* Tab 4: Fleet */}
+              <button
+                type="button"
+                onClick={() => setMobileTab('fleet')}
+                className={`flex flex-col items-center justify-center py-1 transition-all ${
+                  mobileTab === 'fleet' ? 'text-emerald-500 font-extrabold scale-105' : 'text-neutral-400 hover:text-neutral-200 font-medium'
+                }`}
+              >
+                <div className="relative">
+                  <span className="text-xl">🛵</span>
+                  {onlineRiders.length > 0 && (
+                    <span className="absolute -top-1 -right-2.5 bg-amber-500 text-black text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+                      {onlineRiders.length}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[11px] mt-0.5 tracking-tight">Fleet ({fleetRiders.length})</span>
+                {mobileTab === 'fleet' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5" />
+                )}
+              </button>
+            </div>
+          </nav>
 
           {/* Floating Toast Notification Container */}
           <div className="fixed top-6 right-6 z-[100] space-y-3 w-80 pointer-events-none">
@@ -5214,7 +5450,6 @@ import 'leaflet/dist/leaflet.css';
             </div>
           )}
 
-          </div>
         </div>
       );
     };
@@ -5411,6 +5646,8 @@ import 'leaflet/dist/leaflet.css';
       const [dutyStartTime, setDutyStartTime] = useState(null);
       const [dutyTimerText, setDutyTimerText] = useState('');
       const [showOfflineModal, setShowOfflineModal] = useState(false);
+      const [riderRating, setRiderRating] = useState(null);
+      const [riderRatingCount, setRiderRatingCount] = useState(0);
 
       useEffect(() => {
         if (!riderId) return;
@@ -5419,6 +5656,8 @@ import 'leaflet/dist/leaflet.css';
             const data = doc.data();
             setIsOnline(data.isOnline === true);
             setDutyStartTime(data.dutyStartTime || null);
+            setRiderRating(data.rating != null ? Number(data.rating) : null);
+            setRiderRatingCount(Number(data.ratingCount || data.totalRatings || 0));
           }
         }, err => console.warn('Rider duty sync error:', err));
         return () => unsub();
@@ -5664,6 +5903,25 @@ import 'leaflet/dist/leaflet.css';
       const todaysDeliveries = todaysCompletedJobs.length;
       const todaysCollected = todaysCompletedJobs.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
 
+      // Helper to resolve rider document reference safely
+      const getRiderDocRef = async () => {
+        if (!riderId) return null;
+        let ref = db.collection('riders').doc(riderId);
+        const direct = await ref.get();
+        if (direct.exists) return { ref, docId: riderId };
+
+        // Fallback: search by PIN or Name in case riderId differs
+        if (riderName) {
+          const snap = await db.collection('riders').where('name', '==', riderName).limit(1).get();
+          if (!snap.empty) {
+            localStorage.setItem('cc_rider_id', snap.docs[0].id);
+            setRiderId(snap.docs[0].id);
+            return { ref: snap.docs[0].ref, docId: snap.docs[0].id };
+          }
+        }
+        return { ref, docId: riderId };
+      };
+
       const toggleDutyOnline = async () => {
         if (!riderId) return;
 
@@ -5680,24 +5938,35 @@ import 'leaflet/dist/leaflet.css';
           // Going online -> activate duty immediately & capture on-demand GPS
           try {
             const now = Date.now();
-            await db.collection('riders').doc(riderId).update({
+            const target = await getRiderDocRef();
+            const docRef = target ? target.ref : db.collection('riders').doc(riderId);
+
+            // Always use set with merge: true so it never errors even if doc was absent
+            await docRef.set({
               isOnline: true,
-              dutyStartTime: now
-            });
+              dutyStartTime: now,
+              name: riderName || 'Rider',
+              phone: riderPhone || '',
+              pin: riderId,
+              isActive: true,
+              lastOnlineAt: now
+            }, { merge: true });
+
             setIsOnline(true);
             setDutyStartTime(now);
+            try { playSoulfulChime(); } catch (_) {}
 
             // On-demand GPS location extraction (Zero API Cost)
             if (navigator.geolocation) {
               navigator.geolocation.getCurrentPosition(
                 (pos) => {
-                  db.collection('riders').doc(riderId).update({
+                  docRef.set({
                     location: {
                       lat: pos.coords.latitude,
                       lng: pos.coords.longitude,
                       updatedAt: Date.now()
                     }
-                  }).catch(() => {});
+                  }, { merge: true }).catch(() => {});
                 },
                 (err) => console.warn('Rider GPS notice:', err),
                 { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
@@ -5705,7 +5974,9 @@ import 'leaflet/dist/leaflet.css';
             }
           } catch (err) {
             console.error('Failed to go online:', err);
-            alert('Could not update duty status. Please check your internet connection.');
+            // Even if network blips, allow local toggle so rider is not locked out
+            setIsOnline(true);
+            setDutyStartTime(Date.now());
           }
         }
       };
@@ -5718,15 +5989,20 @@ import 'leaflet/dist/leaflet.css';
           return;
         }
         try {
-          await db.collection('riders').doc(riderId).update({
+          const target = await getRiderDocRef();
+          const docRef = target ? target.ref : db.collection('riders').doc(riderId);
+
+          await docRef.set({
             isOnline: false,
             dutyEndTime: Date.now()
-          });
+          }, { merge: true });
+
           setIsOnline(false);
           setShowOfflineModal(false);
         } catch (err) {
           console.error('Failed to go offline:', err);
-          alert('Could not update duty status. Please check your internet connection.');
+          setIsOnline(false);
+          setShowOfflineModal(false);
         }
       };
 
@@ -5873,67 +6149,109 @@ import 'leaflet/dist/leaflet.css';
                 >
                   <i data-lucide="user-circle" className="w-3.5 h-3.5"></i>
                   <span>Profile ({riderName || 'Rider'})</span>
-                </button>
-              </div>
-            </div>
-
-            {/* ── Duty Online / Offline Toggle & Shift Duration Tracker ── */}
-            <div className={`p-4 rounded-2xl border shadow-md space-y-3 transition-all ${
-              isOnline 
-                ? (theme === 'light' ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-300 shadow-emerald-500/10' : 'bg-gradient-to-r from-emerald-950/40 to-teal-950/30 border-emerald-700/60') 
-                : (theme === 'light' ? 'bg-slate-100 border-slate-200' : 'bg-neutral-900/60 border-neutral-800')
-            }`}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center space-x-2.5 min-w-0">
-                  <div className={`w-3.5 h-3.5 rounded-full flex-shrink-0 ${isOnline ? 'bg-emerald-500 animate-pulse ring-4 ring-emerald-500/20' : 'bg-neutral-500'}`} />
-                  <div className="min-w-0">
-                    <span className={`text-xs font-black uppercase tracking-wider block truncate ${
-                      isOnline ? (theme === 'light' ? 'text-emerald-700' : 'text-emerald-400') : (theme === 'light' ? 'text-slate-600' : 'text-neutral-400')
-                    }`}>
-                      {isOnline ? '🟢 DUTY ACTIVE (ONLINE)' : '⚪ DUTY INACTIVE (OFFLINE)'}
+                  {riderRatingCount > 0 && (
+                    <span className="bg-amber-500/20 text-amber-400 text-[10px] px-1.5 py-0.5 rounded-md font-black ml-0.5">
+                      ⭐{Number(riderRating).toFixed(1)}
                     </span>
-                    <span className={`text-[10px] block truncate ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
-                      {isOnline ? 'Ready to accept incoming delivery rides' : 'You are currently offline'}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={toggleDutyOnline}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-all active:scale-95 flex-shrink-0 flex items-center gap-1.5 ${
-                    isOnline 
-                      ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-600/30' 
-                      : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30'
-                  }`}
-                >
-                  {isOnline ? (
-                    <>
-                      <span>🔴</span>
-                      <span>GO OFFLINE</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>🟢</span>
-                      <span>GO ONLINE 🚀</span>
-                    </>
                   )}
                 </button>
               </div>
+            </div>
 
-              {isOnline && (
-                <div className={`pt-2 border-t flex items-center justify-between text-[11px] font-semibold ${
+            {/* ── Redesigned Duty Status Hero Card ── */}
+            {!isOnline ? (
+              /* Offline Hero State: Prominent, High-Visibility Call-to-Action */
+              <div className={`p-4 rounded-2xl border shadow-lg space-y-3.5 transition-all ${
+                theme === 'light'
+                  ? 'bg-gradient-to-b from-amber-50/90 via-white to-slate-50 border-amber-300 shadow-amber-500/10'
+                  : 'bg-gradient-to-b from-amber-950/30 via-neutral-900 to-neutral-900 border-amber-500/30 shadow-amber-500/10'
+              }`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-xl flex-shrink-0">
+                      🛵
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-neutral-400" />
+                        <h3 className={`text-xs font-black uppercase tracking-wider ${
+                          theme === 'light' ? 'text-slate-900' : 'text-white'
+                        }`}>
+                          You Are Currently Offline
+                        </h3>
+                      </div>
+                      <p className={`text-[11px] font-medium mt-1 leading-snug ${
+                        theme === 'light' ? 'text-slate-600' : 'text-neutral-400'
+                      }`}>
+                        You are not receiving delivery jobs. Turn online to start your shift and receive orders.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Huge, easy-to-tap Hero "Go Online" Pusher Button */}
+                <button
+                  type="button"
+                  onClick={toggleDutyOnline}
+                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-500 active:scale-[0.98] text-white font-black text-sm uppercase tracking-wider shadow-lg shadow-emerald-500/25 border border-emerald-400/30 transition-all flex items-center justify-center gap-2.5"
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping" />
+                  <span>⚡ GO ONLINE — START SHIFT</span>
+                  <span>➔</span>
+                </button>
+              </div>
+            ) : (
+              /* Online Hero State: Glowing Shift Active Monitor */
+              <div className={`p-4 rounded-2xl border shadow-lg space-y-3 transition-all ${
+                theme === 'light'
+                  ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-300 shadow-emerald-500/10'
+                  : 'bg-gradient-to-r from-emerald-950/50 to-teal-950/40 border-emerald-600/50 shadow-emerald-500/10'
+              }`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <div className="relative flex-shrink-0">
+                      <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 block animate-pulse" />
+                      <span className="w-3.5 h-3.5 rounded-full bg-emerald-400 absolute inset-0 animate-ping opacity-60" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className={`text-xs font-black uppercase tracking-wider block truncate ${
+                        theme === 'light' ? 'text-emerald-800' : 'text-emerald-300'
+                      }`}>
+                        🟢 ON DUTY — READY FOR ORDERS
+                      </span>
+                      <span className={`text-[10px] font-medium block truncate ${
+                        theme === 'light' ? 'text-emerald-600' : 'text-emerald-400/80'
+                      }`}>
+                        Live GPS active • Looking for allocations
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={toggleDutyOnline}
+                    className="px-3.5 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider bg-red-500/15 hover:bg-red-500/25 text-red-500 border border-red-500/30 transition-all active:scale-95 flex items-center gap-1.5 flex-shrink-0"
+                  >
+                    <span>🔴</span>
+                    <span>Go Offline</span>
+                  </button>
+                </div>
+
+                <div className={`pt-2.5 border-t flex items-center justify-between text-[11px] font-semibold ${
                   theme === 'light' ? 'border-emerald-200/80 text-emerald-700' : 'border-emerald-800/40 text-emerald-400'
                 }`}>
-                  <span className="flex items-center gap-1">
-                    <span>⏱️ Duty Time:</span>
-                    <span className="font-mono font-black">{dutyTimerText || 'Just started'}</span>
+                  <span className="flex items-center gap-1.5">
+                    <span>⏱️ Shift Duration:</span>
+                    <span className="font-mono font-black text-xs px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
+                      {dutyTimerText || 'Just started'}
+                    </span>
                   </span>
-                  <span className="text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded-full font-bold uppercase">
-                    Monitoring Rides
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wide">
+                    📡 Monitoring Rides
                   </span>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* ── Today's Deliveries & Cash Collected Metrics ── */}
             <div className="grid grid-cols-2 gap-3">
@@ -6475,6 +6793,24 @@ import 'leaflet/dist/leaflet.css';
                 setRiderName(nameVal);
                 setIsProfileOpen(false);
               }} className="space-y-4">
+                {/* Rider Performance & Cumulative Customer Rating */}
+                <div className={`p-3.5 rounded-xl border text-xs space-y-1.5 ${
+                  theme === 'light' ? 'bg-amber-500/10 border-amber-500/20 text-slate-800' : 'bg-amber-500/10 border-amber-500/20 text-white'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[10px] uppercase tracking-widest text-amber-500">Customer Rating</span>
+                    <span className="font-mono font-bold text-[11px] text-neutral-400">PIN: {riderId}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-2xl font-black text-amber-400">
+                      {riderRatingCount > 0 ? `⭐ ${Number(riderRating).toFixed(1)}` : '⭐ New Rider'}
+                    </span>
+                    <span className="text-[11px] text-neutral-400 font-medium">
+                      {riderRatingCount > 0 ? `based on ${riderRatingCount} customer review${riderRatingCount > 1 ? 's' : ''}` : 'No ratings received yet'}
+                    </span>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-[10px] font-bold text-neutral-450 uppercase tracking-wider mb-2">Rider Name</label>
                   <input
