@@ -18,21 +18,31 @@
     transition: background-color 0.3s ease;
   }
 
-  /* Universal anti-auto-zoom rule: prevents mobile Chromium/WebKit from zooming in on input focus */
-  @media screen and (max-width: 1024px) {
-    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
-    textarea,
-    select {
-      font-size: 16px !important;
-    }
-  }
-
   input,
   textarea,
   select,
   button,
   a {
     touch-action: manipulation;
+  }
+}
+
+/* ==========================================================================
+   UNLAYERED TOP-LEVEL ANTI-AUTO-ZOOM RULE
+   Enforces min font-size: 16px on mobile/tablets across all form inputs,
+   overriding any Tailwind utility class (.text-sm, .text-xs).
+   ========================================================================== */
+@media screen and (max-width: 1024px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+  textarea,
+  select,
+  input.text-xs,
+  input.text-sm,
+  textarea.text-xs,
+  textarea.text-sm,
+  select.text-xs,
+  select.text-sm {
+    font-size: 16px !important;
   }
 }
 

@@ -2190,7 +2190,7 @@ import 'leaflet/dist/leaflet.css';
                     type="text" required={!isAlreadyAuthenticated} placeholder="Enter your full name"
                     pattern="[A-Za-z\s]+" title="Letters and spaces only"
                     value={name} onChange={e => setName(e.target.value.replace(/[^A-Za-z\s]/g, ''))}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500 transition ${
+                    className={`w-full border rounded-xl px-4 py-3 text-base focus:outline-none focus:border-red-500 transition ${
                       theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400' : 'bg-cafe-black border-neutral-800 text-white placeholder:text-neutral-500'
                     }`}
                   />
@@ -2201,7 +2201,7 @@ import 'leaflet/dist/leaflet.css';
                     type="tel" required={!isAlreadyAuthenticated} placeholder="10-digit mobile (starts with 6–9)"
                     maxLength={10} minLength={10} pattern="[6-9][0-9]{9}" inputMode="numeric"
                     value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500 transition ${
+                    className={`w-full border rounded-xl px-4 py-3 text-base focus:outline-none focus:border-red-500 transition ${
                       theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400' : 'bg-cafe-black border-neutral-800 text-white placeholder:text-neutral-500'
                     }`}
                   />
@@ -2212,7 +2212,7 @@ import 'leaflet/dist/leaflet.css';
                     type="tel" required={!isAlreadyAuthenticated} placeholder="Re-enter mobile number"
                     maxLength={10} minLength={10} pattern="[6-9][0-9]{9}" inputMode="numeric"
                     value={confirmPhone} onChange={e => setConfirmPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500 transition ${
+                    className={`w-full border rounded-xl px-4 py-3 text-base focus:outline-none focus:border-red-500 transition ${
                       theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400' : 'bg-cafe-black border-neutral-800 text-white placeholder:text-neutral-500'
                     } ${
                       confirmPhone && confirmPhone !== phone ? 'border-red-500' : ''
@@ -2229,7 +2229,7 @@ import 'leaflet/dist/leaflet.css';
                     type="text" required={!isAlreadyAuthenticated} placeholder="E.g., #12, Mahalakshmi Towers"
                     value={regAddress}
                     onChange={e => setRegAddress(e.target.value)}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500 transition ${
+                    className={`w-full border rounded-xl px-4 py-3 text-base focus:outline-none focus:border-red-500 transition ${
                       theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400' : 'bg-cafe-black border-neutral-800 text-white placeholder:text-neutral-500'
                     }`}
                   />
@@ -2241,7 +2241,7 @@ import 'leaflet/dist/leaflet.css';
                     type="tel" placeholder="Enter 10-digit alternate number"
                     maxLength={10} minLength={10} pattern="[0-9]*" inputMode="numeric"
                     value={altPhone} onChange={e => setAltPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500 transition ${
+                    className={`w-full border rounded-xl px-4 py-3 text-base focus:outline-none focus:border-red-500 transition ${
                       theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400' : 'bg-cafe-black border-neutral-800 text-white placeholder:text-neutral-500'
                     }`}
                   />
@@ -2251,7 +2251,7 @@ import 'leaflet/dist/leaflet.css';
                   <label className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>Landmark <span className="text-red-500">*</span></label>
                   <textarea
                     required={!isAlreadyAuthenticated} placeholder="E.g., Near Geetha Canteen, 3rd Cross Road" value={landmarks} onChange={e => setLandmarks(e.target.value)}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500 h-20 resize-none transition ${
+                    className={`w-full border rounded-xl px-4 py-3 text-base focus:outline-none focus:border-red-500 h-20 resize-none transition ${
                       theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400' : 'bg-cafe-black border-neutral-800 text-white placeholder:text-neutral-500'
                     }`}
                   />
@@ -2262,7 +2262,7 @@ import 'leaflet/dist/leaflet.css';
                     type="text" required={!isAlreadyAuthenticated} inputMode="numeric" maxLength="6" placeholder="E.g., 563122"
                     value={orderPinCode}
                     onChange={e => setOrderPinCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm text-center tracking-widest font-bold focus:outline-none focus:border-red-500 transition ${
+                    className={`w-full border rounded-xl px-4 py-3 text-base text-center tracking-widest font-bold focus:outline-none focus:border-red-500 transition ${
                       theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400' : 'bg-cafe-black border-neutral-800 text-white placeholder:text-neutral-500'
                     }`}
                   />
@@ -2366,7 +2366,7 @@ import 'leaflet/dist/leaflet.css';
                           placeholder="Recipient Name (e.g. Malathi) *"
                           value={proxyName}
                           onChange={e => setProxyName(e.target.value)}
-                          className={`w-full border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-cafe-amber font-bold ${
+                          className={`w-full border rounded-xl px-3 py-2.5 text-base focus:outline-none focus:border-cafe-amber font-bold ${
                             theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
                           }`}
                         />
@@ -2377,7 +2377,7 @@ import 'leaflet/dist/leaflet.css';
                           placeholder="Recipient Phone (10 digits) *"
                           value={proxyPhone}
                           onChange={e => setProxyPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                          className={`w-full border rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-cafe-amber tracking-wider font-bold ${
+                          className={`w-full border rounded-xl px-3 py-2.5 text-base focus:outline-none focus:border-cafe-amber tracking-wider font-bold ${
                             theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
                           }`}
                         />
@@ -2458,7 +2458,7 @@ import 'leaflet/dist/leaflet.css';
                               placeholder="Gate / Landmark note for rider (e.g. Near blue gate, opp water tank)"
                               value={proxyLandmark}
                               onChange={e => setProxyLandmark(e.target.value)}
-                              className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-cafe-amber ${
+                              className={`w-full border rounded-xl px-3 py-2 text-base focus:outline-none focus:border-cafe-amber ${
                                 theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
                               }`}
                             />
@@ -2470,7 +2470,7 @@ import 'leaflet/dist/leaflet.css';
                               placeholder="Recipient House / Flat / Street *"
                               value={proxyAddress}
                               onChange={e => setProxyAddress(e.target.value)}
-                              className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-cafe-amber ${
+                              className={`w-full border rounded-xl px-3 py-2 text-base focus:outline-none focus:border-cafe-amber ${
                                 theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
                               }`}
                             />
@@ -2480,7 +2480,7 @@ import 'leaflet/dist/leaflet.css';
                                 placeholder="Landmark *"
                                 value={proxyLandmark}
                                 onChange={e => setProxyLandmark(e.target.value)}
-                                className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-cafe-amber ${
+                                className={`w-full border rounded-xl px-3 py-2 text-base focus:outline-none focus:border-cafe-amber ${
                                   theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
                                 }`}
                               />
@@ -2491,7 +2491,7 @@ import 'leaflet/dist/leaflet.css';
                                 placeholder="PIN Code *"
                                 value={proxyPin}
                                 onChange={e => setProxyPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-cafe-amber font-mono font-bold tracking-widest ${
+                                className={`w-full border rounded-xl px-3 py-2 text-base focus:outline-none focus:border-cafe-amber font-mono font-bold tracking-widest ${
                                   theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
                                 }`}
                               />
@@ -2567,10 +2567,10 @@ import 'leaflet/dist/leaflet.css';
                         <h5 className={`text-xs font-bold uppercase tracking-wider ${theme === 'light' ? 'text-slate-700' : 'text-white'}`}>New Address</h5>
                         <button type="button" onClick={() => setShowAddAddress(false)} className="text-neutral-500 hover:text-red-400"><i data-lucide="x" className="w-4 h-4"></i></button>
                       </div>
-                      <input type="text" placeholder="Title (e.g. Home, Office)" value={newAddressTitle} onChange={e => setNewAddressTitle(e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cafe-amber ${theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'}`} />
-                      <input type="text" placeholder="House No, Building Name" value={newAddressDetails} onChange={e => setNewAddressDetails(e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cafe-amber ${theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'}`} />
-                      <input type="text" placeholder="Landmark" value={newAddressLandmark} onChange={e => setNewAddressLandmark(e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cafe-amber ${theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'}`} />
-                      <input type="text" inputMode="numeric" maxLength="6" placeholder="PIN Code *" value={newAddressPinCode} onChange={e => setNewAddressPinCode(e.target.value.replace(/\D/g, '').slice(0, 6))} className={`w-full border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cafe-amber tracking-widest font-bold ${theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'}`} />
+                      <input type="text" placeholder="Title (e.g. Home, Office)" value={newAddressTitle} onChange={e => setNewAddressTitle(e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-base focus:outline-none focus:border-cafe-amber ${theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'}`} />
+                      <input type="text" placeholder="House No, Building Name" value={newAddressDetails} onChange={e => setNewAddressDetails(e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-base focus:outline-none focus:border-cafe-amber ${theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'}`} />
+                      <input type="text" placeholder="Landmark" value={newAddressLandmark} onChange={e => setNewAddressLandmark(e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-base focus:outline-none focus:border-cafe-amber ${theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'}`} />
+                      <input type="text" inputMode="numeric" maxLength="6" placeholder="PIN Code *" value={newAddressPinCode} onChange={e => setNewAddressPinCode(e.target.value.replace(/\D/g, '').slice(0, 6))} className={`w-full border rounded-lg px-3 py-2 text-base focus:outline-none focus:border-cafe-amber tracking-widest font-bold ${theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'}`} />
                       
                       <button
                         type="button"
@@ -3897,7 +3897,7 @@ import 'leaflet/dist/leaflet.css';
                 <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">Username or Email</label>
                 <input
                   type="text" required placeholder="Enter username or email" value={email} onChange={e => setEmail(e.target.value)}
-                  className="w-full bg-cafe-black border border-neutral-805 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cafe-amber"
+                  className="w-full bg-cafe-black border border-neutral-805 rounded-xl px-4 py-3 text-base text-white focus:outline-none focus:border-cafe-amber"
                 />
               </div>
               <div>
@@ -3909,7 +3909,7 @@ import 'leaflet/dist/leaflet.css';
                     placeholder="••••••••"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    className="w-full bg-cafe-black border border-neutral-805 rounded-xl pl-4 pr-12 py-3 text-sm text-white focus:outline-none focus:border-cafe-amber font-mono"
+                    className="w-full bg-cafe-black border border-neutral-805 rounded-xl pl-4 pr-12 py-3 text-base text-white focus:outline-none focus:border-cafe-amber font-mono"
                   />
                   <button
                     type="button"
@@ -4711,8 +4711,8 @@ import 'leaflet/dist/leaflet.css';
                     <colgroup>
                       <col className="w-1/6" />
                       <col className="w-2/5" />
-                      <col className="w-2/5" />
-                      <col className="w-24" />
+                      <col className="w-[30%]" />
+                      <col className="w-36" />
                     </colgroup>
                     <thead className="sticky top-0 z-10">
                       <tr className={`border-b text-[10px] text-neutral-455 font-bold uppercase tracking-wider ${
@@ -4721,7 +4721,7 @@ import 'leaflet/dist/leaflet.css';
                         <th className="px-3 py-3">Time</th>
                         <th className="px-3 py-3">Order Details</th>
                         <th className="px-3 py-3">Billing Address</th>
-                        <th className="px-3 py-3 text-center">Status</th>
+                        <th className="px-3 py-3 text-right pr-4">Status</th>
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${theme === 'light' ? 'divide-slate-200' : 'divide-neutral-900/60'}`}>
@@ -4764,26 +4764,28 @@ import 'leaflet/dist/leaflet.css';
                                     <div className="text-[10px] font-normal text-neutral-455 mt-0.5 whitespace-normal leading-normal">
                                       {order.items.map(i => `${i.name} (x${i.quantity})`).join(', ')}
                                     </div>
-                                    <div className={`text-[10px] mt-0.5 ${
-                                      ['successfully_delivered', 'delivered', 'completed'].includes(order.status) 
-                                        ? 'text-green-600 font-bold' 
-                                        : 'text-red-600 font-bold'
-                                    }`}>
-                                      ₹{order.totalAmount}
-                                    </div>
                                   </td>
                                   <td className="px-3 py-3 text-[11px] text-neutral-400 leading-normal whitespace-normal break-words">
                                     <div className="font-bold text-neutral-505">{order.customerName} ({order.customerPhone})</div>
                                     <div className="mt-0.5 italic text-neutral-455">{order.landmarks || order.address || order.customerAddress}</div>
                                   </td>
-                                  <td className="px-3 py-3 text-center">
-                                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] uppercase tracking-wide ${
-                                      ['successfully_delivered', 'delivered', 'completed'].includes(order.status) 
-                                        ? 'bg-emerald-500/10 text-green-600 font-bold border border-emerald-500/20' 
-                                        : 'bg-red-500/10 text-red-600 font-bold border border-red-500/20'
-                                    }`}>
-                                      {['successfully_delivered', 'delivered', 'completed'].includes(order.status) ? 'Delivered' : 'Cancelled'}
-                                    </span>
+                                  <td className="px-3 py-3 text-right whitespace-nowrap">
+                                    <div className="flex items-center justify-end gap-2.5">
+                                      <span className={`text-sm font-extrabold tracking-tight ${
+                                        ['successfully_delivered', 'delivered', 'completed'].includes(order.status) 
+                                          ? 'text-emerald-600 dark:text-emerald-400' 
+                                          : 'text-rose-600 dark:text-rose-400'
+                                      }`}>
+                                        ₹{order.totalAmount}
+                                      </span>
+                                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] uppercase tracking-wide font-bold flex-shrink-0 ${
+                                        ['successfully_delivered', 'delivered', 'completed'].includes(order.status) 
+                                          ? 'bg-emerald-500/10 text-green-600 border border-emerald-500/20' 
+                                          : 'bg-red-500/10 text-red-600 border border-red-500/20'
+                                      }`}>
+                                        {['successfully_delivered', 'delivered', 'completed'].includes(order.status) ? 'Delivered' : 'Cancelled'}
+                                      </span>
+                                    </div>
                                   </td>
                                 </tr>
                               );
@@ -4980,7 +4982,7 @@ import 'leaflet/dist/leaflet.css';
                           value={newRiderName}
                           onChange={(e) => setNewRiderName(e.target.value)}
                           placeholder="e.g. Ramesh Kumar"
-                          className={`w-full border rounded-xl px-3.5 py-2 text-xs font-semibold focus:outline-none focus:border-cafe-amber ${
+                          className={`w-full border rounded-xl px-3.5 py-2 text-base font-semibold focus:outline-none focus:border-cafe-amber ${
                             theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-neutral-900 border-neutral-800 text-white'
                           }`}
                         />
@@ -4997,7 +4999,7 @@ import 'leaflet/dist/leaflet.css';
                           value={newRiderPhone}
                           onChange={(e) => setNewRiderPhone(e.target.value.replace(/\D/g, ''))}
                           placeholder="e.g. 9876543210"
-                          className={`w-full border rounded-xl px-3.5 py-2 text-xs font-semibold focus:outline-none focus:border-cafe-amber ${
+                          className={`w-full border rounded-xl px-3.5 py-2 text-base font-semibold focus:outline-none focus:border-cafe-amber ${
                             theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-neutral-900 border-neutral-800 text-white'
                           }`}
                         />
@@ -5023,7 +5025,7 @@ import 'leaflet/dist/leaflet.css';
                           value={newRiderPin}
                           onChange={(e) => setNewRiderPin(e.target.value.replace(/\D/g, ''))}
                           placeholder="6-digit PIN (e.g. 456789)"
-                          className={`w-full border rounded-xl px-3.5 py-2 text-xs font-mono font-bold tracking-widest text-center focus:outline-none focus:border-cafe-amber ${
+                          className={`w-full border rounded-xl px-3.5 py-2 text-base font-mono font-bold tracking-widest text-center focus:outline-none focus:border-cafe-amber ${
                             theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-neutral-900 border-neutral-800 text-white'
                           }`}
                         />
@@ -5109,7 +5111,7 @@ import 'leaflet/dist/leaflet.css';
                     <label className="block text-[10px] font-bold text-neutral-450 uppercase tracking-wider mb-2">GST Rate (%)</label>
                     <input
                       type="number" min="0" value={draftMenuSettings.gstRate ?? 0} onChange={e => handleGstChange(e.target.value)}
-                      className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cafe-amber font-sans font-bold ${
+                      className={`w-full border rounded-xl px-4 py-2.5 text-base focus:outline-none focus:border-cafe-amber font-sans font-bold ${
                         theme === 'light' ? 'bg-neutral-50 border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-800 text-white'
                       }`}
                     />
@@ -5118,7 +5120,7 @@ import 'leaflet/dist/leaflet.css';
                     <label className="block text-[10px] font-bold text-neutral-450 uppercase tracking-wider mb-2">Fixed Delivery Fee (₹)</label>
                     <input
                       type="number" min="0" value={draftMenuSettings.deliveryFee ?? 0} onChange={e => handleDeliveryFeeChange(e.target.value)}
-                      className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cafe-amber font-sans font-bold ${
+                      className={`w-full border rounded-xl px-4 py-2.5 text-base focus:outline-none focus:border-cafe-amber font-sans font-bold ${
                         theme === 'light' ? 'bg-neutral-50 border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-800 text-white'
                       }`}
                     />
@@ -5146,7 +5148,7 @@ import 'leaflet/dist/leaflet.css';
                           <input 
                             type="number" min="0" value={item.currentPrice ?? 0} 
                             onChange={e => handleItemPriceChange(item.name, e.target.value)}
-                            className={`w-full border rounded-lg p-1.5 text-center focus:outline-none focus:border-cafe-amber font-sans font-bold ${
+                            className={`w-full border rounded-lg p-1.5 text-center focus:outline-none focus:border-cafe-amber font-sans font-bold text-base ${
                               theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-800 text-white'
                             }`}
                           />
@@ -6815,7 +6817,7 @@ import 'leaflet/dist/leaflet.css';
                   <label className="block text-[10px] font-bold text-neutral-450 uppercase tracking-wider mb-2">Rider Name</label>
                   <input
                     name="riderNameInput" required type="text" defaultValue={riderName}
-                    className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cafe-amber ${
+                    className={`w-full border rounded-xl px-4 py-2.5 text-base focus:outline-none focus:border-cafe-amber ${
                       theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-808 text-white'
                     }`}
                   />
@@ -6857,7 +6859,7 @@ import 'leaflet/dist/leaflet.css';
                             <input
                               type="tel" placeholder="E.g., 9876543210" maxLength="10" inputMode="numeric"
                               value={newPhone} onChange={e => setNewPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                              className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cafe-amber ${
+                              className={`w-full border rounded-xl px-4 py-2.5 text-base focus:outline-none focus:border-cafe-amber ${
                                 theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
                               }`}
                             />
@@ -6867,7 +6869,7 @@ import 'leaflet/dist/leaflet.css';
                             <input
                               type="tel" placeholder="Re-enter new number" maxLength="10" inputMode="numeric"
                               value={confirmNewPhone} onChange={e => setConfirmNewPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                              className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-cafe-amber ${
+                              className={`w-full border rounded-xl px-4 py-2.5 text-base focus:outline-none focus:border-cafe-amber ${
                                 theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'
                               }`}
                             />
