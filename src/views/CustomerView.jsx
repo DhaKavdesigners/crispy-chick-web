@@ -404,7 +404,7 @@ const CheckoutFlowModal = ({ onClose, onSuccess }) => {
   const [confirmPhone, setConfirmPhone] = useState('');
   const [address, setAddress] = useState('');
   const [landmarks, setLandmarks] = useState('');
-  const [pinCode, setPinCode] = useState('563122');
+  const [pinCode, setPinCode] = useState('');
   const [gpsLocation, setGpsLocation] = useState(null);
   const [gpsLoading, setGpsLoading] = useState(false);
 
@@ -607,16 +607,16 @@ const CheckoutFlowModal = ({ onClose, onSuccess }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">KGF Area PIN</label>
-                  <select
+                  <label className="block text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-1">PIN Code</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="Enter 6-digit PIN"
                     value={pinCode}
-                    onChange={(e) => setPinCode(e.target.value)}
-                    className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-amber-500 focus:outline-none"
-                  >
-                    {KGF_PINS.map(pin => (
-                      <option key={pin} value={pin}>{pin} - {KGF_AREA_NAMES[pin]}</option>
-                    ))}
-                  </select>
+                    onChange={(e) => setPinCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-neutral-600 focus:border-amber-500 focus:outline-none"
+                  />
                 </div>
               </div>
 

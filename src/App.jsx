@@ -804,8 +804,44 @@ import 'leaflet/dist/leaflet.css';
 
       useEffect(() => {
         const unsubscribe = subscribeSettings((data) => {
-          setIsOpenOrdering(data.onlineOrderingWindow !== false);
+          const isExplicitlyOpen = data.onlineOrderingWindow !== false;
+          const lastPing = Number(data.kitchenLastHeartbeat || 0);
+          // If a heartbeat exists, kitchen device must have pinged within the last 75 seconds
+          const isKitchenFresh = lastPing > 0 ? (Date.now() - lastPing < 75000) : true;
+          const isReallyOpen = isExplicitlyOpen && isKitchenFresh;
+          setIsOpenOrdering(isReallyOpen);
+
+          // If store is marked open in DB but kitchen device has gone dark (>75s), auto-sync DB offline
+          if (isExplicitlyOpen && !isKitchenFresh && lastPing > 0) {
+            db.collection('settings').doc('global').set({
+              onlineOrderingWindow: false,
+              isKitchenDeviceActive: false,
+              lastHaltedBy: 'Auto-Offline (Kitchen Device Inactive > 75s)',
+              haltedAt: Date.now()
+            }, { merge: true }).catch(() => {});
+          }
         });
+
+        // Periodic watchdog: verifies kitchen device heartbeat every 15s
+        const presenceWatchdog = setInterval(() => {
+          db.collection('settings').doc('global').get().then(snap => {
+            if (snap.exists) {
+              const d = snap.data();
+              if (d.onlineOrderingWindow !== false) {
+                const lp = Number(d.kitchenLastHeartbeat || 0);
+                if (lp > 0 && (Date.now() - lp >= 75000)) {
+                  setIsOpenOrdering(false);
+                  db.collection('settings').doc('global').set({
+                    onlineOrderingWindow: false,
+                    isKitchenDeviceActive: false,
+                    lastHaltedBy: 'Auto-Offline (Heartbeat Expired > 75s)',
+                    haltedAt: Date.now()
+                  }, { merge: true }).catch(() => {});
+                }
+              }
+            }
+          }).catch(() => {});
+        }, 15000);
         
         const handleStorageChange = () => {
           const savedMenu = localStorage.getItem('crispy_menu_settings');
@@ -847,6 +883,7 @@ import 'leaflet/dist/leaflet.css';
         return () => {
           if (typeof unsubscribe === 'function') unsubscribe();
           if (typeof unsubMenuConfig === 'function') unsubMenuConfig();
+          clearInterval(presenceWatchdog);
           window.removeEventListener('storage', handleStorageChange);
         };
       }, []);
@@ -3193,7 +3230,7 @@ import 'leaflet/dist/leaflet.css';
                           </p>
                         )}
                         <p className="text-[10px] text-neutral-400">
-                          PIN Code: <span className="font-mono font-bold text-cafe-amber">{addr.pinCode}</span> (KGF, Karnataka)
+                          PIN Code: <span className="font-mono font-bold text-cafe-amber">{addr.pinCode}</span>
                         </p>
                       </div>
                     ))
@@ -3225,8 +3262,8 @@ import 'leaflet/dist/leaflet.css';
                   
                   <div className="space-y-2 text-[11px] leading-relaxed text-neutral-400">
                     <div>
-                      <strong className={theme === 'light' ? 'text-slate-800' : 'text-white'}>1. Local Delivery Radius:</strong>
-                      <p>Deliveries are strictly fulfilled within authorized KGF delivery PIN codes (563113 to 563122).</p>
+                      <strong className={theme === 'light' ? 'text-slate-800' : 'text-white'}>1. Doorstep Delivery:</strong>
+                      <p>Hot, crispy and fresh delivery fulfilled directly to your doorstep across all locations.</p>
                     </div>
                     <div>
                       <strong className={theme === 'light' ? 'text-slate-800' : 'text-white'}>2. Payment Policy:</strong>
@@ -3404,7 +3441,7 @@ import 'leaflet/dist/leaflet.css';
             const prevStatus = prevStatusesRef.current[order.id];
             if (prevStatus && prevStatus !== order.status) {
               statusChanged = true;
-              if (order.status === 'rejected') {
+              if (order.status === 'rejected' || order.status === 'cancelled') {
                 hasRejectionChange = true;
                 if (!seenRejectionsRef.current.has(order.id)) {
                   seenRejectionsRef.current.add(order.id);
@@ -3414,8 +3451,8 @@ import 'leaflet/dist/leaflet.css';
                 setRiderPopupOrder(order);
                 setShowRiderPopup(true);
               }
-            } else if (!prevStatus && order.status === 'rejected') {
-              // Newly detected rejected order on mount/refresh
+            } else if (!prevStatus && (order.status === 'rejected' || order.status === 'cancelled')) {
+              // Newly detected rejected/cancelled order on mount/refresh
               if (!seenRejectionsRef.current.has(order.id)) {
                 seenRejectionsRef.current.add(order.id);
                 setRejectedOrderPopup(order);
@@ -3430,6 +3467,31 @@ import 'leaflet/dist/leaflet.css';
             playSoulfulChime();
           }
         }
+      }, [activeOrders]);
+
+      // ─── 5-MINUTE AUTO-CANCELLATION WATCHDOG (CUSTOMER SIDE) ───
+      useEffect(() => {
+        const checkTimeouts = () => {
+          const now = Date.now();
+          activeOrders.forEach(order => {
+            if (order.status === 'pending') {
+              const created = order.createdAt?.toDate ? order.createdAt.toDate().getTime() : Number(order.createdAt || 0);
+              if (created > 0 && (now - created) >= 300000) {
+                console.warn(`[Auto-Timeout] Order #${order.displayId || order.id} reached 5-minute pending limit. Auto-cancelling.`);
+                db.collection('orders').doc(order.id).update({
+                  status: 'cancelled',
+                  cancellationReason: 'Restaurant is busy right now. Please order a few minutes later!',
+                  autoCancelledTimeout: true,
+                  cancelledAt: now
+                }).catch(() => {});
+              }
+            }
+          });
+        };
+
+        const timer = setInterval(checkTimeouts, 6000);
+        checkTimeouts();
+        return () => clearInterval(timer);
       }, [activeOrders]);
 
       const appendActiveOrder = (newOrder) => {
@@ -3505,7 +3567,31 @@ import 'leaflet/dist/leaflet.css';
                   <span className="font-semibold text-[10px] text-neutral-450 uppercase">{activeOrder.placementTime}</span>
                 </div>
 
-                <div className={activeOrder.status !== 'rejected' ? "w-full block mb-3" : "hidden"}>
+                {['rejected', 'cancelled'].includes(activeOrder.status) && (
+                  <div className="bg-rose-500/15 border border-rose-500/30 rounded-xl p-3 my-2 text-left flex items-start justify-between gap-2.5">
+                    <div>
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-rose-400">
+                        <span>⚠️</span>
+                        <span>{activeOrder.autoCancelledTimeout ? 'Restaurant Busy • Order Cancelled' : 'Order Cancelled'}</span>
+                      </div>
+                      <p className="text-[11px] text-neutral-300 mt-1 leading-snug">
+                        {activeOrder.cancellationReason || activeOrder.rejectionReason || "Restaurant is busy right now. Please order a few minutes later!"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        dismissOrder(activeOrder.id);
+                      }}
+                      className="px-2.5 py-1 bg-neutral-800 hover:bg-neutral-700 text-[10px] font-bold text-neutral-300 rounded-lg border border-neutral-700 flex-shrink-0 transition"
+                    >
+                      Dismiss ✕
+                    </button>
+                  </div>
+                )}
+
+                <div className={!['rejected', 'cancelled'].includes(activeOrder.status) ? "w-full block mb-3" : "hidden"}>
                   <div className="flex items-center justify-between relative mt-2 px-1">
                     <div className="absolute top-3 left-0 right-0 h-0.5 bg-neutral-800 z-0 rounded-full">
                       <div
@@ -3778,11 +3864,11 @@ import 'leaflet/dist/leaflet.css';
                 </div>
 
                 <h3 className="text-lg font-serif font-black text-white mb-2 leading-snug">
-                  Kitchen Currently Busy
+                  {rejectedOrderPopup.autoCancelledTimeout ? 'Restaurant Busy Right Now' : 'Kitchen Currently Busy'}
                 </h3>
 
                 <p className="text-xs text-neutral-300 leading-relaxed mb-3">
-                  {rejectedOrderPopup.rejectionReason || "We're truly sorry! Our Robertsonpet kitchen is currently experiencing high in-store walk-in volume and heavy order rush. To maintain high food freshness and avoid long delivery delays, we are unable to accept your order right now."}
+                  {rejectedOrderPopup.cancellationReason || rejectedOrderPopup.rejectionReason || "Restaurant is busy right now. Please order a few minutes later!"}
                 </p>
 
                 {rejectedOrderPopup.items && rejectedOrderPopup.items.length > 0 && (
@@ -3971,7 +4057,7 @@ import 'leaflet/dist/leaflet.css';
       const [showHaltConfirmModal, setShowHaltConfirmModal] = useState(false);
       const hasCheckedOfflineOnLoginRef = useRef(false);
 
-      // On initial login / mount of Shop Counter, check if shop is offline and alert owner
+      // On initial login / mount of Shop Counter, check if shop is offline and alert owner visually (NO TONES)
       useEffect(() => {
         if (hasCheckedOfflineOnLoginRef.current) return;
         if (window.location.hash !== '#/shop-counter') return;
@@ -3980,7 +4066,7 @@ import 'leaflet/dist/leaflet.css';
           if (!hasCheckedOfflineOnLoginRef.current && window.location.hash === '#/shop-counter') {
             hasCheckedOfflineOnLoginRef.current = true;
             if (isOpenOrdering === false) {
-              playOfflineAlertBeep();
+              // Notification popup only — no audio tones
               setShowOfflineAlertModal(true);
             }
           }
@@ -3988,6 +4074,67 @@ import 'leaflet/dist/leaflet.css';
 
         return () => clearTimeout(timer);
       }, [isOpenOrdering]);
+
+      // ─── KITCHEN PRESENCE HEARTBEAT & AUTOMATIC OFFLINE ON DISCONNECT / LEAVE ───
+      useEffect(() => {
+        // 1. Immediately ping Firestore to register this kitchen device as actively open
+        const sendHeartbeat = () => {
+          db.collection('settings').doc('global').set({
+            kitchenLastHeartbeat: Date.now(),
+            isKitchenDeviceActive: true
+          }, { merge: true }).catch(() => {});
+        };
+
+        sendHeartbeat();
+        const heartbeatTimer = setInterval(sendHeartbeat, 20000);
+
+        // 2. Automatically go offline when the kitchen window/tab is closed or link is cleared
+        const handleKitchenLeave = () => {
+          try {
+            db.collection('settings').doc('global').set({
+              onlineOrderingWindow: false,
+              isKitchenDeviceActive: false,
+              lastHaltedBy: 'Auto-Offline (Kitchen Device Closed / Link Cleared)',
+              haltedAt: Date.now()
+            }, { merge: true });
+          } catch (e) {}
+        };
+
+        window.addEventListener('beforeunload', handleKitchenLeave);
+        window.addEventListener('pagehide', handleKitchenLeave);
+
+        return () => {
+          clearInterval(heartbeatTimer);
+          window.removeEventListener('beforeunload', handleKitchenLeave);
+          window.removeEventListener('pagehide', handleKitchenLeave);
+          handleKitchenLeave();
+        };
+      }, []);
+
+      // ─── 5-MINUTE AUTO-CANCELLATION FOR UNATTENDED PENDING ORDERS ───
+      useEffect(() => {
+        const checkOrderTimeouts = () => {
+          const now = Date.now();
+          orders.forEach(order => {
+            if (order.status === 'pending') {
+              const createdTime = order.createdAt?.toDate ? order.createdAt.toDate().getTime() : Number(order.createdAt || 0);
+              if (createdTime > 0 && (now - createdTime) >= 300000) {
+                console.warn(`[Auto-Timeout] Order #${order.displayId || order.id} reached 5-minute pending limit without acceptance. Auto-cancelling.`);
+                db.collection('orders').doc(order.id).update({
+                  status: 'cancelled',
+                  cancellationReason: 'Restaurant is busy right now. Please order a few minutes later!',
+                  autoCancelledTimeout: true,
+                  cancelledAt: now
+                }).catch(err => console.error("Auto-cancel order failed:", err));
+              }
+            }
+          });
+        };
+
+        const timeoutTimer = setInterval(checkOrderTimeouts, 8000);
+        checkOrderTimeouts();
+        return () => clearInterval(timeoutTimer);
+      }, [orders]);
 
       // In-Counter Rider Management State
       const [showAddRider, setShowAddRider] = useState(false);
@@ -4231,7 +4378,7 @@ import 'leaflet/dist/leaflet.css';
 
       const onlineRiders = fleetRiders.filter(r => r.isOnline === true);
       const activeOrdersList = orders.filter(o => ['pending', 'preparing', 'prepared', 'out_for_delivery', 'arrived'].includes(o.status));
-      const archivedOrdersList = orders.filter(o => ['successfully_delivered', 'delivered', 'completed', 'rejected'].includes(o.status));
+      const archivedOrdersList = orders.filter(o => ['successfully_delivered', 'delivered', 'completed', 'rejected', 'cancelled'].includes(o.status));
 
       // Live Rider Status & Assignment Computation
       const getRiderStatus = (rider) => {
@@ -4495,6 +4642,49 @@ import 'leaflet/dist/leaflet.css';
               </button>
             </div>
           </div>
+
+          {/* ─── PROMINENT VISUAL OFFLINE STATUS BANNER (NO TONES) ─── */}
+          {!isOpenOrdering && (
+            <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 via-rose-500/15 to-amber-500/20 border border-amber-500/40 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-fadeIn">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 text-xl flex-shrink-0">
+                  ⚠️
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest bg-red-600 text-white px-2 py-0.5 rounded-md shadow-sm">
+                      Store Offline
+                    </span>
+                    <span className={`text-xs font-extrabold ${theme === 'light' ? 'text-amber-900' : 'text-amber-300'}`}>
+                      Orders Paused — Customers Cannot Place Orders
+                    </span>
+                  </div>
+                  <p className={`text-[11px] mt-1 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-300'}`}>
+                    The store is currently offline. Tap the green button to switch online and start receiving customer orders immediately!
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await updateSettings({
+                      onlineOrderingWindow: true,
+                      kitchenLastHeartbeat: Date.now(),
+                      isKitchenDeviceActive: true
+                    });
+                  } catch (err) {
+                    console.error("Failed to turn store online:", err);
+                  }
+                }}
+                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 transition-all active:scale-95 flex-shrink-0"
+              >
+                <i data-lucide="power" className="w-4 h-4"></i>
+                <span>Switch Online & Receive Orders</span>
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20 lg:pb-8">
             
