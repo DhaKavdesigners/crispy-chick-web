@@ -4,6 +4,54 @@ import 'firebase/compat/firestore';
 import 'firebase/compat/auth';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import {
+  Sun, Moon, UserCircle, LogIn, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
+  Trash2, ArrowRight, ArrowLeft, X, Home, Briefcase, MapPin, Plus, CheckCircle,
+  Package, MessageCircle, Info, LogOut, Mail, Bike, Phone, Unlock, Lock,
+  Power, ShieldAlert, AlertTriangle, BellRing, User, Navigation, QrCode, HelpCircle
+} from 'lucide-react';
+
+const ICON_MAP = {
+  'sun': Sun,
+  'moon': Moon,
+  'user-circle': UserCircle,
+  'log-in': LogIn,
+  'chevron-down': ChevronDown,
+  'chevron-up': ChevronUp,
+  'chevron-left': ChevronLeft,
+  'chevron-right': ChevronRight,
+  'trash-2': Trash2,
+  'arrow-right': ArrowRight,
+  'arrow-left': ArrowLeft,
+  'x': X,
+  'home': Home,
+  'briefcase': Briefcase,
+  'map-pin': MapPin,
+  'plus': Plus,
+  'check-circle': CheckCircle,
+  'package': Package,
+  'message-circle': MessageCircle,
+  'info': Info,
+  'log-out': LogOut,
+  'mail': Mail,
+  'bike': Bike,
+  'phone': Phone,
+  'unlock': Unlock,
+  'lock': Lock,
+  'power': Power,
+  'shield-alert': ShieldAlert,
+  'alert-triangle': AlertTriangle,
+  'bell-ring': BellRing,
+  'user': User,
+  'navigation': Navigation,
+  'qr-code': QrCode
+};
+
+const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
+  const IconComp = ICON_MAP[name] || HelpCircle;
+  return <IconComp className={className} {...props} />;
+};
+
 
 
     
@@ -742,7 +790,7 @@ import 'leaflet/dist/leaflet.css';
     // App State Configuration Provider
     const AppProvider = ({ children }) => {
       const [tray, setTray] = useState([]);
-      const [isOpenOrdering, setIsOpenOrdering] = useState(true);
+      const [isOpenOrdering, setIsOpenOrdering] = useState(false);
       const [floatingItems, setFloatingItems] = useState([]);
       const [theme, setTheme] = useState(() => {
         return localStorage.getItem('crispy_theme_settings') || 'dark';
@@ -807,7 +855,7 @@ import 'leaflet/dist/leaflet.css';
           const isExplicitlyOpen = data.onlineOrderingWindow !== false;
           const lastPing = Number(data.kitchenLastHeartbeat || 0);
           // If a heartbeat exists, kitchen device must have pinged within the last 75 seconds
-          const isKitchenFresh = lastPing > 0 ? (Date.now() - lastPing < 75000) : true;
+          const isKitchenFresh = lastPing > 0 && (Date.now() - lastPing < 75000);
           const isReallyOpen = isExplicitlyOpen && isKitchenFresh;
           setIsOpenOrdering(isReallyOpen);
 
@@ -1017,10 +1065,6 @@ import 'leaflet/dist/leaflet.css';
     const TopBar = ({ onSignInClick, onProfileClick }) => {
       const { theme, toggleTheme, currentUser, isOpenOrdering } = useContext(AppContext);
 
-      useEffect(() => {
-        if (window.lucide) window.lucide.createIcons();
-      }, [theme, currentUser, isOpenOrdering]);
-
       return (
         <header className={`flex items-center justify-between px-4 sm:px-6 py-3 sticky top-0 z-30 transition-colors duration-300 backdrop-blur-md ${
           theme === 'light' ? 'bg-white/95 border-b border-red-100 shadow-sm' : 'bg-cafe-card/95 border-b border-neutral-800 shadow-md'
@@ -1029,16 +1073,13 @@ import 'leaflet/dist/leaflet.css';
           <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
             <img src="./logo_rm_bg.png" className="h-10 sm:h-11 w-auto object-contain flex-shrink-0 drop-shadow-sm" alt="Crispy Chick Logo" />
             <div className="min-w-0">
-              <h1 className={`font-sans font-black text-base sm:text-lg tracking-tight flex items-center whitespace-nowrap leading-none transition-colors duration-300 ${
-                theme === 'light' ? 'text-red-600' : 'text-white'
-              }`}>
-                Crispy Chick
-              </h1>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className={`text-[9.5px] font-bold uppercase tracking-wider ${theme === 'light' ? 'text-slate-400' : 'text-neutral-400'}`}>
-                  Taste The Real Crunch
-                </span>
-                <span className={`text-[8.5px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-tight flex items-center gap-1 ${
+              <div className="flex items-center gap-2">
+                <h1 className={`font-sans font-black text-base sm:text-lg tracking-tight whitespace-nowrap leading-none transition-colors duration-300 ${
+                  theme === 'light' ? 'text-red-600' : 'text-white'
+                }`}>
+                  Crispy Chick
+                </h1>
+                <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-tight flex items-center gap-1.5 shadow-xs ${
                   isOpenOrdering 
                     ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' 
                     : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'
@@ -1047,6 +1088,9 @@ import 'leaflet/dist/leaflet.css';
                   {isOpenOrdering ? 'Open' : 'Closed'}
                 </span>
               </div>
+              <p className={`text-[9.5px] font-bold uppercase tracking-wider mt-1 ${theme === 'light' ? 'text-slate-400' : 'text-neutral-400'}`}>
+                Taste The Real Crunch
+              </p>
             </div>
           </div>
           
@@ -1061,8 +1105,8 @@ import 'leaflet/dist/leaflet.css';
               }`}
               title="Toggle theme"
             >
-              <i data-lucide="sun" className={theme === 'dark' ? "w-4 h-4 block" : "hidden"}></i>
-              <i data-lucide="moon" className={theme === 'light' ? "w-4 h-4 block" : "hidden"}></i>
+              <SafeIcon name="sun" className={theme === 'dark' ? "w-4 h-4 block" : "hidden"} />
+              <SafeIcon name="moon" className={theme === 'light' ? "w-4 h-4 block" : "hidden"} />
             </button>
 
             {/* Customer Profile (logged in) or Sign In (guest) */}
@@ -1075,7 +1119,7 @@ import 'leaflet/dist/leaflet.css';
               }`}
               title={currentUser ? `Profile: ${currentUser.name}` : "Sign In"}
             >
-              <i data-lucide={currentUser ? "user-circle" : "log-in"} className="w-3.5 h-3.5"></i>
+              <SafeIcon name={currentUser ? "user-circle" : "log-in"} className="w-3.5 h-3.5" />
               <span>{currentUser
                 ? ('Hi, ' + (currentUser.name ? currentUser.name.split(' ')[0] : currentUser.phone))
                 : 'Sign In'
@@ -1295,10 +1339,6 @@ import 'leaflet/dist/leaflet.css';
       const { tray, changeQty, trayCount, traySubtotal, gstAmount, trayTotal, removeFromTray, theme, getActivePrice, menuSettings, deliveryFee, isOpenOrdering } = useContext(AppContext);
       const [isOpen, setIsOpen] = useState(false);
 
-      useEffect(() => {
-        if (window.lucide) window.lucide.createIcons();
-      }, [isOpen, tray, theme, isOpenOrdering]);
-
       return (
         <div className={(tray.length > 0 && isOpenOrdering) ? "block" : "hidden"}>
           {/* Backdrop Blur overlay when drawer is open */}
@@ -1337,7 +1377,7 @@ import 'leaflet/dist/leaflet.css';
               </div>
               <div className="flex items-center space-x-3">
                 <span className="text-lg sm:text-xl font-black text-white font-sans">₹{trayTotal}</span>
-                <i data-lucide={isOpen ? "chevron-down" : "chevron-up"} className="w-5 h-5 text-white"></i>
+                <SafeIcon name={isOpen ? "chevron-down" : "chevron-up"} className="w-5 h-5 text-white" />
               </div>
             </div>
 
@@ -1369,7 +1409,7 @@ import 'leaflet/dist/leaflet.css';
                         className="ml-1 text-red-300 hover:text-white transition"
                         title="Remove item"
                       >
-                        <i data-lucide="trash-2" className="w-4 h-4"></i>
+                        <SafeIcon name="trash-2" className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -1405,7 +1445,7 @@ import 'leaflet/dist/leaflet.css';
                 }`}
               >
                 <span>{isOpenOrdering ? `PROCEED TO CHECKOUT (₹${trayTotal})` : 'STORE IS CURRENTLY CLOSED'}</span>
-                {isOpenOrdering && <i data-lucide="arrow-right" className="w-4 h-4 text-red-600 stroke-[3]"></i>}
+                {isOpenOrdering && <SafeIcon name="arrow-right" className="w-4 h-4 text-red-600 stroke-[3]" />}
               </button>
             </div>
           </div>
@@ -1738,7 +1778,6 @@ import 'leaflet/dist/leaflet.css';
             }).catch(()=>{});
           }
         }
-        if (window.lucide) window.lucide.createIcons();
       }, [isOpen, currentUser]);
 
       const triggerClose = () => {
@@ -2235,7 +2274,7 @@ import 'leaflet/dist/leaflet.css';
                 } ${step !== 'success' ? 'block' : 'hidden'}`}
                 title="Close"
               >
-                <i data-lucide="x" className="w-5 h-5"></i>
+                <SafeIcon name="x" className="w-5 h-5" />
               </button>
             </div>
 
@@ -2382,10 +2421,10 @@ import 'leaflet/dist/leaflet.css';
                         }}
                         className={`absolute top-3 right-3 p-1 rounded-full ${theme === 'light' ? 'hover:bg-slate-200 text-slate-400 hover:text-red-500' : 'hover:bg-neutral-800 text-neutral-500 hover:text-red-400'} transition`}
                       >
-                        <i data-lucide="x" className="w-4 h-4"></i>
+                        <SafeIcon name="x" className="w-4 h-4" />
                       </button>
                       <div className="flex items-center gap-2 mb-1.5">
-                        <i data-lucide={addr.title.toLowerCase().includes('home') ? 'home' : addr.title.toLowerCase().includes('work') || addr.title.toLowerCase().includes('office') ? 'briefcase' : 'map-pin'} className={`w-4 h-4 ${selectedAddressId === addr.id ? 'text-cafe-amber' : (theme === 'light' ? 'text-slate-500' : 'text-neutral-400')}`}></i>
+                        <SafeIcon name={addr.title.toLowerCase().includes('home') ? 'home' : addr.title.toLowerCase().includes('work') || addr.title.toLowerCase().includes('office') ? 'briefcase' : 'map-pin'} className={`w-4 h-4 ${selectedAddressId === addr.id ? 'text-cafe-amber' : (theme === 'light' ? 'text-slate-500' : 'text-neutral-400')}`} />
                         <span className={`font-bold text-xs uppercase tracking-wider ${selectedAddressId === addr.id ? 'text-cafe-amber' : (theme === 'light' ? 'text-slate-700' : 'text-neutral-300')}`}>{addr.title}</span>
                       </div>
                       <p className={`text-xs mt-2 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>{addr.addressDetails}</p>
@@ -2602,7 +2641,7 @@ import 'leaflet/dist/leaflet.css';
                             : 'border-neutral-700 text-neutral-300 hover:bg-neutral-900 hover:border-neutral-500'
                         }`}
                       >
-                        <i data-lucide="plus" className="w-3.5 h-3.5"></i>
+                        <SafeIcon name="plus" className="w-3.5 h-3.5" />
                         <span>Add Address</span>
                       </button>
                     </div>
@@ -2634,7 +2673,7 @@ import 'leaflet/dist/leaflet.css';
                     <div className={`p-4 rounded-xl border space-y-3 ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900 border-neutral-800'}`}>
                       <div className="flex justify-between items-center mb-2">
                         <h5 className={`text-xs font-bold uppercase tracking-wider ${theme === 'light' ? 'text-slate-700' : 'text-white'}`}>New Address</h5>
-                        <button type="button" onClick={() => setShowAddAddress(false)} className="text-neutral-500 hover:text-red-400"><i data-lucide="x" className="w-4 h-4"></i></button>
+                        <button type="button" onClick={() => setShowAddAddress(false)} className="text-neutral-500 hover:text-red-400"><SafeIcon name="x" className="w-4 h-4" /></button>
                       </div>
                       <input type="text" placeholder="Title (e.g. Home, Office)" value={newAddressTitle} onChange={e => setNewAddressTitle(e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-base focus:outline-none focus:border-cafe-amber ${theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'}`} />
                       <input type="text" placeholder="House No, Building Name" value={newAddressDetails} onChange={e => setNewAddressDetails(e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-base focus:outline-none focus:border-cafe-amber ${theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-black border-neutral-700 text-white'}`} />
@@ -2826,7 +2865,7 @@ import 'leaflet/dist/leaflet.css';
             <div className={step === 'success' ? 'block' : 'hidden'}>
               <div className="text-center space-y-5 py-4">
                 <div className="w-16 h-16 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-inner border border-emerald-500/30">
-                  <i data-lucide="check-circle" className="w-10 h-10"></i>
+                  <SafeIcon name="check-circle" className="w-10 h-10" />
                 </div>
                 <div className="space-y-2">
                   <h4 className="text-base font-bold">{!isOrderPlaced ? 'Profile Registered! 🎉' : '✅ Order Placed Successfully!'}</h4>
@@ -2951,10 +2990,6 @@ import 'leaflet/dist/leaflet.css';
         return () => unsub();
       }, [isOpen, currentUser?.phone]);
 
-      useEffect(() => {
-        if (window.lucide) window.lucide.createIcons();
-      }, [isOpen, activeTab, orderHistory, savedAddresses, theme]);
-
       const handleDeleteAddress = async (addressId) => {
         if (!currentUser?.phone) return;
         if (!window.confirm("Remove this saved address from your profile?")) return;
@@ -2992,7 +3027,7 @@ import 'leaflet/dist/leaflet.css';
             <div className={`flex items-center justify-between pb-3 border-b ${theme === 'light' ? 'border-slate-200' : 'border-neutral-800'}`}>
               {activeTab === 'hub' ? (
                 <h3 className="text-base font-bold font-serif flex items-center space-x-2">
-                  <i data-lucide="user-circle" className="w-5 h-5 text-cafe-amber"></i>
+                  <SafeIcon name="user-circle" className="w-5 h-5 text-cafe-amber" />
                   <span>My Profile</span>
                 </h3>
               ) : (
@@ -3000,12 +3035,12 @@ import 'leaflet/dist/leaflet.css';
                   onClick={() => setActiveTab('hub')}
                   className="flex items-center gap-1.5 text-xs font-bold text-cafe-amber hover:underline"
                 >
-                  <i data-lucide="arrow-left" className="w-4 h-4"></i>
+                  <SafeIcon name="arrow-left" className="w-4 h-4" />
                   <span>Back to Profile</span>
                 </button>
               )}
               <button onClick={onClose} className="text-neutral-500 hover:text-white transition p-1">
-                <i data-lucide="x" className="w-5 h-5"></i>
+                <SafeIcon name="x" className="w-5 h-5" />
               </button>
             </div>
 
@@ -3038,7 +3073,7 @@ import 'leaflet/dist/leaflet.css';
                     }`}
                   >
                     <div className="w-10 h-10 rounded-full bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
-                      <i data-lucide="package" className="w-5 h-5"></i>
+                      <SafeIcon name="package" className="w-5 h-5" />
                     </div>
                     <div>
                       <h4 className="font-bold text-xs tracking-tight">My Orders</h4>
@@ -3058,7 +3093,7 @@ import 'leaflet/dist/leaflet.css';
                     }`}
                   >
                     <div className="w-10 h-10 rounded-full bg-blue-500/15 text-blue-400 flex items-center justify-center">
-                      <i data-lucide="map-pin" className="w-5 h-5"></i>
+                      <SafeIcon name="map-pin" className="w-5 h-5" />
                     </div>
                     <div>
                       <h4 className="font-bold text-xs tracking-tight">Saved Addresses</h4>
@@ -3078,7 +3113,7 @@ import 'leaflet/dist/leaflet.css';
                     }`}
                   >
                     <div className="w-10 h-10 rounded-full bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
-                      <i data-lucide="message-circle" className="w-5 h-5"></i>
+                      <SafeIcon name="message-circle" className="w-5 h-5" />
                     </div>
                     <div>
                       <h4 className="font-bold text-xs tracking-tight">Help & Support</h4>
@@ -3096,7 +3131,7 @@ import 'leaflet/dist/leaflet.css';
                     }`}
                   >
                     <div className="w-10 h-10 rounded-full bg-purple-500/15 text-purple-400 flex items-center justify-center">
-                      <i data-lucide="info" className="w-5 h-5"></i>
+                      <SafeIcon name="info" className="w-5 h-5" />
                     </div>
                     <div>
                       <h4 className="font-bold text-xs tracking-tight">About & Policies</h4>
@@ -3111,7 +3146,7 @@ import 'leaflet/dist/leaflet.css';
                     onClick={handleSignOut}
                     className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold text-xs rounded-xl border border-red-500/20 transition flex items-center justify-center space-x-2"
                   >
-                    <i data-lucide="log-out" className="w-4 h-4"></i>
+                    <SafeIcon name="log-out" className="w-4 h-4" />
                     <span>Sign Out</span>
                   </button>
                 </div>
@@ -3250,7 +3285,7 @@ import 'leaflet/dist/leaflet.css';
                             className="text-red-400 hover:text-red-500 p-1 transition"
                             title="Delete Address"
                           >
-                            <i data-lucide="trash-2" className="w-3.5 h-3.5"></i>
+                            <SafeIcon name="trash-2" className="w-3.5 h-3.5" />
                           </button>
                         </div>
                         <p className={`text-[11px] leading-snug ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>
@@ -3337,13 +3372,13 @@ import 'leaflet/dist/leaflet.css';
                       }`}
                       title="contact.dhakavdesigners@gmail.com"
                     >
-                      <i data-lucide="mail" className="w-3.5 h-3.5"></i>
+                      <SafeIcon name="mail" className="w-3.5 h-3.5" />
                     </a>
                     <button
                       onClick={() => window.open('https://wa.me/919035733573?text=Hi%20DhaKav%20Designers%2C%20I%20have%20an%20inquiry', '_blank')}
                       className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25 text-[10px] font-bold transition flex items-center gap-1"
                     >
-                      <i data-lucide="message-circle" className="w-3 h-3"></i>
+                      <SafeIcon name="message-circle" className="w-3 h-3" />
                       <span>WhatsApp</span>
                     </button>
                   </div>
@@ -3554,10 +3589,6 @@ import 'leaflet/dist/leaflet.css';
         updateActiveOrderIds(next);
       };
 
-      useEffect(() => {
-        if (window.lucide) window.lucide.createIcons();
-      }, [isCheckoutOpen, isProfileOpen, theme, activeOrders, isRiderPopupOpen, activeCategory, showRiderPopup]);
-
       const [isDesktopModeOnMobile, setIsDesktopModeOnMobile] = useState(false);
 
       useEffect(() => {
@@ -3637,7 +3668,7 @@ import 'leaflet/dist/leaflet.css';
               <div key={activeOrder.id} className="px-4 py-3 bg-neutral-900/90 border-b border-amber-600/20 text-white space-y-2">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center space-x-2">
-                    <i data-lucide="bike" className="w-4 h-4 text-cafe-amber flex-shrink-0"></i>
+                    <SafeIcon name="bike" className="w-4 h-4 text-cafe-amber flex-shrink-0" />
                     <span className="font-bold text-xs text-cafe-amber">Order #{activeOrder.displayId || (activeOrder.id ? String(activeOrder.id).slice(-4) : '----').toUpperCase()}</span>
                   </div>
                   <span className="font-semibold text-[10px] text-neutral-450 uppercase">{activeOrder.placementTime}</span>
@@ -3725,7 +3756,7 @@ import 'leaflet/dist/leaflet.css';
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner ${
                         activeOrder.status === 'arrived' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-cafe-amber/20 text-cafe-amber'
                       }`}>
-                        <i data-lucide={activeOrder.status === 'arrived' ? "map-pin" : "bike"} className="w-5 h-5"></i>
+                        <SafeIcon name={activeOrder.status === 'arrived' ? "map-pin" : "bike"} className="w-5 h-5" />
                       </div>
                       <div>
                         <h3 className={`font-serif font-bold text-sm mb-0.5 ${activeOrder.status === 'arrived' ? 'text-emerald-400' : 'text-cafe-amber'}`}>
@@ -3745,7 +3776,7 @@ import 'leaflet/dist/leaflet.css';
                       href={activeOrder.riderPhone ? `tel:${activeOrder.riderPhone}` : '#'}
                       className={`px-3 py-2 bg-cafe-amber text-cafe-black font-extrabold rounded-lg text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition-colors ${activeOrder.riderPhone ? 'hover:bg-amber-400' : 'pointer-events-none opacity-50'}`}
                     >
-                      <i data-lucide="phone" className="w-3.5 h-3.5"></i>
+                      <SafeIcon name="phone" className="w-3.5 h-3.5" />
                       <span>Call Rider</span>
                     </a>
                   </div>
@@ -4052,10 +4083,6 @@ import 'leaflet/dist/leaflet.css';
         }
       };
 
-      useEffect(() => {
-        if (window.lucide) window.lucide.createIcons();
-      }, [error, showPassword]);
-
       return (
         <div className="min-h-screen bg-cafe-black flex items-center justify-center p-6 relative font-sans">
           <div className="fixed inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-amber-955 via-neutral-950 to-neutral-950 pointer-events-none z-0"></div>
@@ -4116,7 +4143,7 @@ import 'leaflet/dist/leaflet.css';
               >
                 <div className={`w-5 h-5 border-2 border-cafe-black border-t-transparent rounded-full animate-spin ${loading ? 'block' : 'hidden'}`}></div>
                 <span className={!loading ? 'inline-block' : 'hidden'}>UNLOCK DASHBOARD</span>
-                <i data-lucide="unlock" className={`w-4 h-4 stroke-[3] ${!loading ? 'inline-block' : 'hidden'}`}></i>
+                <SafeIcon name="unlock" className={`w-4 h-4 stroke-[3] ${!loading ? 'inline-block' : 'hidden'}`} />
               </button>
             </form>
           </div>
@@ -4646,10 +4673,6 @@ import 'leaflet/dist/leaflet.css';
         }
       };
 
-      useEffect(() => {
-        if (window.lucide) window.lucide.createIcons();
-      }, [orders, menuSettings, draftMenuSettings, isMenuDirty, theme, fleetRiders, showAddRider, showOfflineAlertModal, showHaltConfirmModal]);
-
       const catalogList = [];
       Object.keys(MENU_CATALOG).forEach(cat => {
         MENU_CATALOG[cat].forEach(item => {
@@ -4721,8 +4744,8 @@ import 'leaflet/dist/leaflet.css';
                 }`}
                 title="Toggle Theme"
               >
-                <i data-lucide="sun" className={theme === 'dark' ? "w-4 h-4 block" : "hidden"}></i>
-                <i data-lucide="moon" className={theme === 'light' ? "w-4 h-4 block" : "hidden"}></i>
+                <SafeIcon name="sun" className={theme === 'dark' ? "w-4 h-4 block" : "hidden"} />
+                <SafeIcon name="moon" className={theme === 'light' ? "w-4 h-4 block" : "hidden"} />
               </button>
 
               <button
@@ -4730,7 +4753,7 @@ import 'leaflet/dist/leaflet.css';
                 className="bg-neutral-805 hover:bg-neutral-700 text-xs font-bold px-3 py-2 rounded-xl border border-neutral-700 transition flex items-center gap-1.5 text-neutral-300"
                 title="Sign Out"
               >
-                <i data-lucide="log-out" className="w-3.5 h-3.5 text-red-400"></i>
+                <SafeIcon name="log-out" className="w-3.5 h-3.5 text-red-400" />
                 <span className="hidden sm:inline">Sign Out</span>
               </button>
             </div>
@@ -4773,7 +4796,7 @@ import 'leaflet/dist/leaflet.css';
                 }}
                 className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 transition-all active:scale-95 flex-shrink-0"
               >
-                <i data-lucide="power" className="w-4 h-4"></i>
+                <SafeIcon name="power" className="w-4 h-4" />
                 <span>Switch Online & Receive Orders</span>
               </button>
             </div>
@@ -5620,7 +5643,7 @@ import 'leaflet/dist/leaflet.css';
               }`}>
                 <div className="flex items-start gap-3.5">
                   <div className="w-12 h-12 rounded-2xl bg-red-500/20 text-red-500 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="shield-alert" className="w-6 h-6"></i>
+                    <SafeIcon name="shield-alert" className="w-6 h-6" />
                   </div>
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-red-400 bg-red-950/60 px-2 py-0.5 rounded border border-red-800/50">
@@ -5637,7 +5660,7 @@ import 'leaflet/dist/leaflet.css';
                   theme === 'light' ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-amber-950/30 border-amber-800/40 text-amber-200'
                 }`}>
                   <div className="font-bold flex items-center gap-1.5">
-                    <i data-lucide="alert-triangle" className="w-4 h-4 text-amber-400"></i>
+                    <SafeIcon name="alert-triangle" className="w-4 h-4 text-amber-400" />
                     Prevent Accidental Store Shutdown
                   </div>
                   <p className="text-[11px] opacity-90">
@@ -5665,7 +5688,7 @@ import 'leaflet/dist/leaflet.css';
                     }}
                     className="flex-1 py-3 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs shadow-lg shadow-red-900/40 transition flex items-center justify-center gap-1.5"
                   >
-                    <i data-lucide="power" className="w-4 h-4"></i>
+                    <SafeIcon name="power" className="w-4 h-4" />
                     Yes, Go Offline
                   </button>
                 </div>
@@ -5681,7 +5704,7 @@ import 'leaflet/dist/leaflet.css';
               }`}>
                 <div className="flex items-start gap-3.5">
                   <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 animate-pulse">
-                    <i data-lucide="bell-ring" className="w-6 h-6"></i>
+                    <SafeIcon name="bell-ring" className="w-6 h-6" />
                   </div>
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-700/50">
@@ -5698,7 +5721,7 @@ import 'leaflet/dist/leaflet.css';
                   theme === 'light' ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-emerald-950/30 border-emerald-800/40 text-emerald-200'
                 }`}>
                   <div className="font-bold flex items-center gap-1.5 text-emerald-400">
-                    <i data-lucide="check-circle" className="w-4 h-4"></i>
+                    <SafeIcon name="check-circle" className="w-4 h-4" />
                     Start Accepting Customer Orders
                   </div>
                   <p className="text-[11px] opacity-90">
@@ -5720,7 +5743,7 @@ import 'leaflet/dist/leaflet.css';
                     }}
                     className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-900/40 transition flex items-center justify-center gap-2"
                   >
-                    <i data-lucide="power" className="w-4 h-4"></i>
+                    <SafeIcon name="power" className="w-4 h-4" />
                     Turn Store ONLINE Now
                   </button>
                   <button
@@ -6166,10 +6189,6 @@ import 'leaflet/dist/leaflet.css';
         }
       };
 
-      useEffect(() => {
-        if (window.lucide) window.lucide.createIcons();
-      }, [orders, otpInputs, theme, rideSafeToast, isProfileOpen, qrModalOrder, showOfflineModal]);
-
       const activeJobs = orders.filter(o => (o.assignedRider === activeRiderProfile || o.pickedUpBy === activeRiderProfile) && ['preparing', 'prepared', 'out_for_delivery', 'arrived'].includes(o.status));
       const completedJobs = orders.filter(o => (o.assignedRider === activeRiderProfile || o.pickedUpBy === activeRiderProfile) && ['successfully_delivered', 'delivered', 'completed', 'rejected', 'cancelled'].includes(o.status));
 
@@ -6419,8 +6438,8 @@ import 'leaflet/dist/leaflet.css';
                       : 'bg-white border-slate-200 text-cafe-crispy shadow-sm'
                   }`}
                 >
-                  <i data-lucide="sun" className={theme === 'dark' ? "w-4 h-4 block" : "hidden"}></i>
-                  <i data-lucide="moon" className={theme === 'light' ? "w-4 h-4 block" : "hidden"}></i>
+                  <SafeIcon name="sun" className={theme === 'dark' ? "w-4 h-4 block" : "hidden"} />
+                  <SafeIcon name="moon" className={theme === 'light' ? "w-4 h-4 block" : "hidden"} />
                 </button>
 
                 <button
@@ -6432,7 +6451,7 @@ import 'leaflet/dist/leaflet.css';
                   }`}
                   title="View Profile"
                 >
-                  <i data-lucide="user-circle" className="w-3.5 h-3.5"></i>
+                  <SafeIcon name="user-circle" className="w-3.5 h-3.5" />
                   <span>Profile ({riderName || 'Rider'})</span>
                   {riderRatingCount > 0 && (
                     <span className="bg-amber-500/20 text-amber-400 text-[10px] px-1.5 py-0.5 rounded-md font-black ml-0.5">
@@ -6682,7 +6701,7 @@ import 'leaflet/dist/leaflet.css';
                                     href={`tel:${order.recipientPhone}`}
                                     className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-black text-xs flex items-center gap-1.5 shadow"
                                   >
-                                    <i data-lucide="phone" className="w-3.5 h-3.5"></i>
+                                    <SafeIcon name="phone" className="w-3.5 h-3.5" />
                                     <span>Call Recipient</span>
                                   </a>
                                 </div>
@@ -6690,13 +6709,13 @@ import 'leaflet/dist/leaflet.css';
                             )}
 
                             <div className="flex items-center space-x-2">
-                              <i data-lucide="user" className="w-4 h-4 text-neutral-500"></i>
+                              <SafeIcon name="user" className="w-4 h-4 text-neutral-500" />
                               <span className={`font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
                                 {order.orderedForSomeoneElse ? `Ordered by: ${order.customerName}` : order.customerName}
                               </span>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <i data-lucide="phone" className="w-4 h-4 text-neutral-500"></i>
+                              <SafeIcon name="phone" className="w-4 h-4 text-neutral-500" />
                               <a href={`tel:${order.customerPhone}`} className="text-red-600 dark:text-amber-400 hover:underline font-bold font-sans">
                                 {order.customerPhone}
                               </a>
@@ -6707,7 +6726,7 @@ import 'leaflet/dist/leaflet.css';
                               theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900 border-neutral-800'
                             }`}>
                               <div className="flex items-center gap-1.5 font-bold text-xs">
-                                <i data-lucide="map-pin" className="w-3.5 h-3.5 text-red-600 dark:text-amber-400"></i>
+                                <SafeIcon name="map-pin" className="w-3.5 h-3.5 text-red-600 dark:text-amber-400" />
                                 <span className="uppercase text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300 font-black">
                                   {order.destinationType === 'map_pin' ? '📍 MAP PINPOINT' : (order.addressTitle || (order.destinationType === 'live_gps' ? 'Live GPS' : 'Delivery Address'))}
                                 </span>
@@ -6747,7 +6766,7 @@ import 'leaflet/dist/leaflet.css';
                                   : 'bg-neutral-800 hover:bg-neutral-700 border-neutral-700'
                               }`}
                             >
-                              <i data-lucide="navigation" className="w-4 h-4 text-red-500 dark:text-amber-400"></i>
+                              <SafeIcon name="navigation" className="w-4 h-4 text-red-500 dark:text-amber-400" />
                               <span>
                                 {order.destinationType === 'map_pin' && order.gpsLat != null
                                   ? 'NAVIGATE TO MAP PINPOINT 📍'
@@ -6844,13 +6863,13 @@ import 'leaflet/dist/leaflet.css';
                         }`}
                         title="Close QR"
                       >
-                        <i data-lucide="x" className="w-4 h-4"></i>
+                        <SafeIcon name="x" className="w-4 h-4" />
                       </button>
 
                       {/* Header */}
                       <div className="text-center space-y-1 pt-1">
                         <div className="w-12 h-12 bg-indigo-500/15 text-indigo-500 dark:text-indigo-400 rounded-full flex items-center justify-center mx-auto shadow-inner border border-indigo-500/20">
-                          <i data-lucide="qr-code" className="w-6 h-6"></i>
+                          <SafeIcon name="qr-code" className="w-6 h-6" />
                         </div>
                         <h3 className="font-serif font-bold text-base">Collect Payment via UPI</h3>
                         <p className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">Scan & Pay ₹{qrModalOrder.totalAmount}</p>
@@ -6914,7 +6933,7 @@ import 'leaflet/dist/leaflet.css';
                               : 'bg-neutral-800 hover:bg-neutral-700 border-neutral-700 text-neutral-300'
                           }`}
                         >
-                          <i data-lucide="x" className="w-4 h-4"></i>
+                          <SafeIcon name="x" className="w-4 h-4" />
                           <span>CLOSE QR (RETURN TO ORDER)</span>
                         </button>
                       </div>
@@ -7056,14 +7075,14 @@ import 'leaflet/dist/leaflet.css';
             }`}>
               <div className="flex justify-between items-center pb-2 border-b border-neutral-800/10">
                 <h3 className="font-serif font-bold text-base flex items-center space-x-2">
-                  <i data-lucide="user" className="w-5 h-5 text-cafe-amber"></i>
+                  <SafeIcon name="user" className="w-5 h-5 text-cafe-amber" />
                   <span>👤 Rider Profile</span>
                 </h3>
                 <button
                   onClick={() => setIsProfileOpen(false)}
                   className="text-neutral-500 hover:text-neutral-300 transition"
                 >
-                  <i data-lucide="x" className="w-5 h-5"></i>
+                  <SafeIcon name="x" className="w-5 h-5" />
                 </button>
               </div>
 
