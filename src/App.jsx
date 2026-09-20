@@ -939,12 +939,8 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
       useEffect(() => {
         if (theme === 'dark') {
           document.documentElement.classList.add('dark');
-          document.documentElement.style.backgroundColor = '#080808';
-          document.body.style.backgroundColor = '#080808';
         } else {
           document.documentElement.classList.remove('dark');
-          document.documentElement.style.backgroundColor = '#f8fafc';
-          document.body.style.backgroundColor = '#f8fafc';
         }
       }, [theme]);
 
@@ -973,12 +969,8 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
         localStorage.setItem('crispy_theme_settings', nextTheme);
         if (nextTheme === 'dark') {
           document.documentElement.classList.add('dark');
-          document.documentElement.style.backgroundColor = '#080808';
-          document.body.style.backgroundColor = '#080808';
         } else {
           document.documentElement.classList.remove('dark');
-          document.documentElement.style.backgroundColor = '#f8fafc';
-          document.body.style.backgroundColor = '#f8fafc';
         }
         window.dispatchEvent(new Event('storage'));
       };
@@ -1348,7 +1340,7 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
           />
 
           {/* Floating Bottom Bar / Slide-up Sheet */}
-          <div className={`fixed bottom-0 left-0 right-0 w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl mx-auto rounded-t-3xl border-t z-50 p-4 transition-all duration-500 transform shadow-2xl ${
+          <div className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto rounded-t-3xl border-t z-50 p-4 transition-all duration-500 transform shadow-2xl ${
             theme === 'light'
               ? 'bg-gradient-to-b from-red-600 via-red-700 to-red-800 border-red-500 text-white'
               : 'bg-gradient-to-b from-red-800 via-red-900 to-neutral-950 border-red-700 text-white'
@@ -2248,7 +2240,7 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
             </div>
           )}
 
-          <div className={`w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl rounded-t-3xl sm:rounded-3xl border p-6 space-y-5 shadow-2xl z-50 max-h-[90vh] overflow-y-auto no-scrollbar transition-all duration-300 transform ${
+          <div className={`w-full max-w-md rounded-t-3xl border p-6 space-y-5 shadow-2xl z-50 max-h-[90vh] overflow-y-auto no-scrollbar transition-all duration-300 transform ${
             theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-card border-neutral-800 text-white'
           } ${
             mounted && !isClosing ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
@@ -3019,7 +3011,7 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
             className="fixed inset-0 bg-black/70 z-40 backdrop-blur-sm"
             onClick={onClose}
           />
-          <div className={`w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl rounded-t-3xl sm:rounded-3xl border p-6 space-y-5 shadow-2xl z-50 max-h-[88vh] overflow-y-auto no-scrollbar ${
+          <div className={`w-full max-w-md rounded-t-3xl border p-6 space-y-5 shadow-2xl z-50 max-h-[88vh] overflow-y-auto no-scrollbar ${
             theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-cafe-card border-neutral-800 text-white'
           }`}>
 
@@ -3589,25 +3581,7 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
         updateActiveOrderIds(next);
       };
 
-      const [isDesktopModeOnMobile, setIsDesktopModeOnMobile] = useState(false);
 
-      useEffect(() => {
-        const checkDesktopSite = () => {
-          try {
-            const hasTouch = 'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
-            const isPhoneDevice = Math.min(window.screen.width, window.screen.height) <= 600;
-            const isZoomedOut = window.innerWidth >= 850;
-            if (hasTouch && isPhoneDevice && isZoomedOut) {
-              setIsDesktopModeOnMobile(true);
-            } else {
-              setIsDesktopModeOnMobile(false);
-            }
-          } catch (_) {}
-        };
-        checkDesktopSite();
-        window.addEventListener('resize', checkDesktopSite);
-        return () => window.removeEventListener('resize', checkDesktopSite);
-      }, []);
 
       const filteredProducts = MENU_CATALOG[activeCategory] || [];
 
@@ -3627,10 +3601,10 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
       };
 
       return (
-        <div className={`min-h-screen relative flex flex-col pb-24 w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl mx-auto shadow-2xl transition-colors duration-305 overflow-hidden ${
+        <div className={`min-h-screen relative flex flex-col pb-24 max-w-md mx-auto shadow-2xl transition-colors duration-305 overflow-hidden ${
           theme === 'light' 
-            ? 'bg-white text-slate-800 border-x-0 sm:border-x border-slate-200' 
-            : 'bg-cafe-black text-white border-x-0 sm:border-x border-neutral-900/60'
+            ? 'bg-white text-slate-800 border-x border-slate-200' 
+            : 'bg-cafe-black text-white border-x border-neutral-900/60'
         }`}>
           {/* Ambient light gradient background overlay */}
           <div className={`fixed inset-0 pointer-events-none z-0 transition-opacity duration-300 ${
@@ -3640,25 +3614,7 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
           }`}></div>
 
           <div className="relative z-10 flex flex-col min-h-screen">
-            {/* Helpful mobile Chrome desktop-site banner */}
-            {isDesktopModeOnMobile && (
-              <div className="bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 text-white px-3.5 py-2 text-xs flex items-center justify-between gap-2.5 shadow-md z-40">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-base flex-shrink-0">📱</span>
-                  <span className="leading-tight text-[11px] sm:text-xs font-medium">
-                    <strong>Mobile Tip:</strong> Tap Chrome's <strong>⋮</strong> menu & uncheck <strong>"Desktop site"</strong> for the best full-screen mobile app experience!
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsDesktopModeOnMobile(false)}
-                  className="text-white/80 hover:text-white font-bold text-xs p-1 flex-shrink-0"
-                  title="Dismiss tip"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
+            
 
             <TopBar onSignInClick={handleSignInClick} onProfileClick={() => setIsProfileOpen(true)} />
 
@@ -3896,30 +3852,15 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
             ))}
             </div>
             
-            {/* Store Offline Notice Banner for Customers (Shows when shop is offline, menu remains visible) */}
+            {/* Simple theme-matched store offline indication */}
             {!isOpenOrdering && (
-              <div className="mx-3.5 sm:mx-4 mt-2.5 mb-1 p-3.5 rounded-2xl bg-gradient-to-r from-neutral-900 via-rose-950/40 to-neutral-900 border border-rose-600/30 text-center shadow-lg animate-fadeIn flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 text-left">
-                  <div className="w-9 h-9 rounded-xl bg-red-600/20 border border-red-500/30 flex items-center justify-center text-lg flex-shrink-0">
-                    🔒
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest bg-red-600 text-white px-2 py-0.5 rounded-md shadow-xs">
-                        Shop Closed
-                      </span>
-                      <span className="text-xs font-bold text-rose-300">
-                        Online Ordering Is Currently Paused
-                      </span>
-                    </div>
-                    <p className={`text-[11px] mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
-                      We are not accepting orders right now. Feel free to explore our menu—we'll be open soon!
-                    </p>
-                  </div>
-                </div>
-                <span className="text-[11px] font-semibold text-neutral-400 whitespace-nowrap bg-neutral-800/80 px-3 py-1 rounded-full border border-neutral-700/60">
-                  ⏱️ Back Soon
-                </span>
+              <div className={`mx-4 mt-2 px-3 py-1.5 rounded-xl text-center text-xs font-semibold flex items-center justify-center gap-2 transition-colors ${
+                theme === 'light'
+                  ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                  : 'bg-rose-950/40 text-rose-300 border border-rose-900/40'
+              }`}>
+                <span className="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0 animate-pulse"></span>
+                <span>Store is currently offline • Browsing only</span>
               </div>
             )}
             
@@ -3927,7 +3868,7 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
               <PromoCarousel />
               <CategorySwiper activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
               
-              <main className="flex-1 p-3.5 sm:p-4 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-3.5 auto-rows-max items-start content-start overflow-y-auto no-scrollbar font-sans pb-28">
+              <main className="flex-1 p-3.5 sm:p-4 grid grid-cols-2 gap-3 sm:gap-3.5 auto-rows-max items-start content-start overflow-y-auto no-scrollbar font-sans pb-28">
                 {filteredProducts.map(prod => (
                   <ProductCard key={prod.name} product={prod} onAdd={handleAdd} categoryName={activeCategory} />
                 ))}
@@ -6410,7 +6351,7 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
       }
 
       return (
-        <div className={`min-h-screen p-4 sm:p-6 w-full sm:max-w-md md:max-w-lg mx-auto shadow-2xl border-x-0 sm:border-x transition-colors duration-300 font-sans ${
+        <div className={`min-h-screen p-6 max-w-md mx-auto shadow-2xl border-x transition-colors duration-300 font-sans ${
           theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-cafe-black border-neutral-900/60 text-white'
         }`}>
           <div className="space-y-6">
@@ -7387,11 +7328,7 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
 
       // Decoupled View Router - mounts active modules and toggles display properties dynamically
       return (
-        <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${
-          (route === '#/' || route === '') && theme === 'light' 
-            ? 'bg-slate-100 text-slate-800' 
-            : 'bg-cafe-black text-white'
-        }`}>
+        <div className="min-h-screen flex flex-col bg-cafe-black font-sans">
           <div className="flex-1 flex flex-col">
             <div className={(route === '#/' || route === '') ? 'block' : 'hidden'}>
               <CustomerApp onCheckoutSuccess={handleOrderSuccess} />
