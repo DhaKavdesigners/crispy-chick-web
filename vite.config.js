@@ -37,7 +37,6 @@ export default defineConfig({
         theme_color: '#080808',
         background_color: '#080808',
         display: 'standalone',
-        display_override: ['standalone', 'window-controls-overlay'],
         orientation: 'portrait',
         dir: 'ltr',
         lang: 'en-US',
