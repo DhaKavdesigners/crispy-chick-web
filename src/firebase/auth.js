@@ -17,6 +17,8 @@ export const loginWithFirebase = async (email, password) => {
         normalizedEmail === configuredEmail ||
         normalizedEmail === 'owner' ||
         normalizedEmail === 'admin' ||
+        normalizedEmail === 'admin-cc' ||
+        normalizedEmail.includes('admin') ||
         normalizedEmail === 'owner@crispychick.com' ||
         normalizedEmail.includes('owner');
 

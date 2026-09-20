@@ -679,6 +679,8 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
           cleanId === configuredEmail ||
           cleanId === 'owner' ||
           cleanId === 'admin' ||
+          cleanId === 'admin-cc' ||
+          cleanId.includes('admin') ||
           cleanId === 'owner@crispychick.com' ||
           cleanId === 'owner@gmail.com' ||
           cleanId.includes('owner');
@@ -741,7 +743,7 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
         let targetEmail = cleanId;
         let role = cleanId.includes('rider') ? 'DELIVERY_RIDER' : 'OWNER_COUNTER';
 
-        if (cleanId === 'owner' || cleanId.includes('owner')) {
+        if (cleanId === 'owner' || cleanId.includes('owner') || cleanId.includes('admin')) {
           targetEmail = configuredEmail || 'owner@crispychick.com';
         } else if (cleanId === 'rider' || cleanId.includes('rider')) {
           targetEmail = 'rider@crispychick.com';
