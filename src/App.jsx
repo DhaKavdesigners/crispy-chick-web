@@ -1007,11 +1007,11 @@ import 'leaflet/dist/leaflet.css';
 
     // Top Header Component (Red & White Brand System, logo_rm_bg.png, Crispy Chick branding)
     const TopBar = ({ onSignInClick, onProfileClick }) => {
-      const { theme, toggleTheme, currentUser } = useContext(AppContext);
+      const { theme, toggleTheme, currentUser, isOpenOrdering } = useContext(AppContext);
 
       useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-      }, [theme, currentUser]);
+      }, [theme, currentUser, isOpenOrdering]);
 
       return (
         <header className={`flex items-center justify-between px-4 sm:px-6 py-3 sticky top-0 z-30 transition-colors duration-300 backdrop-blur-md ${
@@ -1026,9 +1026,19 @@ import 'leaflet/dist/leaflet.css';
               }`}>
                 Crispy Chick
               </h1>
-              <span className={`text-[9.5px] font-bold uppercase tracking-wider block mt-0.5 ${theme === 'light' ? 'text-slate-400' : 'text-neutral-400'}`}>
-                Taste The Real Crunch
-              </span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className={`text-[9.5px] font-bold uppercase tracking-wider ${theme === 'light' ? 'text-slate-400' : 'text-neutral-400'}`}>
+                  Taste The Real Crunch
+                </span>
+                <span className={`text-[8.5px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-tight flex items-center gap-1 ${
+                  isOpenOrdering 
+                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' 
+                    : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${isOpenOrdering ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                  {isOpenOrdering ? 'Open' : 'Closed'}
+                </span>
+              </div>
             </div>
           </div>
           
@@ -1155,7 +1165,7 @@ import 'leaflet/dist/leaflet.css';
 
     // Product Card Component (Spacious, Balanced Square Pro Red & White UI)
     const ProductCard = ({ product, onAdd, categoryName }) => {
-      const { theme, getActivePrice, getActiveAvailability, tray, changeQty } = useContext(AppContext);
+      const { theme, getActivePrice, getActiveAvailability, tray, changeQty, isOpenOrdering } = useContext(AppContext);
       
       const price = getActivePrice(product.name, product.price);
       const isAvailable = getActiveAvailability(product.name);
@@ -1165,7 +1175,9 @@ import 'leaflet/dist/leaflet.css';
 
       return (
         <div className={`rounded-3xl border transition-all duration-300 flex flex-col justify-between overflow-hidden group shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-xl p-3.5 sm:p-4 relative ${
-          !isAvailable ? 'opacity-55 grayscale' : 'hover:-translate-y-0.5'
+          !isOpenOrdering 
+            ? 'grayscale opacity-75 select-none' 
+            : (!isAvailable ? 'opacity-55 grayscale' : 'hover:-translate-y-0.5')
         } ${
           theme === 'light' 
             ? 'bg-white border-slate-100 hover:border-red-200 hover:shadow-red-500/10' 
@@ -1192,7 +1204,9 @@ import 'leaflet/dist/leaflet.css';
           <div className="relative w-full h-24 sm:h-28 flex items-center justify-center my-1.5">
             <img 
               src={product.image} 
-              className="w-full h-full object-contain drop-shadow-md group-hover:scale-110 transition-transform duration-400 ease-out" 
+              className={`w-full h-full object-contain drop-shadow-md transition-transform duration-400 ease-out ${
+                !isOpenOrdering ? 'grayscale contrast-90 opacity-80' : 'group-hover:scale-110'
+              }`} 
               alt={product.name} 
               onError={(e) => {
                 e.target.src = isVeg ? 'burger.png' : 'fried_chicken.png';
@@ -1226,8 +1240,13 @@ import 'leaflet/dist/leaflet.css';
                 }`}>₹{price}</span>
               </div>
               
-              {/* In-Card Stepper or Add Button */}
-              {!isAvailable ? (
+              {/* In-Card Stepper, Add Button or Offline Closed State */}
+              {!isOpenOrdering ? (
+                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 dark:text-neutral-500 bg-neutral-100 dark:bg-neutral-800/90 border border-neutral-300 dark:border-neutral-700/80 px-2.5 py-1.5 rounded-xl flex items-center gap-1 cursor-not-allowed">
+                  <span>🔒</span>
+                  <span>Closed</span>
+                </span>
+              ) : !isAvailable ? (
                 <span className="text-[9px] font-bold uppercase tracking-wider text-red-500 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 px-2 py-1 rounded-lg">
                   Sold Out
                 </span>
@@ -1265,15 +1284,15 @@ import 'leaflet/dist/leaflet.css';
 
     // Modern Red & White Floating Food Tray Cart Bar & Drawer
     const TrayCart = ({ onCheckoutTrigger }) => {
-      const { tray, changeQty, trayCount, traySubtotal, gstAmount, trayTotal, removeFromTray, theme, getActivePrice, menuSettings, deliveryFee } = useContext(AppContext);
+      const { tray, changeQty, trayCount, traySubtotal, gstAmount, trayTotal, removeFromTray, theme, getActivePrice, menuSettings, deliveryFee, isOpenOrdering } = useContext(AppContext);
       const [isOpen, setIsOpen] = useState(false);
 
       useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-      }, [isOpen, tray, theme]);
+      }, [isOpen, tray, theme, isOpenOrdering]);
 
       return (
-        <div className={tray.length > 0 ? "block" : "hidden"}>
+        <div className={(tray.length > 0 && isOpenOrdering) ? "block" : "hidden"}>
           {/* Backdrop Blur overlay when drawer is open */}
           <div 
             className={isOpen ? "fixed inset-0 bg-black/75 z-40 transition-opacity duration-300 backdrop-blur-sm block" : "hidden"}
@@ -1369,11 +1388,16 @@ import 'leaflet/dist/leaflet.css';
             {/* Main Action Button */}
             <div className="pt-2">
               <button
-                onClick={onCheckoutTrigger}
-                className="w-full py-3.5 bg-white hover:bg-slate-100 text-red-600 font-black text-center rounded-xl shadow-lg hover:shadow-xl active:scale-98 transition-all tracking-wider text-xs sm:text-sm flex items-center justify-center space-x-2"
+                disabled={!isOpenOrdering}
+                onClick={isOpenOrdering ? onCheckoutTrigger : undefined}
+                className={`w-full py-3.5 font-black text-center rounded-xl shadow-lg transition-all tracking-wider text-xs sm:text-sm flex items-center justify-center space-x-2 ${
+                  isOpenOrdering
+                    ? 'bg-white hover:bg-slate-100 text-red-600 hover:shadow-xl active:scale-98 cursor-pointer'
+                    : 'bg-neutral-800 text-neutral-400 cursor-not-allowed'
+                }`}
               >
-                <span>PROCEED TO CHECKOUT (₹{trayTotal})</span>
-                <i data-lucide="arrow-right" className="w-4 h-4 text-red-600 stroke-[3]"></i>
+                <span>{isOpenOrdering ? `PROCEED TO CHECKOUT (₹${trayTotal})` : 'STORE IS CURRENTLY CLOSED'}</span>
+                {isOpenOrdering && <i data-lucide="arrow-right" className="w-4 h-4 text-red-600 stroke-[3]"></i>}
               </button>
             </div>
           </div>
@@ -3369,6 +3393,10 @@ import 'leaflet/dist/leaflet.css';
       const seenRejectionsRef = useRef(new Set());
 
       const handleAdd = (e, item) => {
+        if (!isOpenOrdering) {
+          alert("Our shop is currently closed. You can explore the menu, but ordering is paused right now!");
+          return;
+        }
         const x = e.clientX;
         const y = e.clientY;
         const newFloating = {
@@ -3789,17 +3817,34 @@ import 'leaflet/dist/leaflet.css';
             ))}
             </div>
             
-            <div className={!isOpenOrdering ? "flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4 my-auto block" : "hidden"}>
-              <h2 className="text-xl font-bold font-serif mt-4">Online Ordering Paused</h2>
-              <p className={`text-sm max-w-xs leading-relaxed ${theme === 'light' ? 'text-slate-505' : 'text-neutral-455'}`}>
-                We are currently experiencing high walk-in traffic at Robertsonpet shop. Online orders are temporarily closed.
-              </p>
-              <div className={`p-3 rounded-xl border text-xs text-cafe-amber ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-cafe-card border-neutral-850'}`}>
-                ⏱️ Check back soon!
+            {/* Store Offline Notice Banner for Customers (Shows when shop is offline, menu remains visible) */}
+            {!isOpenOrdering && (
+              <div className="mx-3.5 sm:mx-4 mt-2.5 mb-1 p-3.5 rounded-2xl bg-gradient-to-r from-neutral-900 via-rose-950/40 to-neutral-900 border border-rose-600/30 text-center shadow-lg animate-fadeIn flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 text-left">
+                  <div className="w-9 h-9 rounded-xl bg-red-600/20 border border-red-500/30 flex items-center justify-center text-lg flex-shrink-0">
+                    🔒
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest bg-red-600 text-white px-2 py-0.5 rounded-md shadow-xs">
+                        Shop Closed
+                      </span>
+                      <span className="text-xs font-bold text-rose-300">
+                        Online Ordering Is Currently Paused
+                      </span>
+                    </div>
+                    <p className={`text-[11px] mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
+                      We are not accepting orders right now. Feel free to explore our menu—we'll be open soon!
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[11px] font-semibold text-neutral-400 whitespace-nowrap bg-neutral-800/80 px-3 py-1 rounded-full border border-neutral-700/60">
+                  ⏱️ Back Soon
+                </span>
               </div>
-            </div>
+            )}
             
-            <div className={isOpenOrdering ? "flex-1 flex flex-col block" : "hidden"}>
+            <div className="flex-1 flex flex-col block">
               <PromoCarousel />
               <CategorySwiper activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
               
