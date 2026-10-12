@@ -27,6 +27,7 @@ export default defineConfig({
         'fries.png',
         'fried_chicken.png',
         'drink.png',
+        'items/*.png',
         'assets/*.jpg'
       ],
       manifest: {

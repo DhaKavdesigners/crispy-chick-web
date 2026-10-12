@@ -384,23 +384,24 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
     // --- Menu Data Catalog Mapping (Appetizing Red & White System) ---
     const MENU_CATALOG = {
       "Fried Chicken": [
-        { name: "Crispy Fried Chicken (1pc)", price: 55, image: "fried_chicken.png", isVeg: false, desc: "Crisp golden skin, juicy tender chicken inside", badge: "Bestseller" },
-        { name: "Crunchy Masala Fried Chicken (1Leg pc)", price: 50, image: "fried_chicken.png", isVeg: false, desc: "Marinated with aromatic spicy Indian masalas", badge: "Chef's Special" },
-        { name: "Chicken Lolly Pop (3pcs)", price: 55, image: "fried_chicken.png", isVeg: false, desc: "Classic fried chicken drumettes with spicy tang" },
-        { name: "Mini Bucket Fried Chicken (4pcs)", price: 200, image: "fried_chicken.png", isVeg: false, desc: "4 crispy pieces perfect for quick sharing", badge: "Hot Deal" },
-        { name: "Bucket Fried Chicken (8pcs)", price: 400, image: "fried_chicken.png", isVeg: false, desc: "8 juicy jumbo crispy chicken pieces bucket", badge: "Family Feast" },
-        { name: "Hot Chicken Wings (3pcs)", price: 55, image: "fried_chicken.png", isVeg: false, desc: "Tossed in fiery hot crispy glaze" },
-        { name: "Chicken Nuggets (6pcs)", price: 60, image: "fried_chicken.png", isVeg: false, desc: "Bite-sized minced chicken crunch nuggets" },
-        { name: "Chicken Strips (3pcs)", price: 60, image: "fried_chicken.png", isVeg: false, desc: "100% boneless breast chicken fillets" },
-        { name: "Spicy Peri-Peri Wings (4pcs)", price: 65, image: "fried_chicken.png", isVeg: false, desc: "Extra crunchy seasoned wings" }
+        { name: "Crispy Fried Chicken (1pc)", price: 55, image: "items/crispy_fried_chicken.png", isVeg: false, desc: "Crisp golden skin, juicy tender chicken inside", badge: "Bestseller" },
+        { name: "Crunchy Masala Fried Chicken (1Leg pc)", price: 50, image: "items/crunchy_masala_fried_chicken.png", isVeg: false, desc: "Marinated with aromatic spicy Indian masalas", badge: "Chef's Special" },
+        { name: "Chicken Lolly Pop (3pcs)", price: 55, image: "items/chicken_lollypop.png", isVeg: false, desc: "Classic fried chicken drumettes with spicy tang" },
+        { name: "Mini Bucket Fried Chicken (4pcs)", price: 200, image: "items/mini_bucket_fried_chicken.png", isVeg: false, desc: "4 crispy pieces perfect for quick sharing", badge: "Hot Deal" },
+        { name: "Bucket Fried Chicken (8pcs)", price: 400, image: "items/bucket_fried_chicken.png", isVeg: false, desc: "8 juicy jumbo crispy chicken pieces bucket", badge: "Family Feast" },
+        { name: "Hot Chicken Wings (3pcs)", price: 55, image: "items/hot_chicken_wings.png", isVeg: false, desc: "Tossed in fiery hot crispy glaze" },
+        { name: "Chicken Nuggets (6pcs)", price: 60, image: "items/chicken_nuggets.png", isVeg: false, desc: "Bite-sized minced chicken crunch nuggets" },
+        { name: "Chicken Strips (3pcs)", price: 60, image: "items/chicken_strips.png", isVeg: false, desc: "100% boneless breast chicken fillets" },
+        { name: "Spicy Peri-Peri Wings (4pcs)", price: 65, image: "items/spicy_wings.png", isVeg: false, desc: "Extra crunchy seasoned wings" },
+        { name: "Chicken Cheese Balls (5pcs)", price: 70, image: "items/chicken_cheese_balls.png", isVeg: false, desc: "Crispy fried golden chicken balls with molten cheese inside", badge: "Chef Pick" }
       ],
       "Fresh Pizzas": [
-        { name: "Crispy Chicken Tikka Pizza", price: 160, image: "burger.png", isVeg: false, desc: "Spiced chicken tikka, onions, capsicum & mozzarella", badge: "Bestseller" },
-        { name: "Classic Margherita Pizza", price: 120, image: "burger.png", isVeg: true, desc: "Rich tomato sauce with 100% molten mozzarella cheese" },
-        { name: "BBQ Smoked Chicken Pizza", price: 175, image: "burger.png", isVeg: false, desc: "Smokey BBQ shredded chicken with melted cheese blend", badge: "Must Try" },
-        { name: "Cheesy Paneer Delight Pizza", price: 145, image: "burger.png", isVeg: true, desc: "Marinated spiced paneer cubes with sweet corn & paprika" },
-        { name: "Farmhouse Veggie Supreme Pizza", price: 135, image: "burger.png", isVeg: true, desc: "Loaded with capsicum, onion, tomato & mushrooms" },
-        { name: "Spicy Peri-Peri Chicken Pizza", price: 165, image: "burger.png", isVeg: false, desc: "Peri-peri seasoned chicken chunks with spicy kick" }
+        { name: "Crispy Chicken Tikka Pizza", price: 160, image: "items/chicken_pizza.png", isVeg: false, desc: "Spiced chicken tikka, onions, capsicum & mozzarella", badge: "Bestseller" },
+        { name: "Classic Margherita Pizza", price: 120, image: "items/chicken_pizza.png", isVeg: true, desc: "Rich tomato sauce with 100% molten mozzarella cheese" },
+        { name: "BBQ Smoked Chicken Pizza", price: 175, image: "items/chicken_pizza.png", isVeg: false, desc: "Smokey BBQ shredded chicken with melted cheese blend", badge: "Must Try" },
+        { name: "Cheesy Paneer Delight Pizza", price: 145, image: "items/chicken_pizza.png", isVeg: true, desc: "Marinated spiced paneer cubes with sweet corn & paprika" },
+        { name: "Farmhouse Veggie Supreme Pizza", price: 135, image: "items/chicken_pizza.png", isVeg: true, desc: "Loaded with capsicum, onion, tomato & mushrooms" },
+        { name: "Spicy Peri-Peri Chicken Pizza", price: 165, image: "items/chicken_pizza.png", isVeg: false, desc: "Peri-peri seasoned chicken chunks with spicy kick" }
       ],
       "Veg Burgers": [
         { name: "Paneer Tikka Burger", price: 75, image: "burger.png", isVeg: true, desc: "Crispy fried paneer patty with creamy mayo & lettuce", badge: "Bestseller" },
@@ -418,13 +419,13 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
         { name: "Mutton Royal Burger", price: 85, image: "burger.png", isVeg: false, desc: "Juicy minced mutton patty with grilled onions", badge: "Premium" }
       ],
       "Side Orders": [
-        { name: "French Fries (Salted)", price: 40, image: "fries.png", isVeg: true, desc: "Classic salted golden crispy potato fries", badge: "Popular" },
-        { name: "Peri-Peri Spicy Fries", price: 50, image: "fries.png", isVeg: true, desc: "Tossed in fiery African peri-peri spice dust" },
-        { name: "Cheese Loaded Fries", price: 65, image: "fries.png", isVeg: true, desc: "Crispy fries smothered in warm cheese sauce", badge: "Hot" },
-        { name: "Smiley Potato Bites (5pcs)", price: 40, image: "fries.png", isVeg: true, desc: "Golden fried smiley potato treats" },
-        { name: "Veg Nuggets (6pcs)", price: 40, image: "fried_chicken.png", isVeg: true, desc: "Crispy seasoned vegetable bites" },
-        { name: "Chicky Sticks (4pcs)", price: 40, image: "fried_chicken.png", isVeg: false, desc: "Fried chicken sticks with savory dipping spices" },
-        { name: "Chicken Popcorn Crunch", price: 75, image: "fried_chicken.png", isVeg: false, desc: "Bite-sized crunchy popping chicken rocks", badge: "Favorite" }
+        { name: "French Fries (Salted)", price: 40, image: "items/french_fries.png", isVeg: true, desc: "Classic salted golden crispy potato fries", badge: "Popular" },
+        { name: "Peri-Peri Spicy Fries", price: 50, image: "items/french_fries.png", isVeg: true, desc: "Tossed in fiery African peri-peri spice dust" },
+        { name: "Cheese Loaded Fries", price: 65, image: "items/french_fries.png", isVeg: true, desc: "Crispy fries smothered in warm cheese sauce", badge: "Hot" },
+        { name: "Smiley Potato Bites (5pcs)", price: 40, image: "items/smiley.png", isVeg: true, desc: "Golden fried smiley potato treats" },
+        { name: "Veg Nuggets (6pcs)", price: 40, image: "items/veg_nuggets.png", isVeg: true, desc: "Crispy seasoned vegetable bites" },
+        { name: "Chicky Sticks (4pcs)", price: 40, image: "items/crispy_stick.png", isVeg: false, desc: "Fried chicken sticks with savory dipping spices" },
+        { name: "Chicken Popcorn Crunch", price: 75, image: "items/chicken_popcorn.png", isVeg: false, desc: "Bite-sized crunchy popping chicken rocks", badge: "Favorite" }
       ],
       "Add-ons": [
         { name: "Smoothies (Mango/Berry)", price: 40, image: "drink.png", isVeg: true, desc: "Chilled rich blended fruit smoothie", badge: "Refreshing" },
