@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en" style="background-color:#080808;">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+  <title>Download Crispy Chick App - KGF</title>
+  <meta name="description" content="Order fresh crispy fried chicken, burgers and sides in KGF. Instant order or download app."/>
+  <meta name="theme-color" content="#080808"/>
+  <link rel="icon" type="image/png" href="/logo-192.png"/>
+  <link rel="apple-touch-icon" href="/logo-192.png"/>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      background-color: #080808;
+      color: #ffffff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 16px;
+      text-align: center;
+    }
+    .container {
+      background: #121212;
+      border: 1px solid #262626;
+      border-radius: 28px;
+      padding: 32px 24px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 24px 48px rgba(0,0,0,0.85);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #f59e0b;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+    .btn-primary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #080808;
+      text-decoration: none;
+      padding: 16px 20px;
+      border-radius: 16px;
+      font-weight: 900;
+      font-size: 15px;
+      box-shadow: 0 8px 20px rgba(245, 158, 11, 0.35);
+      transition: transform 0.15s ease;
+    }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-secondary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      background: #1c1c1c;
+      border: 1px solid #333333;
+      color: #e5e7eb;
+      text-decoration: none;
+      padding: 14px 20px;
+      border-radius: 16px;
+      font-weight: 800;
+      font-size: 14px;
+      margin-top: 12px;
+      transition: background 0.15s ease;
+    }
+    .btn-secondary:active { background: #262626; }
+    .guide-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px dashed rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-top: 20px;
+      text-align: left;
+      font-size: 12px;
+      color: #9ca3af;
+      line-height: 1.6;
+    }
+    .guide-box strong { color: #f3f4f6; }
+    .step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .step-num {
+      background: #27272a;
+      color: #f59e0b;
+      font-weight: 900;
+      font-size: 10px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="/logo-192.png" alt="Crispy Chick KGF" width="100" height="100" style="border-radius:22px;box-shadow:0 8px 24px rgba(245,158,11,0.25);margin-bottom:14px;"/>
+    
+    <div class="badge">🍗 Official KGF Store</div>
+    
+    <h1 style="margin:0 0 8px;font-size:24px;color:#ffffff;font-weight:900;letter-spacing:-0.5px;">Crispy Chick KGF</h1>
+    <p style="margin:0 0 24px;font-size:13px;color:#9ca3af;line-height:1.5;">Fresh &amp; Juicy Fried Chicken, Crispy Burgers &amp; Wings delivered hot to your doorstep in KGF!</p>
+
+    <!-- Option 1: Instant PWA Web App -->
+    <a href="/?source=pamphlet_qr" class="btn-primary">
+      ⚡ Open &amp; Order Instantly
+    </a>
+    <p style="margin:8px 0 20px;font-size:11px;color:#6b7280;">No storage space required • Works on all phones</p>
+
+    <!-- Option 2: APK direct download -->
+    <a href="/crispy-chick.apk" download="CrispyChick.apk" id="apkBtn" class="btn-secondary">
+      🤖 Download Android App (.apk)
+    </a>
+
+    <!-- Step by Step Install Guide for Pamphlet Readers -->
+    <div class="guide-box">
+      <strong>💡 How to Install via QR / Download:</strong>
+      <div class="step-item">
+        <span class="step-num">1</span>
+        <span>Tap <strong>Open &amp; Order Instantly</strong> to browse the full menu immediately without waiting for download.</span>
+      </div>
+      <div class="step-item">
+        <span class="step-num">2</span>
+        <span>Tap Chrome's <strong>3 dots (⋮)</strong> &gt; <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong> for 1-tap future access.</span>
+      </div>
+      <div class="step-item">
+        <span class="step-num">3</span>
+        <span>If installing APK: When Android asks <em>"File might be harmful"</em>, tap <strong>Download anyway</strong> &gt; <strong>Open</strong> &gt; <strong>Install</strong>.</span>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;font-size:11px;color:#6b7280;display:flex;align-items:center;justify-content:center;gap:12px;">
+      <a href="tel:9035733573" style="color:#f59e0b;text-decoration:none;font-weight:700;">📞 9035733573</a>
+      <span>•</span>
+      <span>KGF Delivery</span>
+    </div>
+  </div>
+
+  <script>
+    // Check if direct APK exists, fallback to home page if not yet placed
+    const apkBtn = document.getElementById('apkBtn');
+    if (apkBtn) {
+      apkBtn.addEventListener('click', (e) => {
+        fetch('/crispy-chick.apk', { method: 'HEAD' })
+          .then(res => {
+            if (!res.ok) {
+              alert('Direct APK package is being generated! You can tap "⚡ Open & Order Instantly" right now to order food immediately.');
+            }
+          })
+          .catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

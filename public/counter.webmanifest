@@ -1,0 +1,57 @@
+{
+  "id": "/counter-app",
+  "name": "Crispy Chick Store Counter",
+  "short_name": "Store Counter",
+  "description": "Crispy Chick KGF - Kitchen & Order Dispatch Management Counter with KOT and Live Fleet Dispatch.",
+  "theme_color": "#080808",
+  "background_color": "#080808",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "window-controls-overlay"
+  ],
+  "orientation": "any",
+  "dir": "ltr",
+  "lang": "en-US",
+  "categories": [
+    "business",
+    "productivity"
+  ],
+  "scope": "/",
+  "start_url": "/?app=counter#/shop-counter",
+  "icons": [
+    {
+      "src": "/logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Live Orders",
+      "short_name": "Orders",
+      "description": "Open live kitchen orders",
+      "url": "/?app=counter#/shop-counter",
+      "icons": [
+        {
+          "src": "/logo-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

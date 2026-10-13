@@ -33,6 +33,14 @@
       "destination": "/rider.html"
     },
     {
+      "source": "/counter",
+      "destination": "/counter.html"
+    },
+    {
+      "source": "/download",
+      "destination": "/download.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

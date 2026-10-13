@@ -4298,12 +4298,10 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
                 )}
 
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 mb-5 text-left flex items-start gap-2">
-                  <span className="text-sm">💳</span>
+                  <span className="text-sm">💵</span>
                   <div className="text-[11px] text-amber-200/90 leading-tight">
-                    <strong className="text-amber-400 font-bold block mb-0.5">Payment Status Safe</strong>
-                    {rejectedOrderPopup.paymentMethod === 'cod'
-                      ? 'Cash on Delivery was selected, so no payment was deducted.'
-                      : 'Any online transaction is safe and will automatically reverse to your account.'}
+                    <strong className="text-amber-400 font-bold block mb-0.5">Payment Status Safe • Cash on Delivery</strong>
+                    No payment was charged or deducted. Payment is only collected in cash or UPI when your order is delivered to your doorstep.
                   </div>
                 </div>
 
@@ -4583,6 +4581,7 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
                 isActive: d.isActive !== false,
                 isOnline: d.isOnline === true,
                 dutyStartTime: d.dutyStartTime || null,
+                lastPingAt: d.lastPingAt || null,
                 verified: d.verified !== false,
                 createdAt: d.createdAt || 0,
                 rating: d.rating != null ? Number(d.rating) : null,
@@ -4664,6 +4663,28 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
         } catch (err) {
           console.error("Failed to delete rider:", err);
           alert("Error deleting rider. Please try again.");
+        }
+      };
+
+      const handleToggleRiderDuty = async (rider) => {
+        const pin = rider.pin || rider.id;
+        const newStatus = !rider.isOnline;
+        const confirmMsg = newStatus
+          ? `Mark "${rider.name}" as Online on duty?`
+          : `Take "${rider.name}" Offline now?\n\nThis will end their active shift immediately in the system. Use this if the rider finished their shift and forgot to toggle offline.`;
+        if (!window.confirm(confirmMsg)) return;
+
+        try {
+          await db.collection('riders').doc(pin).set({
+            isOnline: newStatus,
+            dutyStartTime: newStatus ? Date.now() : null,
+            dutyEndTime: newStatus ? null : Date.now(),
+            lastDutyChangeBy: 'shop_counter',
+            lastDutyChangeAt: Date.now()
+          }, { merge: true });
+        } catch (err) {
+          console.error("Failed to toggle rider duty:", err);
+          alert("Error updating rider shift status: " + (err.message || 'Please try again.'));
         }
       };
 
@@ -4840,11 +4861,13 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
           };
         }
 
+        const isIdle = rider.lastPingAt && (Date.now() - rider.lastPingAt > 45 * 60 * 1000);
+
         return {
           status: 'available',
-          label: '🟢 Online (Ready)',
-          sublabel: formatRiderDutyDuration(rider.dutyStartTime),
-          badgeClass: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold'
+          label: isIdle ? '🟡 Idle / Inactive' : '🟢 Online (Ready)',
+          sublabel: isIdle ? 'App closed • Tap End Shift' : formatRiderDutyDuration(rider.dutyStartTime),
+          badgeClass: isIdle ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold'
         };
       };
 
@@ -5533,20 +5556,36 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
                               </div>
                             </div>
 
-                            {/* Rider Quick Action Toolbar (Self-Governed Duty Status + Double-Confirmed Delete) */}
+                            {/* Rider Quick Action Toolbar (Shift Management + Delete) */}
                             <div className="flex items-center justify-between pt-1 border-t border-neutral-900/10 dark:border-neutral-800/60 text-[10px]">
                               <div className="text-[10px] text-neutral-400 font-medium flex items-center gap-1.5">
                                 <span className={`w-2 h-2 rounded-full ${rider.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-neutral-500'}`} />
                                 <span>{rider.isOnline ? 'Active on shift' : 'Currently offline'}</span>
                               </div>
 
-                              <button
-                                onClick={() => handleDeleteRider(rider)}
-                                className="text-red-500 hover:text-red-400 font-bold uppercase px-2 py-1 transition flex items-center gap-1"
-                                title="Safely remove rider from fleet"
-                              >
-                                ✕ Delete
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleRiderDuty(rider)}
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition flex items-center gap-1 ${
+                                    rider.isOnline
+                                      ? 'border-amber-500/50 text-amber-400 hover:bg-amber-500/15'
+                                      : 'border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/15'
+                                  }`}
+                                  title={rider.isOnline ? "Take rider offline (e.g. shift finished)" : "Mark rider online on duty"}
+                                >
+                                  {rider.isOnline ? '⏹ End Shift' : '▶ Set Online'}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteRider(rider)}
+                                  className="text-red-500 hover:text-red-400 font-bold uppercase px-2 py-0.5 rounded transition flex items-center gap-1 hover:bg-red-500/10"
+                                  title="Safely remove rider from fleet"
+                                >
+                                  ✕ Delete
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );
@@ -6296,6 +6335,21 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
         const interval = setInterval(updateTimer, 30000);
         return () => clearInterval(interval);
       }, [isOnline, dutyStartTime]);
+
+      // Periodic presence ping while rider is online and app is open (every 3 minutes)
+      useEffect(() => {
+        if (!isOnline || !riderId) return;
+        const sendPing = () => {
+          try {
+            db.collection('riders').doc(riderId).set({
+              lastPingAt: Date.now()
+            }, { merge: true }).catch(() => {});
+          } catch (_) {}
+        };
+        sendPing();
+        const pingInterval = setInterval(sendPing, 3 * 60 * 1000);
+        return () => clearInterval(pingInterval);
+      }, [isOnline, riderId]);
 
       useEffect(() => {
         if (riderId && !loginTime) {
@@ -7643,22 +7697,26 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
         }
       }
 
-      // 3. Android TWA package referrer detection (detects com.crispychick.rider from the installed APK!)
+      // 3. Android TWA package referrer detection (detects com.crispychick.rider or counter from installed APK!)
       if (typeof document !== 'undefined' && document.referrer) {
         const ref = document.referrer.toLowerCase();
         if (ref.includes('rider')) {
           window.location.hash = '#/delivery-dashboard';
           return '#/delivery-dashboard';
         }
+        if (ref.includes('counter') || ref.includes('kitchen')) {
+          window.location.hash = '#/shop-counter';
+          return '#/shop-counter';
+        }
       }
 
-      // 4. Clean pathname (/rider or /delivery)
+      // 4. Clean pathname (/rider or /counter)
       const path = (window.location.pathname || '').replace(/\/$/, '');
-      if (path === '/rider' || path === '/delivery' || path === '/rider-dashboard') {
+      if (path === '/rider' || path === '/delivery' || path === '/rider-dashboard' || path === '/rider.html') {
         window.location.hash = '#/delivery-dashboard';
         return '#/delivery-dashboard';
       }
-      if (path === '/counter' || path === '/shop') {
+      if (path === '/counter' || path === '/shop' || path === '/counter.html' || path === '/kitchen') {
         window.location.hash = '#/shop-counter';
         return '#/shop-counter';
       }
