@@ -18,5 +18,15 @@
         "D0:EE:F3:63:8D:B7:E3:60:E5:6A:E4:D5:CC:B3:D4:FB:38:F3:2A:1E:81:5B:25:46:0B:F8:D6:9E:E8:2F:FF:43"
       ]
     }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "in.crispychick.www.twa",
+      "sha256_cert_fingerprints": [
+        "B0:28:FF:76:3F:C3:76:3F:98:1E:FA:E4:C3:E4:91:B3:2F:7A:7F:F3:B4:C2:C3:F0:18:8A:86:BB:6E:E3:F5:33"
+      ]
+    }
   }
 ]

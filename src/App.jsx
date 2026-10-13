@@ -7704,7 +7704,7 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
           window.location.hash = '#/delivery-dashboard';
           return '#/delivery-dashboard';
         }
-        if (ref.includes('counter') || ref.includes('kitchen')) {
+        if (ref.includes('counter') || ref.includes('kitchen') || ref.includes('in.crispychick.www.twa')) {
           window.location.hash = '#/shop-counter';
           return '#/shop-counter';
         }
