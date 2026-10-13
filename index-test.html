@@ -683,7 +683,7 @@
         setTray(prev => prev.map(i => {
           if (i.name === itemName) {
             const nextQty = i.quantity + diff;
-            return nextQty > 0 ? { ...i, quantity: nextQty } : i;
+            return { ...i, quantity: nextQty };
           }
           return i;
         }).filter(i => i.quantity > 0));

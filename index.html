@@ -59,6 +59,31 @@
       scrollbar-width: none;
     }
 
+    /* Clean Print / Receipt Formatting */
+    @media print {
+      body * {
+        visibility: hidden !important;
+      }
+      #crispy-chick-receipt-modal, #crispy-chick-receipt-modal * {
+        visibility: visible !important;
+      }
+      #crispy-chick-receipt-modal {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: none !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+
     /* Cinematic background ambient glow */
     html, body {
       background-color: #080808;

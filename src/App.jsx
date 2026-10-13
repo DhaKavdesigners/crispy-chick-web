@@ -8,7 +8,8 @@ import {
   Sun, Moon, UserCircle, LogIn, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
   Trash2, ArrowRight, ArrowLeft, X, Home, Briefcase, MapPin, Plus, CheckCircle,
   Package, MessageCircle, Info, LogOut, Mail, Bike, Phone, Unlock, Lock,
-  Power, ShieldAlert, AlertTriangle, BellRing, User, Navigation, QrCode, HelpCircle
+  Power, ShieldAlert, AlertTriangle, BellRing, User, Navigation, QrCode, HelpCircle,
+  Receipt, Printer, RotateCcw, Copy, Check, Share2
 } from 'lucide-react';
 
 const ICON_MAP = {
@@ -44,7 +45,13 @@ const ICON_MAP = {
   'bell-ring': BellRing,
   'user': User,
   'navigation': Navigation,
-  'qr-code': QrCode
+  'qr-code': QrCode,
+  'receipt': Receipt,
+  'printer': Printer,
+  'rotate-ccw': RotateCcw,
+  'copy': Copy,
+  'check': Check,
+  'share-2': Share2
 };
 
 const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
@@ -997,7 +1004,7 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
         setTray(prev => prev.map(i => {
           if (i.name === itemName) {
             const nextQty = i.quantity + diff;
-            return nextQty > 0 ? { ...i, quantity: nextQty } : i;
+            return { ...i, quantity: nextQty };
           }
           return i;
         }).filter(i => i.quantity > 0));
@@ -2925,12 +2932,305 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
       );
     };
 
+    // 🧾 Modern Crispy Chick Tax Invoice & Bill Receipt Modal
+    const OrderBillModal = ({ order, onClose, theme }) => {
+      const [copied, setCopied] = useState(false);
+
+      if (!order) return null;
+
+      const orderDisplayId = order.displayId || (order.id ? String(order.id).slice(-4) : '----').toUpperCase();
+      const orderDate = order.placementTime 
+        ? order.placementTime 
+        : (order.createdAt ? new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent');
+      
+      const orderFullDate = order.createdAt 
+        ? new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+        : new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+      const items = Array.isArray(order.items) ? order.items : [];
+      const allCatalogItems = Object.values(MENU_CATALOG).flat();
+
+      const itemSubtotal = items.reduce((sum, item) => {
+        let p = Number(item.price || 0);
+        if (!p) {
+          const found = allCatalogItems.find(c => c.name === item.name);
+          if (found) p = found.price;
+        }
+        return sum + (p * Number(item.quantity || 1));
+      }, 0);
+
+      const grandTotal = order.totalAmount || itemSubtotal;
+      const deliveryFee = order.deliveryFee !== undefined ? Number(order.deliveryFee) : 0;
+
+      const handleCopyId = () => {
+        try {
+          navigator.clipboard.writeText(`#${orderDisplayId}`);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch (_) {}
+      };
+
+      const handleShareWhatsApp = () => {
+        const itemListText = items.map(i => {
+          let p = Number(i.price || 0);
+          if (!p) {
+            const found = allCatalogItems.find(c => c.name === i.name);
+            if (found) p = found.price;
+          }
+          const q = Number(i.quantity || 1);
+          return `• ${q}x ${i.name}${p > 0 ? ` — ₹${p * q}` : ''}`;
+        }).join('\n');
+
+        const text = `🍗 *CRISPY CHICK KGF — ORDER RECEIPT*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `📋 *Order ID:* #${orderDisplayId}\n` +
+          `🕒 *Date & Time:* ${orderFullDate}, ${orderDate}\n` +
+          `👤 *Customer:* ${order.customerName || 'Valued Customer'} (${order.customerPhone || ''})\n` +
+          `📍 *Address:* ${order.addressDetails || ''}${order.landmarks ? `, Landmark: ${order.landmarks}` : ''}${order.deliveryPin ? ` (${order.deliveryPin})` : ''}\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `*ITEMS ORDERED:*\n` +
+          `${itemListText}\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `💵 *Total Paid:* ₹${grandTotal}\n` +
+          `💳 *Payment Mode:* Cash on Delivery / UPI\n` +
+          `✅ *Status:* ${(order.status || 'Confirmed').toUpperCase()}\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `Taste The Real Crunch • Robertsonpet, KGF\n` +
+          `Thank you for ordering with Crispy Chick! 🍗`;
+
+        const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+        window.open(url, '_blank');
+      };
+
+      const handlePrint = () => {
+        window.print();
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+          <div id="crispy-chick-receipt-modal" className={`w-full max-w-md rounded-t-3xl sm:rounded-3xl border shadow-2xl overflow-hidden flex flex-col max-h-[92vh] ${
+            theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#111114] border-neutral-800 text-white'
+          }`}>
+            {/* Top Brand Accent Line */}
+            <div className="h-1.5 bg-gradient-to-r from-red-600 via-amber-500 to-red-600"></div>
+
+            {/* Modal Header */}
+            <div className={`px-5 py-4 border-b flex items-center justify-between ${
+              theme === 'light' ? 'bg-slate-50/80 border-slate-200' : 'bg-neutral-900/60 border-neutral-800'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-amber-600 p-1.5 flex items-center justify-center shadow-md">
+                  <img src="./logo_rm_bg.png" className="w-full h-full object-contain" alt="Crispy Chick" />
+                </div>
+                <div>
+                  <h3 className="font-serif font-black text-sm tracking-wide">CRISPY CHICK</h3>
+                  <p className="text-[10px] text-neutral-400 font-medium">Tax Invoice & Order Receipt • KGF</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="no-print w-8 h-8 rounded-full bg-neutral-500/10 hover:bg-neutral-500/20 flex items-center justify-center transition"
+              >
+                <SafeIcon name="x" className="w-4 h-4 text-neutral-400" />
+              </button>
+            </div>
+
+            {/* Scrollable Receipt Body */}
+            <div className="p-5 overflow-y-auto no-scrollbar space-y-4 text-xs">
+              
+              {/* Order Meta Header Card */}
+              <div className={`p-4 rounded-2xl border space-y-3 ${
+                theme === 'light' ? 'bg-amber-500/5 border-amber-500/20' : 'bg-neutral-900/80 border-neutral-800'
+              }`}>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-neutral-400 block tracking-wider">Order Reference</span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="font-mono font-black text-base text-amber-500">#{orderDisplayId}</span>
+                      <button
+                        type="button"
+                        onClick={handleCopyId}
+                        className="no-print p-1 rounded-md hover:bg-neutral-700/30 text-neutral-400 hover:text-white transition text-[10px] flex items-center gap-0.5"
+                        title="Copy Order ID"
+                      >
+                        {copied ? <SafeIcon name="check" className="w-3 h-3 text-emerald-400" /> : <SafeIcon name="copy" className="w-3 h-3" />}
+                        <span className="text-[9px]">{copied ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <span className="text-[10px] uppercase font-bold text-neutral-400 block tracking-wider">Date & Time</span>
+                    <span className="font-medium text-[11px] text-neutral-300 block">{orderFullDate}</span>
+                    <span className="text-[10px] text-neutral-400">{orderDate}</span>
+                  </div>
+                </div>
+
+                {/* Status Pill */}
+                <div className="pt-2 border-t border-dashed border-neutral-700/30 flex items-center justify-between">
+                  <span className="text-[11px] text-neutral-400 font-medium">Order Status:</span>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                    ['successfully_delivered', 'delivered', 'completed'].includes(order.status)
+                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                      : order.status === 'out_for_delivery'
+                      ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/30'
+                      : order.status === 'preparing'
+                      ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                      : order.status === 'rejected' || order.status === 'cancelled'
+                      ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                      : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                  }`}>
+                    {order.status === 'out_for_delivery' ? 'On The Way 🛵' : (order.status || 'Confirmed').replace(/_/g, ' ')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Delivery Node */}
+              <div className={`p-3.5 rounded-2xl border space-y-1.5 ${
+                theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900/50 border-neutral-800/80'
+              }`}>
+                <div className="flex items-center gap-1.5 text-neutral-400 font-bold text-[10px] uppercase tracking-wider">
+                  <SafeIcon name="map-pin" className="w-3.5 h-3.5 text-red-500" />
+                  <span>Delivered To</span>
+                </div>
+                <div className="font-bold text-xs">
+                  {order.customerName} <span className="text-neutral-400 font-normal">({order.customerPhone})</span>
+                </div>
+                {order.addressTitle && (
+                  <span className="inline-block px-1.5 py-0.5 rounded bg-red-600/15 text-red-400 font-bold text-[9px] uppercase tracking-wider">
+                    {order.addressTitle}
+                  </span>
+                )}
+                <p className="text-[11px] text-neutral-400 leading-relaxed">
+                  {order.addressDetails}{order.landmarks ? `, Landmark: ${order.landmarks}` : ''}{order.deliveryPin ? ` • PIN: ${order.deliveryPin}` : ''}
+                </p>
+              </div>
+
+              {/* Items Breakdown Table */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-neutral-400 px-1">
+                  <span>Items Ordered ({items.length})</span>
+                  <span>Amount</span>
+                </div>
+
+                <div className={`rounded-2xl border divide-y overflow-hidden ${
+                  theme === 'light' ? 'bg-white border-slate-200 divide-slate-100' : 'bg-neutral-900/60 border-neutral-800 divide-neutral-800/60'
+                }`}>
+                  {items.map((item, idx) => {
+                    let price = Number(item.price || 0);
+                    if (!price) {
+                      const found = allCatalogItems.find(c => c.name === item.name);
+                      if (found) price = found.price;
+                    }
+                    const qty = Number(item.quantity || 1);
+                    const lineTotal = price > 0 ? price * qty : (order.totalAmount ? Math.round(order.totalAmount / items.length) : 0);
+                    return (
+                      <div key={idx} className="p-3 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <span className="flex-shrink-0 px-2 py-0.5 rounded-lg bg-red-600/15 text-red-500 dark:text-red-400 font-black text-xs border border-red-500/20">
+                            {qty}x
+                          </span>
+                          <div className="min-w-0">
+                            <h5 className="font-bold text-xs leading-snug truncate">{item.name}</h5>
+                            {price > 0 && (
+                              <span className="text-[10px] text-neutral-400">₹{price} each</span>
+                            )}
+                          </div>
+                        </div>
+                        <span className="font-bold text-xs font-mono flex-shrink-0">₹{lineTotal}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Bill Details Calculation */}
+              <div className={`p-4 rounded-2xl border space-y-2.5 ${
+                theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900/40 border-neutral-800'
+              }`}>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-neutral-400">Item Total</span>
+                  <span className="font-medium font-mono">₹{itemSubtotal > 0 ? itemSubtotal : grandTotal}</span>
+                </div>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-neutral-400">Delivery Fee (KGF Fast Drop)</span>
+                  <span className="font-bold text-emerald-400 font-mono">
+                    {deliveryFee > 0 ? `₹${deliveryFee}` : '₹0 FREE'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-neutral-400">GST & Restaurant Packaging</span>
+                  <span className="font-bold text-emerald-400 font-mono">₹0 FREE</span>
+                </div>
+
+                {/* Perforated Dashed Divider */}
+                <div className="border-t-2 border-dashed border-neutral-700/40 my-2 pt-2 flex justify-between items-baseline">
+                  <div>
+                    <span className="font-black text-xs uppercase tracking-wider block">Total Paid</span>
+                    <span className="text-[10px] text-neutral-400">Inclusive of all taxes</span>
+                  </div>
+                  <span className="font-black text-xl text-amber-500 font-mono">₹{grandTotal}</span>
+                </div>
+              </div>
+
+              {/* Payment Verification Banner */}
+              <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <SafeIcon name="check-circle" className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  <div>
+                    <span className="font-bold text-xs text-emerald-400 block leading-tight">Payment Settled</span>
+                    <span className="text-[10px] text-neutral-400">Cash on Delivery / UPI Verified</span>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-mono font-black text-[10px]">
+                  PAID ✓
+                </span>
+              </div>
+
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className={`no-print p-4 border-t flex items-center gap-2.5 ${
+              theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900 border-neutral-800'
+            }`}>
+              <button
+                type="button"
+                onClick={handleShareWhatsApp}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md shadow-emerald-950/40"
+              >
+                <SafeIcon name="message-circle" className="w-4 h-4" />
+                <span>WhatsApp Receipt</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePrint}
+                className={`py-2.5 px-4 rounded-xl border font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95 ${
+                  theme === 'light'
+                    ? 'bg-white border-slate-300 hover:bg-slate-100 text-slate-800'
+                    : 'bg-neutral-800 border-neutral-700 hover:bg-neutral-750 text-white'
+                }`}
+                title="Print or Save as PDF"
+              >
+                <SafeIcon name="printer" className="w-4 h-4" />
+                <span>Print</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     // Customer Profile Modal — Interactive Hub (My Orders, Saved Addresses, Help & Support, About & Policies)
     const CustomerProfileModal = ({ isOpen, onClose }) => {
-      const { theme, currentUser, setCurrentUser } = useContext(AppContext);
+      const { theme, currentUser, setCurrentUser, addToTray, getActivePrice } = useContext(AppContext);
       const [orderHistory, setOrderHistory] = useState([]);
       const [savedAddresses, setSavedAddresses] = useState([]);
       const [activeTab, setActiveTab] = useState('hub'); // 'hub' | 'orders' | 'addresses' | 'about'
+      const [selectedBillOrder, setSelectedBillOrder] = useState(null);
+      const [billToast, setBillToast] = useState('');
 
       // Reset to main hub when reopened
       useEffect(() => {
@@ -3240,6 +3540,38 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
                             )}
                           </div>
                         )}
+
+                        {/* Order Actions: Show Bill & Reorder */}
+                        <div className="flex items-center gap-2 pt-2 border-t border-dashed border-neutral-700/30">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedBillOrder(order)}
+                            className="flex-1 py-1.5 px-3 rounded-xl bg-gradient-to-r from-red-600/10 to-amber-600/10 hover:from-red-600/20 hover:to-amber-600/20 text-red-500 dark:text-red-400 border border-red-500/25 font-bold text-[11px] flex items-center justify-center gap-1.5 transition active:scale-95 shadow-2xs"
+                          >
+                            <SafeIcon name="receipt" className="w-3.5 h-3.5 text-red-500" />
+                            <span>Show Bill</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!order.items || order.items.length === 0) return;
+                              try { playSoulfulChime(); } catch (_) {}
+                              order.items.forEach(i => {
+                                addToTray({
+                                  name: i.name,
+                                  price: i.price || getActivePrice(i.name, 0),
+                                  image: i.image || 'items/crispy_fried_chicken.png'
+                                });
+                              });
+                              setBillToast(`Added ${order.items.length} items to tray! 🍗`);
+                              setTimeout(() => setBillToast(''), 3000);
+                            }}
+                            className="py-1.5 px-3 rounded-xl bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-750 text-neutral-700 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700 font-bold text-[11px] flex items-center justify-center gap-1.5 transition active:scale-95"
+                          >
+                            <SafeIcon name="rotate-ccw" className="w-3.5 h-3.5" />
+                            <span>Reorder</span>
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}
@@ -3379,6 +3711,23 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* Bill Toast */}
+            {billToast && (
+              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xl animate-fade-in flex items-center gap-2">
+                <span>🍗</span>
+                <span>{billToast}</span>
+              </div>
+            )}
+
+            {/* Dedicated Order Bill Modal */}
+            {selectedBillOrder && (
+              <OrderBillModal 
+                order={selectedBillOrder} 
+                onClose={() => setSelectedBillOrder(null)} 
+                theme={theme} 
+              />
             )}
 
           </div>
@@ -4775,16 +5124,16 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
                 </div>
 
                 <div className={activeOrdersList.length > 0 ? "overflow-x-auto block" : "hidden"}>
-                  <table className="w-full text-left border-collapse">
+                  <table className="w-full min-w-[760px] md:min-w-[820px] text-left border-collapse">
                     <thead>
                       <tr className={`border-b text-[10px] text-neutral-455 font-bold uppercase tracking-wider ${
                         theme === 'light' ? 'bg-slate-100/30' : 'bg-neutral-900/20'
                       }`}>
-                        <th className="w-2/5 px-3 py-2">Order Details</th>
-                        <th className="w-1/6 px-3 py-2">Billing Summary</th>
-                        <th className="w-1/6 px-3 py-2">Delivery Node</th>
-                        <th className="w-auto px-3 py-2 text-center">Status</th>
-                        <th className="w-auto px-3 py-2 text-right">Actions</th>
+                        <th className="w-[40%] min-w-[300px] px-4 py-3">Order Details</th>
+                        <th className="w-[14%] min-w-[120px] px-4 py-3">Billing Summary</th>
+                        <th className="w-[24%] min-w-[180px] px-4 py-3">Delivery Node</th>
+                        <th className="w-[11%] min-w-[100px] px-4 py-3 text-center">Status</th>
+                        <th className="w-[11%] min-w-[120px] px-4 py-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${theme === 'light' ? 'divide-slate-200' : 'divide-neutral-900/60'}`}>
@@ -4794,24 +5143,35 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
                           <tr key={order.id || order.displayId} className={`hover:bg-neutral-900/5 transition-colors ${
                             order.status === 'pending' ? 'bg-cafe-amber/5 animate-pulse-slow' : ''
                           }`}>
-                            <td className="px-6 py-4 space-y-1">
+                            <td className="px-4 py-3.5 space-y-1.5 align-top">
                               <div className="flex items-center space-x-2">
-                                <span className={`font-bold text-sm ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>#{order.displayId || (order.id ? String(order.id).slice(-4) : '----').toUpperCase()}</span>
-                                <span className="text-[10px] text-neutral-550 font-medium">{dateText}</span>
+                                <span className={`font-mono font-extrabold text-sm ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>#{order.displayId || (order.id ? String(order.id).slice(-4) : '----').toUpperCase()}</span>
+                                <span className="text-[10px] text-neutral-450 font-medium">{dateText}</span>
                               </div>
-                              {/* High-Visibility Shop Counter Typography */}
-                              <div className="mt-2 space-y-1">
+                              {/* Tablet-Optimized High-Visibility Order Item Rows */}
+                              <div className="mt-2 space-y-1.5">
                                 {order.items.map((i, idx) => (
                                   <div 
                                     key={idx}
-                                    className={`text-lg font-bold tracking-wide block ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}
+                                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all ${
+                                      theme === 'light' 
+                                        ? 'bg-amber-500/10 border-amber-500/20 text-slate-900' 
+                                        : 'bg-neutral-900/90 border-neutral-800 text-white'
+                                    }`}
                                   >
-                                    <span className="text-cafe-amber mr-1">{idx + 1}.</span>{i.quantity}x {i.name}
+                                    {/* High-Contrast Vibrant Red Quantity Badge */}
+                                    <span className="flex-shrink-0 min-w-[28px] text-center px-2 py-0.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 text-white font-black text-xs sm:text-sm tracking-wider shadow-xs">
+                                      {i.quantity}x
+                                    </span>
+                                    {/* Clean, Readable Item Name */}
+                                    <span className="font-bold text-xs sm:text-sm leading-snug break-words flex-1 min-w-0">
+                                      {i.name}
+                                    </span>
                                   </div>
                                 ))}
                               </div>
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-4 py-3.5 align-top">
                               <span className={`text-sm font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>₹{order.totalAmount}</span>
                               <span className="block text-[10px] text-neutral-505 font-bold uppercase">COD / UPI</span>
                               {(order.tampered || tamperedOrderIds.has(order.id)) && (
@@ -4820,7 +5180,7 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
                                 </span>
                               )}
                             </td>
-                            <td className="px-6 py-4 space-y-1">
+                            <td className="px-4 py-3.5 space-y-1 align-top">
                               <div className={`text-xs font-semibold ${theme === 'light' ? 'text-slate-800' : 'text-slate-300'}`}>{order.customerName} ({order.customerPhone})</div>
                               {/* Recipient badge when ordered for someone else */}
                               {order.orderedForSomeoneElse && order.recipientName && (
@@ -4837,7 +5197,7 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
                                 {order.addressDetails ? `${order.addressDetails}, ` : ''}{order.landmarks}{order.deliveryPin ? ` (${order.deliveryPin})` : ''}
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-center">
+                            <td className="px-4 py-3.5 text-center align-top">
                               <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${
                                 order.status === 'pending' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
                                 order.status === 'preparing' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
@@ -4850,7 +5210,7 @@ const SafeIcon = ({ name, className = 'w-4 h-4', ...props }) => {
                                 {order.status === 'arrived' ? 'At Doorstep 📍' : order.status.replace(/_/g, ' ')}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
+                            <td className="px-4 py-3.5 text-right space-x-2 whitespace-nowrap align-top">
                               <span className={order.status === 'pending' ? "inline-flex gap-2" : "hidden"}>
                                 <button
                                   onClick={() => handleReject(order.id)}
